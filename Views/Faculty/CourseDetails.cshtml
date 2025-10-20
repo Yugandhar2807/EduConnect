@@ -231,6 +231,20 @@
         </div>
     </div>
 
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-3">
+            <div class="card-header">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <h5 style="margin: 0;">📂 Study Materials 
+                        <span class="badge bg-light text-dark">@(Model.Materials?.Count() ?? 0)</span>
+                    </h5>
+                    <a class="btn btn-sm btn-primary" asp-action="UploadMaterial" asp-route-courseId="@Model.Id">
+                        <i class="fas fa-cloud-upload-alt"></i> Upload Material
+                    </a>
+                </div>
+            </div>
+
             <div class="card-body">
                 @if (Model.Materials?.Any() ?? false)
                 {
@@ -331,12 +345,14 @@
 
 <div class="row mt-4">
     <div class="col-md-12">
-        <a class="btn btn-secondary" asp-action="Dashboard">
-            <i class="fas fa-arrow-left"></i> Back to Dashboard
-        </a>
-        <a class="btn btn-warning" asp-action="EditCourse" asp-route-id="@Model.Id">
-            <i class="fas fa-edit"></i> Edit Course
-        </a>
+        <div style="display: flex; gap: 10px; justify-content: flex-start;">
+            <a class="btn btn-secondary" asp-action="Dashboard">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+            <a class="btn btn-warning" asp-action="EditCourse" asp-route-id="@Model.Id">
+                <i class="fas fa-edit"></i> Edit Course
+            </a>
+        </div>
     </div>
 </div>
 
