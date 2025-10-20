@@ -49,9 +49,15 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
 
+// Apply migrations and initialize database
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
+
 // Initialize database with default roles and admin user
-// Commented out temporarily for debugging
-// await InitializeDatabase(app);
+await InitializeDatabase(app);
 
 app.Run();
 
