@@ -110,6 +110,68 @@ async Task InitializeDatabase(WebApplication webApp)
                     webApp.Logger.LogWarning($"Failed to create admin user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
                 }
             }
+
+            // Create authorized student users
+            var studentEmails = new[]
+            {
+                ("22X01A6748@nrcmec.org", "Chichu@2004", "Yugandhar", "Reddy"),
+                ("22X01A6647@nrcmec.org", "Chichu@2005", "Sindhu", "Kumar"),
+                ("22X01A6761@nrcmec.org", "Chichu@2003", "Vikas", "Singh"),
+                ("22X01A6751@nrcmec.org", "Chichu@2002", "Pankaj", "Gupta"),
+                ("22X01A6762@nrcmec.org", "Chichu@2001", "Sujana", "Devi")
+            };
+
+            foreach (var (email, password, firstName, lastName) in studentEmails)
+            {
+                var studentUser = await userManager.FindByEmailAsync(email);
+                if (studentUser == null)
+                {
+                    var student = new ApplicationUser
+                    {
+                        UserName = email,
+                        Email = email,
+                        FirstName = firstName,
+                        LastName = lastName,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    var result = await userManager.CreateAsync(student, password);
+                    if (result.Succeeded)
+                    {
+                        await userManager.AddToRoleAsync(student, "Student");
+                        webApp.Logger.LogInformation($"Student user {email} created successfully.");
+                    }
+                    else
+                    {
+                        webApp.Logger.LogWarning($"Failed to create student user {email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                    }
+                }
+            }
+
+            // Create authorized faculty user
+            var facultyUser = await userManager.FindByEmailAsync("RamuGandikota@gmail.com");
+            if (facultyUser == null)
+            {
+                var faculty = new ApplicationUser
+                {
+                    UserName = "RamuGandikota@gmail.com",
+                    Email = "RamuGandikota@gmail.com",
+                    FirstName = "Ramu",
+                    LastName = "Gandikota",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                var result = await userManager.CreateAsync(faculty, "Ramu@123");
+                if (result.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(faculty, "Faculty");
+                    webApp.Logger.LogInformation("Faculty user created successfully.");
+                }
+                else
+                {
+                    webApp.Logger.LogWarning($"Failed to create faculty user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                }
+            }
         }
         catch (Exception ex)
         {
