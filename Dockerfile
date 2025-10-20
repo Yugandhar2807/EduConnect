@@ -8,7 +8,7 @@ RUN dotnet restore
 
 # Copy source code
 COPY . .
-RUN dotnet build -c Release -o /app/build
+RUN dotnet build EduConnect.csproj -c Release -o /app/build
 
 # Publish stage
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
