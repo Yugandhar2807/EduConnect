@@ -86,8 +86,8 @@ EduConnect/
 ## Default Credentials
 
 An admin account is automatically created during the first run:
-- **Email**: admin@educonnect.com
-- **Password**: Admin@123456
+- **Email**: *************
+- **Password**: ****************
 
 **Note**: Change these credentials in production!
 
