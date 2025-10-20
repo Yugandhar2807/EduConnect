@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: educonnect
+    env: dotnet
+    plan: free
+    buildCommand: dotnet build EduConnect.csproj
+    startCommand: dotnet EduConnect.dll
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
