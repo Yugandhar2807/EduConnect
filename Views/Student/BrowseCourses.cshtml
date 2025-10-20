@@ -1,0 +1,51 @@
+@model IEnumerable<EduConnect.Models.Course>
+
+@{
+    ViewData["Title"] = "Browse Courses";
+}
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>Browse Available Courses</h1>
+    </div>
+</div>
+
+@if (Model.Any())
+{
+    <div class="row">
+        @foreach (var course in Model)
+        {
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">@course.Title</h5>
+                        <p class="card-text">@course.Description</p>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                Category: @course.Category<br />
+                                Credits: @course.Credits<br />
+                                Faculty: @course.Faculty?.FirstName @course.Faculty?.LastName
+                            </small>
+                        </p>
+                        <div class="mt-3">
+                            <form asp-action="EnrollCourse" method="post" style="display:inline;">
+                                <input type="hidden" name="courseId" value="@course.Id" />
+                                <button type="submit" class="btn btn-primary">Enroll Now</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="alert alert-info">
+        <p>No courses available for enrollment at this time.</p>
+    </div>
+}
+
+<div class="mt-4">
+    <a class="btn btn-secondary" asp-action="Dashboard">Back to Dashboard</a>
+</div>

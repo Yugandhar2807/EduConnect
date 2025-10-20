@@ -1,0 +1,157 @@
+@model Quiz
+
+@{
+    ViewData["Title"] = "Take Quiz - " + Model.Title;
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-lg">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h4 class="mb-0">📝 @Model.Title</h4>
+                            <small>@Model.Description</small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div id="timer" style="font-size: 1.5rem; font-weight: bold;">
+                                <span id="minutes">@Model.DurationInMinutes</span>:<span id="seconds">00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <p class="mb-0"><strong>📊 Quiz Details:</strong></p>
+                        <ul class="mb-0">
+                            <li>Total Questions: <strong>@Model.TotalQuestions</strong></li>
+                            <li>Total Marks: <strong>@Model.TotalMarks</strong></li>
+                            <li>Passing Marks: <strong>@Model.PassingMarks</strong></li>
+                            <li>Duration: <strong>@Model.DurationInMinutes minutes</strong></li>
+                        </ul>
+                    </div>
+
+                    @if (Model.Questions != null && Model.Questions.Any())
+                    {
+                        <form id="quizForm">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="quizId" value="@Model.Id" />
+                            
+                            @for (int i = 0; i < Model.Questions.Count; i++)
+                            {
+                                var question = Model.Questions.ElementAt(i);
+                                <div class="mb-4 p-3 border rounded" style="background-color: #f9f9f9;">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5 class="mb-0">Question @(i + 1) of @Model.Questions.Count</h5>
+                                        <span class="badge bg-success">@question.Marks marks</span>
+                                    </div>
+                                    <p class="mb-3"><strong>@question.QuestionText</strong></p>
+
+                                    <div class="ms-3">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="radio" name="question_@question.Id" value="A" id="q@(question.Id)_A" />
+                                            <label class="form-check-label" for="q@(question.Id)_A" style="cursor: pointer;">
+                                                <strong>A)</strong> @question.OptionA
+                                            </label>
+                                        </div>
+
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="radio" name="question_@question.Id" value="B" id="q@(question.Id)_B" />
+                                            <label class="form-check-label" for="q@(question.Id)_B" style="cursor: pointer;">
+                                                <strong>B)</strong> @question.OptionB
+                                            </label>
+                                        </div>
+
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="radio" name="question_@question.Id" value="C" id="q@(question.Id)_C" />
+                                            <label class="form-check-label" for="q@(question.Id)_C" style="cursor: pointer;">
+                                                <strong>C)</strong> @question.OptionC
+                                            </label>
+                                        </div>
+
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="question_@question.Id" value="D" id="q@(question.Id)_D" />
+                                            <label class="form-check-label" for="q@(question.Id)_D" style="cursor: pointer;">
+                                                <strong>D)</strong> @question.OptionD
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
+                            <div class="mt-4 d-flex gap-2">
+                                <button type="button" id="submitBtn" class="btn btn-success btn-lg">
+                                    <i class="bi bi-check-circle"></i> Submit Quiz
+                                </button>
+                                <a asp-action="CourseDetails" asp-route-id="@Model.CourseId" class="btn btn-secondary btn-lg">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </a>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            ⚠️ No questions added to this quiz yet.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Timer countdown
+        let timeLeft = @(Model.DurationInMinutes * 60);
+        function updateTimer() {
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+            document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+            document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+            timeLeft--;
+
+            if (timeLeft < 0) {
+                clearInterval(timerInterval);
+                document.getElementById('submitBtn').click();
+            }
+        }
+        let timerInterval = setInterval(updateTimer, 1000);
+
+        // Form submission
+        document.getElementById('submitBtn').addEventListener('click', function() {
+            const formData = new FormData(document.getElementById('quizForm'));
+            const quizId = formData.get('quizId');
+            const answers = {};
+            
+            for (let [key, value] of formData.entries()) {
+                if (key !== 'quizId') {
+                    answers[key] = value;
+                }
+            }
+
+            fetch(`/Student/SubmitQuiz?quizId=${quizId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
+                },
+                body: JSON.stringify(answers)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirectUrl;
+                } else {
+                    alert('Error submitting quiz: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error submitting quiz');
+            });
+        });
+    </script>
+}

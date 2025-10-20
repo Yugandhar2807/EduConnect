@@ -1,0 +1,81 @@
+@model QuizQuestion
+
+@{
+    ViewData["Title"] = "Add Quiz Question";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h2>Add Question to Quiz</h2>
+            <hr />
+            
+            <form asp-action="AddQuizQuestion" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <div class="mb-3">
+                    <label asp-for="QuestionText" class="form-label">Question</label>
+                    <textarea asp-for="QuestionText" class="form-control" rows="3" placeholder="Enter the question"></textarea>
+                    <span asp-validation-for="QuestionText" class="text-danger"></span>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">Answer Options</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label asp-for="OptionA" class="form-label">Option A</label>
+                            <input asp-for="OptionA" class="form-control" placeholder="Option A" />
+                            <span asp-validation-for="OptionA" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="OptionB" class="form-label">Option B</label>
+                            <input asp-for="OptionB" class="form-control" placeholder="Option B" />
+                            <span asp-validation-for="OptionB" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="OptionC" class="form-label">Option C</label>
+                            <input asp-for="OptionC" class="form-control" placeholder="Option C" />
+                            <span asp-validation-for="OptionC" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="OptionD" class="form-label">Option D</label>
+                            <input asp-for="OptionD" class="form-control" placeholder="Option D" />
+                            <span asp-validation-for="OptionD" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="CorrectOption" class="form-label">Correct Answer</label>
+                    <select asp-for="CorrectOption" class="form-control">
+                        <option value="">-- Select Correct Option --</option>
+                        <option value="A">Option A</option>
+                        <option value="B">Option B</option>
+                        <option value="C">Option C</option>
+                        <option value="D">Option D</option>
+                    </select>
+                    <span asp-validation-for="CorrectOption" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Marks" class="form-label">Marks/Points</label>
+                    <input asp-for="Marks" type="number" class="form-control" min="1" placeholder="e.g., 1" />
+                    <span asp-validation-for="Marks" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <input asp-for="QuizId" type="hidden" />
+                    <button type="submit" class="btn btn-primary">Add Question</button>
+                    <a asp-action="CourseDetails" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

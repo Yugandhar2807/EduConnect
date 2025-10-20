@@ -1,0 +1,93 @@
+@model IEnumerable<EduConnect.Models.Course>
+
+@{
+    ViewData["Title"] = "Faculty Dashboard";
+}
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>Faculty Dashboard</h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Total Courses</h5>
+                <p class="card-text display-4">@ViewBag.TotalCourses</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Total Students</h5>
+                <p class="card-text display-4">@ViewBag.TotalStudents</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Announcements</h5>
+                <p class="card-text display-4">@ViewBag.TotalAnnouncements</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <h2>My Courses</h2>
+        <a class="btn btn-primary mb-3" asp-action="CreateCourse">Create New Course</a>
+
+        @if (Model.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Course Title</th>
+                            <th>Category</th>
+                            <th>Students Enrolled</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var course in Model)
+                        {
+                            <tr>
+                                <td>@course.Title</td>
+                                <td>@course.Category</td>
+                                <td>@course.Enrollments?.Count() ?? 0</td>
+                                <td>
+                                    @if (course.IsActive)
+                                    {
+                                        <span class="badge bg-success">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">Inactive</span>
+                                    }
+                                </td>
+                                <td>
+                                    <a class="btn btn-sm btn-info" asp-action="CourseDetails" asp-route-id="@course.Id">View</a>
+                                    <a class="btn btn-sm btn-warning" asp-action="EditCourse" asp-route-id="@course.Id">Edit</a>
+                                    <form method="post" asp-action="DeleteCourse" asp-route-id="@course.Id" style="display:inline;">
+                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="text-muted">No courses created yet. <a asp-action="CreateCourse">Create one now!</a></p>
+        }
+    </div>
+</div>

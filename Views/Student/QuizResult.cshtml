@@ -1,0 +1,160 @@
+@model QuizResult
+
+@{
+    ViewData["Title"] = "Quiz Result";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <!-- Score Card -->
+            <div class="card shadow-lg mb-4">
+                <div class="card-body text-center py-5">
+                    @if (Model.IsPassed)
+                    {
+                        <div style="font-size: 4rem; color: #28a745;">✓</div>
+                        <h2 class="card-title text-success mb-3">Congratulations!</h2>
+                        <p class="lead text-muted">You have passed the quiz</p>
+                    }
+                    else
+                    {
+                        <div style="font-size: 4rem; color: #dc3545;">✕</div>
+                        <h2 class="card-title text-danger mb-3">Quiz Incomplete</h2>
+                        <p class="lead text-muted">You have not reached the passing score</p>
+                    }
+
+                    <hr class="my-4" />
+
+                    <!-- Score Display -->
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="p-4 bg-light rounded">
+                                <h6 class="text-muted">Score</h6>
+                                <h3 class="mb-0"><strong>@Model.MarksObtained/@Model.TotalMarks</strong></h3>
+                                <small class="text-muted">marks</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-4 bg-light rounded">
+                                <h6 class="text-muted">Percentage</h6>
+                                <h3 class="mb-0"><strong>@Math.Round(Model.PercentageScore, 1)%</strong></h3>
+                                <small class="text-muted">score</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-4 bg-light rounded">
+                                <h6 class="text-muted">Status</h6>
+                                <h3 class="mb-0">
+                                    @if (Model.IsPassed)
+                                    {
+                                        <span class="badge bg-success" style="font-size: 1rem;">PASSED</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger" style="font-size: 1rem;">FAILED</span>
+                                    }
+                                </h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz Details -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">📋 Quiz Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Quiz Title:</strong></p>
+                            <p class="text-muted">@Model.Quiz?.Title</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Attempted On:</strong></p>
+                            <p class="text-muted">@Model.AttemptedAt.ToString("dd MMM yyyy, hh:mm tt")</p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Passing Score:</strong></p>
+                            <p class="text-muted">@Model.Quiz?.PassingMarks marks</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Total Questions:</strong></p>
+                            <p class="text-muted">@Model.Quiz?.TotalQuestions questions</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Indicator -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">📊 Performance Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Your Score vs Passing Score</span>
+                            <span><strong>@Math.Round(Model.PercentageScore, 1)% / @Model.Quiz?.PassingMarks%</strong></span>
+                        </div>
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar @(Model.IsPassed ? "bg-success" : "bg-danger")" 
+                                 role="progressbar" 
+                                 style="width: @Model.PercentageScore%"
+                                 aria-valuenow="@Model.PercentageScore"
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                <strong>@Math.Round(Model.PercentageScore, 1)%</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (!Model.IsPassed)
+                    {
+                        <div class="alert alert-info mt-3 mb-0">
+                            <strong>💡 Tip:</strong> You need at least @Model.Quiz?.PassingMarks% to pass. 
+                            Review the course materials and try again!
+                        </div>
+                    }
+                    else if (Model.PercentageScore >= 90)
+                    {
+                        <div class="alert alert-success mt-3 mb-0">
+                            <strong>🎯 Excellent:</strong> Outstanding performance! You've mastered this topic.
+                        </div>
+                    }
+                    else if (Model.PercentageScore >= 70)
+                    {
+                        <div class="alert alert-success mt-3 mb-0">
+                            <strong>👍 Good:</strong> Well done! Keep practicing to improve further.
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-flex gap-2 mb-4">
+                <a asp-action="CourseDetails" asp-route-id="@Model.Quiz?.CourseId" class="btn btn-primary">
+                    <i class="bi bi-arrow-left"></i> Back to Course
+                </a>
+                <a asp-action="MyProgress" class="btn btn-secondary">
+                    <i class="bi bi-graph-up"></i> View My Progress
+                </a>
+                @if (!Model.IsPassed)
+                {
+                    <a asp-action="TakeQuiz" asp-route-quizId="@Model.QuizId" class="btn btn-success">
+                        <i class="bi bi-arrow-repeat"></i> Retake Quiz
+                    </a>
+                }
+            </div>
+
+            <!-- Footer Info -->
+            <div class="alert alert-light text-muted text-center mb-0">
+                <small>Quiz completed successfully. Your score has been recorded in your progress dashboard.</small>
+            </div>
+        </div>
+    </div>
+</div>

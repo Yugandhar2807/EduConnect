@@ -1,0 +1,197 @@
+@model IEnumerable<EduConnect.Models.Enrollment>
+
+@{
+    ViewData["Title"] = "My Progress";
+}
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>My Progress</h1>
+    </div>
+</div>
+
+@if (Model.Any())
+{
+    <div class="row">
+        @foreach (var enrollment in Model)
+        {
+            <div class="col-md-12 mb-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5 class="mb-0">@enrollment.Course?.Title</h5>
+                                <small>Enrolled on @enrollment.EnrolledAt.ToString("dd MMM yyyy")</small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                @if (enrollment.IsCompleted)
+                                {
+                                    <span class="badge bg-light text-success" style="font-size: 0.9rem;">✓ Completed</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-light text-dark" style="font-size: 0.9rem;">In Progress</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Progress Bar -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Course Progress</h6>
+                                <strong class="fs-5">@enrollment.ProgressPercentage%</strong>
+                            </div>
+                            <div class="progress" style="height: 28px;">
+                                <div class="progress-bar @GetProgressBadgeClass(enrollment.ProgressPercentage)" 
+                                     role="progressbar" 
+                                     style="width: @enrollment.ProgressPercentage%" 
+                                     aria-valuenow="@enrollment.ProgressPercentage" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    <span class="text-white"><strong>@enrollment.ProgressPercentage%</strong></span>
+                                </div>
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                @if (enrollment.ProgressPercentage >= 90)
+                                {
+                                    <text>🎉 Excellent! You're almost done.</text>
+                                }
+                                else if (enrollment.ProgressPercentage >= 70)
+                                {
+                                    <text>👍 Good progress! Keep going.</text>
+                                }
+                                else if (enrollment.ProgressPercentage >= 50)
+                                {
+                                    <text>📚 Halfway there! Continue with the course.</text>
+                                }
+                                else
+                                {
+                                    <text>🚀 Just getting started! Access materials and quizzes.</text>
+                                }
+                            </small>
+                        </div>
+
+                        <!-- Course Stats -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="p-3 bg-light rounded text-center border-start border-primary" style="border-left-width: 4px !important;">
+                                    <small class="text-muted d-block">Materials Available</small>
+                                    <h5 class="mb-0">@(enrollment.Course?.Materials?.Count ?? 0)</h5>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 bg-light rounded text-center border-start border-info" style="border-left-width: 4px !important;">
+                                    <small class="text-muted d-block">Quizzes Available</small>
+                                    <h5 class="mb-0">@(enrollment.Course?.Quizzes?.Count ?? 0)</h5>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 bg-light rounded text-center border-start border-success" style="border-left-width: 4px !important;">
+                                    <small class="text-muted d-block">Your Quiz Attempts</small>
+                                    <h5 class="mb-0">@(ViewBag.QuizResults != null ? ((IEnumerable<EduConnect.Models.QuizResult>)ViewBag.QuizResults).Count(q => q.Quiz?.CourseId == enrollment.CourseId) : 0)</h5>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 bg-light rounded text-center border-start border-warning" style="border-left-width: 4px !important;">
+                                    <small class="text-muted d-block">Average Score</small>
+                                    @{
+                                        var courseResults = ViewBag.QuizResults != null 
+                                            ? ((IEnumerable<EduConnect.Models.QuizResult>)ViewBag.QuizResults).Where(q => q.Quiz?.CourseId == enrollment.CourseId).ToList()
+                                            : new List<EduConnect.Models.QuizResult>();
+                                        var avgScore = courseResults.Any() ? Math.Round(courseResults.Average(q => q.PercentageScore), 1) : 0;
+                                    }
+                                    <h5 class="mb-0">@avgScore%</h5>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-2">
+                            <a asp-action="CourseDetails" asp-route-id="@enrollment.CourseId" class="btn btn-primary">
+                                <i class="bi bi-book"></i> View Materials & Quizzes
+                            </a>
+                            @if (!enrollment.IsCompleted && enrollment.ProgressPercentage >= 80)
+                            {
+                                <form asp-action="CompleteCourse" asp-route-id="@enrollment.Id" method="post" style="display: inline;">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="bi bi-check-circle"></i> Mark as Complete
+                                    </button>
+                                </form>
+                            }
+                            <a href="#" class="btn btn-outline-secondary">
+                                <i class="bi bi-eye"></i> View Certificates
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="alert alert-info">
+        <p>You are not enrolled in any courses yet.</p>
+    </div>
+}
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <h3>Quiz Performance</h3>
+        @if (ViewBag.QuizResults != null && ViewBag.QuizResults.Count > 0)
+        {
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Course</th>
+                            <th>Quiz</th>
+                            <th>Score</th>
+                            <th>Percentage</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var result in ViewBag.QuizResults)
+                        {
+                            <tr>
+                                <td>@result.Quiz?.Course?.Title</td>
+                                <td>@result.Quiz?.Title</td>
+                                <td>@result.MarksObtained / @result.TotalMarks</td>
+                                <td>@Math.Round(result.PercentageScore, 2)%</td>
+                                <td>
+                                    @if (result.IsPassed)
+                                    {
+                                        <span class="badge bg-success">Passed</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">Failed</span>
+                                    }
+                                </td>
+                                <td>@result.AttemptedAt.ToString("dd MMM yyyy")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="text-muted">No quiz attempts yet.</p>
+        }
+    </div>
+</div>
+
+<div class="mt-4">
+    <a class="btn btn-secondary" asp-action="Dashboard">Back to Dashboard</a>
+</div>
+
+@functions {
+    private string GetProgressBadgeClass(int percentage)
+    {
+        return percentage >= 90 ? "bg-success" : percentage >= 70 ? "bg-info" : percentage >= 50 ? "bg-warning" : "bg-danger";
+    }
+}

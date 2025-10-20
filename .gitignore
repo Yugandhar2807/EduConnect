@@ -1,0 +1,57 @@
+## Binaries and executables
+*.exe
+*.dll
+*.so
+*.dylib
+
+## Entity Framework
+*.db
+*.db-shm
+*.db-wal
+
+## MSBuild
+[Oo]bj/
+[Bb]in/
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr]m/
+[Aa][Rr]m64/
+bld/
+
+## Visual Studio
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.sln.docstates
+
+## Local History for Visual Studio Code
+.history/
+
+## Node modules (if using npm for frontend)
+node_modules/
+package-lock.json
+
+## Environment variables
+.env
+.env.local
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Rider
+.idea/
+*.sln.iml
+
+## Upload directory (will be created at runtime)
+wwwroot/uploads/*
+!wwwroot/uploads/.gitkeep
+
+## Database files
+*.mdf
+*.ldf

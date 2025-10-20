@@ -1,0 +1,113 @@
+@model IEnumerable<EduConnect.Models.Enrollment>
+
+@{
+    ViewData["Title"] = "Student Dashboard";
+}
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>Student Dashboard</h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Enrolled Courses</h5>
+                <p class="card-text display-4">@ViewBag.EnrolledCourses</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Completed Courses</h5>
+                <p class="card-text display-4">@ViewBag.CompletedCourses</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Overall Progress</h5>
+                <p class="card-text display-4">
+                    @if (ViewBag.EnrolledCourses > 0)
+                    {
+                        <span>@Math.Round(Model.Average(e => e.ProgressPercentage), 1)%</span>
+                    }
+                    else
+                    {
+                        <span>0%</span>
+                    }
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h3>Recent Announcements</h3>
+        @if (ViewBag.Announcements?.Count > 0)
+        {
+            <div class="list-group">
+                @foreach (var announcement in ViewBag.Announcements)
+                {
+                    <div class="list-group-item">
+                        <h5 class="mb-1">@announcement.Title</h5>
+                        <p class="mb-1">@announcement.Content</p>
+                        <small class="text-muted">@announcement.CreatedAt.ToString("dd MMM yyyy HH:mm")</small>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted">No announcements at this time.</p>
+        }
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <h2>My Courses</h2>
+        <a class="btn btn-primary mb-3" asp-action="BrowseCourses">Browse Courses</a>
+
+        @if (Model.Any())
+        {
+            <div class="row">
+                @foreach (var enrollment in Model)
+                {
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">@enrollment.Course?.Title</h5>
+                                <p class="card-text">@enrollment.Course?.Description</p>
+                                <div class="mb-2">
+                                    <small class="text-muted">Progress: @enrollment.ProgressPercentage%</small>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar" role="progressbar" style="width: @enrollment.ProgressPercentage%" aria-valuenow="@enrollment.ProgressPercentage" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                                @if (enrollment.IsCompleted)
+                                {
+                                    <span class="badge bg-success">Completed</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-primary">In Progress</span>
+                                }
+                                <a class="btn btn-sm btn-info mt-2" asp-action="CourseDetails" asp-route-id="@enrollment.CourseId">View Course</a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted">You are not enrolled in any courses yet. <a asp-action="BrowseCourses">Browse courses</a> to get started!</p>
+        }
+    </div>
+</div>

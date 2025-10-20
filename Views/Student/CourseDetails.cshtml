@@ -1,0 +1,99 @@
+@model EduConnect.Models.Course
+
+@{
+    ViewData["Title"] = @Model.Title;
+}
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>@Model.Title</h1>
+        <p class="text-muted">@Model.Category - @Model.Credits Credits</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Course Description</h5>
+            </div>
+            <div class="card-body">
+                <p>@Model.Description</p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Study Materials (@Model.Materials?.Count() ?? 0)</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.Materials?.Any() ?? false)
+                {
+                    <ul class="list-group">
+                        @foreach (var material in Model.Materials)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>@material.Title</strong>
+                                    <br />
+                                    <small class="text-muted">@material.FileType - @(material.FileSize / 1024)KB - Uploaded: @material.UploadedAt.ToString("dd MMM yyyy")</small>
+                                </div>
+                                <a href="@material.FilePath" class="btn btn-sm btn-primary" download>Download</a>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="text-muted">No materials available yet.</p>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5>Quizzes (@Model.Quizzes?.Count() ?? 0)</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.Quizzes?.Any() ?? false)
+                {
+                    <ul class="list-group">
+                        @foreach (var quiz in Model.Quizzes)
+                        {
+                            @if (quiz.IsActive)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>@quiz.Title</strong>
+                                        <br />
+                                        <small class="text-muted">@quiz.TotalQuestions Questions - @quiz.TotalMarks Marks - @quiz.DurationInMinutes minutes</small>
+                                    </div>
+                                    <a asp-action="TakeQuiz" asp-route-quizId="@quiz.Id" class="btn btn-sm btn-success">Attempt</a>
+                                </li>
+                            }
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="text-muted">No quizzes available for this course.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Course Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Instructor:</strong> @Model.Faculty?.FirstName @Model.Faculty?.LastName</p>
+                <p><strong>Category:</strong> @Model.Category</p>
+                <p><strong>Credits:</strong> @Model.Credits</p>
+                <p><strong>Students Enrolled:</strong> @(Model.Enrollments?.Count() ?? 0)</p>
+                <a class="btn btn-secondary btn-sm w-100" asp-action="Dashboard">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>

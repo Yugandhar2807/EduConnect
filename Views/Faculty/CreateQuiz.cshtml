@@ -1,0 +1,81 @@
+@{
+    ViewData["Title"] = "Create Quiz";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">📝 Create New Quiz</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">Create a new quiz for <strong>@ViewBag.CourseTitle</strong></p>
+
+                    <form asp-action="CreateQuiz" method="post">
+                        <input type="hidden" name="courseId" value="@ViewBag.CourseId" />
+
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Quiz Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" name="title" placeholder="e.g., Chapter 1 Quiz" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" placeholder="Quiz description (optional)"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="passingMarks" class="form-label">Passing Marks <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="passingMarks" name="passingMarks" min="1" value="40" required>
+                                    <small class="form-text text-muted">Minimum marks needed to pass</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="durationInMinutes" class="form-label">Duration (Minutes) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="durationInMinutes" name="durationInMinutes" min="1" value="30" required>
+                                    <small class="form-text text-muted">Time limit in minutes</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="@Url.Action("CourseDetails", new { id = ViewBag.CourseId })" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Create Quiz
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border-radius: 8px;
+        border: none;
+    }
+
+    .card-header {
+        border-radius: 8px 8px 0 0;
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #333;
+    }
+
+    .text-danger {
+        color: #dc3545;
+    }
+
+    .btn {
+        border-radius: 5px;
+        font-weight: 500;
+    }
+</style>

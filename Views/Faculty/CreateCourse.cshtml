@@ -1,0 +1,51 @@
+@model EduConnect.Models.Course
+
+@{
+    ViewData["Title"] = "Create Course";
+}
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <h1>Create New Course</h1>
+
+        <form asp-action="CreateCourse" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="mb-3">
+                <label asp-for="Title" class="form-label">Course Title</label>
+                <input asp-for="Title" class="form-control" />
+                <span asp-validation-for="Title" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label">Description</label>
+                <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Category" class="form-label">Category</label>
+                <input asp-for="Category" class="form-control" placeholder="e.g., Programming, Mathematics, Science" />
+                <span asp-validation-for="Category" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Credits" class="form-label">Credits</label>
+                <input asp-for="Credits" type="number" class="form-control" />
+                <span asp-validation-for="Credits" class="text-danger"></span>
+            </div>
+
+            <div class="form-check mb-3">
+                <input asp-for="IsActive" type="checkbox" class="form-check-input" />
+                <label asp-for="IsActive" class="form-check-label">Active</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Create Course</button>
+            <a class="btn btn-secondary" asp-action="Dashboard">Cancel</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

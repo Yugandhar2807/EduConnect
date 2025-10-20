@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = "Error";
+}
+
+<h1 class="text-danger">Error.</h1>
+<h2 class="text-danger">An error occurred while processing your request.</h2>
+
+@if (Model?.ShowRequestId ?? false)
+{
+    <p>
+        <strong>Request ID:</strong> <code>@Model?.RequestId</code>
+    </p>
+}
+
+<p>Development mode shows detailed error information. Switch to <strong>Production</strong> mode to display custom error pages.</p>
