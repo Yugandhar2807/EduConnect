@@ -12,6 +12,7 @@ namespace EduConnect.Data
         }
 
         public DbSet<Course> Courses { get; set; }
+        public DbSet<Topic> Topics { get; set; }
         public DbSet<Material> Materials { get; set; }
         public DbSet<Enrollment> Enrollments { get; set; }
         public DbSet<Quiz> Quizzes { get; set; }
@@ -42,17 +43,38 @@ namespace EduConnect.Data
                 .HasForeignKey(e => e.CourseId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Topic relationship
+            builder.Entity<Topic>()
+                .HasOne(t => t.Course)
+                .WithMany(c => c.Topics)
+                .HasForeignKey(t => t.CourseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             builder.Entity<Material>()
                 .HasOne(m => m.Course)
                 .WithMany(c => c.Materials)
                 .HasForeignKey(m => m.CourseId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            builder.Entity<Material>()
+                .HasOne(m => m.Topic)
+                .WithMany(t => t.Materials)
+                .HasForeignKey(m => m.TopicId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
             builder.Entity<Quiz>()
                 .HasOne(q => q.Course)
                 .WithMany(c => c.Quizzes)
                 .HasForeignKey(q => q.CourseId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Quiz>()
+                .HasOne(q => q.Topic)
+                .WithMany(t => t.Quizzes)
+                .HasForeignKey(q => q.TopicId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
 
             builder.Entity<QuizQuestion>()
                 .HasOne(qq => qq.Quiz)

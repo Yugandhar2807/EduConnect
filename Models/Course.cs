@@ -13,6 +13,7 @@ namespace EduConnect.Models
         public bool IsActive { get; set; } = true;
 
         public ApplicationUser? Faculty { get; set; }
+        public ICollection<Topic>? Topics { get; set; }
         public ICollection<Material>? Materials { get; set; }
         public ICollection<Enrollment>? Enrollments { get; set; }
         public ICollection<Quiz>? Quizzes { get; set; }

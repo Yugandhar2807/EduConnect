@@ -403,5 +403,98 @@ namespace EduConnect.Controllers
             TempData["Success"] = "Question deleted successfully!";
             return RedirectToAction(nameof(CourseDetails), new { id = courseId });
         }
+
+        // Topic Management
+        [HttpGet]
+        public async Task<IActionResult> AddTopic(int courseId)
+        {
+            var course = await _context.Courses.FindAsync(courseId);
+            if (course == null) return NotFound();
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (course.FacultyId != userId) return Forbid();
+
+            ViewBag.CourseId = courseId;
+            ViewBag.CourseName = course.Title;
+            return View(new Topic { CourseId = courseId });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddTopic(int courseId, string name, string description, IFormFile pdfFile)
+        {
+            var course = await _context.Courses.FindAsync(courseId);
+            if (course == null) return NotFound();
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (course.FacultyId != userId) return Forbid();
+
+            var topic = new Topic
+            {
+                CourseId = courseId,
+                Name = name,
+                Description = description,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Handle PDF upload
+            if (pdfFile != null && pdfFile.Length > 0)
+            {
+                try
+                {
+                    var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "topics");
+                    Directory.CreateDirectory(uploadsFolder);
+
+                    var fileName = Guid.NewGuid().ToString() + Path.GetExtension(pdfFile.FileName);
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await pdfFile.CopyToAsync(stream);
+                    }
+
+                    topic.PdfFilePath = "/uploads/topics/" + fileName;
+                }
+                catch (Exception ex)
+                {
+                    TempData["Error"] = "Error uploading PDF: " + ex.Message;
+                    return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+                }
+            }
+
+            _context.Topics.Add(topic);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Topic added successfully!";
+            return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteTopic(int topicId, int courseId)
+        {
+            var topic = await _context.Topics.FindAsync(topicId);
+            if (topic == null) return NotFound();
+
+            var course = await _context.Courses.FindAsync(courseId);
+            if (course == null) return NotFound();
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (course.FacultyId != userId) return Forbid();
+
+            // Delete PDF file if it exists
+            if (!string.IsNullOrEmpty(topic.PdfFilePath))
+            {
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", topic.PdfFilePath.TrimStart('/'));
+                if (System.IO.File.Exists(filePath))
+                {
+                    System.IO.File.Delete(filePath);
+                }
+            }
+
+            _context.Topics.Remove(topic);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Topic deleted successfully!";
+            return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+        }
     }
 }

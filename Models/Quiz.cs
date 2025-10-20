@@ -6,6 +6,7 @@ namespace EduConnect.Models
         public string? Title { get; set; }
         public string? Description { get; set; }
         public int CourseId { get; set; }
+        public int? TopicId { get; set; } // Optional: quiz can be linked to a topic
         public int TotalQuestions { get; set; }
         public int TotalMarks { get; set; }
         public int PassingMarks { get; set; }
@@ -14,6 +15,7 @@ namespace EduConnect.Models
         public bool IsActive { get; set; } = true;
 
         public Course? Course { get; set; }
+        public Topic? Topic { get; set; }
         public ICollection<QuizQuestion>? Questions { get; set; }
         public ICollection<QuizResult>? Results { get; set; }
     }

@@ -4,79 +4,291 @@
     ViewData["Title"] = @Model.Title;
 }
 
-<div class="row mb-4">
-    <div class="col-md-12">
-        <h1>@Model.Title</h1>
-        <p class="text-muted">@Model.Category - @Model.Credits Credits</p>
-    </div>
+<style>
+    .course-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+    }
+
+    .course-description-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .course-description-btn:hover {
+        background: linear-gradient(135deg, #5568d3 0%, #6a3f92 100%);
+        transform: translateX(5px);
+    }
+
+    .course-description-content {
+        display: none;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 0 0 8px 8px;
+        border-top: 2px solid #667eea;
+    }
+
+    .course-description-content.show {
+        display: block;
+    }
+
+    .slideDown {
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @* Keyframes animation *@
+    /* Animation in CSS */
+
+    .topic-card {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        background: white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+
+    .topic-card:hover {
+        box-shadow: 0 5px 15px rgba(102,126,234,0.2);
+        border-color: #667eea;
+    }
+
+    .topic-header {
+        padding: 15px;
+        background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+        border-bottom: 2px solid #e0e0e0;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+    }
+
+    .topic-header:hover {
+        background: linear-gradient(135deg, #667eea25 0%, #764ba225 100%);
+    }
+
+    .topic-header h6 {
+        margin: 0;
+        color: #333;
+        font-weight: 600;
+        flex: 1;
+    }
+
+    .topic-icon {
+        font-size: 1.2em;
+        margin-right: 10px;
+        color: #667eea;
+    }
+
+    .toggle-icon {
+        color: #667eea;
+        transition: transform 0.3s ease;
+        font-size: 1.2em;
+    }
+
+    .toggle-icon.open {
+        transform: rotate(180deg);
+    }
+
+    .topic-content {
+        display: none;
+        padding: 20px;
+        background: white;
+    }
+
+    .topic-content.show {
+        display: block;
+    }
+
+    .pdf-link {
+        display: inline-block;
+        padding: 10px 15px;
+        background: #667eea;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        margin: 10px 0;
+        transition: all 0.3s ease;
+        font-weight: 600;
+    }
+
+    .pdf-link:hover {
+        background: #764ba2;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102,126,234,0.3);
+    }
+
+    .materials-section, .quiz-section {
+        margin-top: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 5px;
+    }
+
+    .materials-section h6, .quiz-section h6 {
+        color: #333;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+
+    .material-item, .quiz-item {
+        padding: 10px;
+        background: white;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        border-left: 3px solid #667eea;
+    }
+
+    .quiz-attempt-btn {
+        background: #28a745;
+        color: white;
+        padding: 6px 12px;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 0.9em;
+        transition: all 0.2s ease;
+        display: inline-block;
+    }
+
+    .quiz-attempt-btn:hover {
+        background: #218838;
+        transform: translateY(-2px);
+    }
+
+    .card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-radius: 10px;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px 10px 0 0;
+        padding: 15px;
+    }
+</style>
+
+<div class="course-header">
+    <h1 style="margin-bottom: 10px;">@Model.Title</h1>
+    <p style="margin: 0; opacity: 0.9;">@Model.Category - @Model.Credits Credits</p>
 </div>
 
 <div class="row">
     <div class="col-md-8">
-        <div class="card mb-3">
-            <div class="card-header">
-                <h5>Course Description</h5>
-            </div>
-            <div class="card-body">
+        <!-- Course Description as Expandable Button -->
+        <div class="card mb-4">
+            <button class="course-description-btn" onclick="toggleDescription()">
+                <span><i class="fas fa-book-open"></i> Course Description</span>
+                <span class="toggle-icon" id="descToggle">▼</span>
+            </button>
+            <div class="course-description-content" id="descriptionContent">
                 <p>@Model.Description</p>
             </div>
         </div>
 
-        <div class="card mb-3">
-            <div class="card-header">
-                <h5>Study Materials (@Model.Materials?.Count() ?? 0)</h5>
-            </div>
-            <div class="card-body">
-                @if (Model.Materials?.Any() ?? false)
-                {
-                    <ul class="list-group">
-                        @foreach (var material in Model.Materials)
-                        {
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>@material.Title</strong>
-                                    <br />
-                                    <small class="text-muted">@material.FileType - @(material.FileSize / 1024)KB - Uploaded: @material.UploadedAt.ToString("dd MMM yyyy")</small>
-                                </div>
-                                <a href="@material.FilePath" class="btn btn-sm btn-primary" download>Download</a>
-                            </li>
-                        }
-                    </ul>
-                }
-                else
-                {
-                    <p class="text-muted">No materials available yet.</p>
-                }
-            </div>
-        </div>
-
+        <!-- Topics Section -->
         <div class="card">
             <div class="card-header">
-                <h5>Quizzes (@Model.Quizzes?.Count() ?? 0)</h5>
+                <h5 style="margin: 0;"><i class="fas fa-list"></i> Course Topics (@(Model.Topics?.Count() ?? 0))</h5>
             </div>
             <div class="card-body">
-                @if (Model.Quizzes?.Any() ?? false)
+                @if (Model.Topics?.Any() ?? false)
                 {
-                    <ul class="list-group">
-                        @foreach (var quiz in Model.Quizzes)
-                        {
-                            @if (quiz.IsActive)
-                            {
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong>@quiz.Title</strong>
-                                        <br />
-                                        <small class="text-muted">@quiz.TotalQuestions Questions - @quiz.TotalMarks Marks - @quiz.DurationInMinutes minutes</small>
+                    @foreach (var topic in Model.Topics.OrderBy(t => t.CreatedAt))
+                    {
+                        <div class="topic-card">
+                            <div class="topic-header" onclick="toggleTopic(this)">
+                                <div style="display: flex; align-items: center; flex: 1;">
+                                    <span class="topic-icon"><i class="fas fa-bookmark"></i></span>
+                                    <h6 style="margin: 0;">@topic.Name</h6>
+                                </div>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="topic-content">
+                                @if (!string.IsNullOrEmpty(topic.Description))
+                                {
+                                    <p style="color: #666; margin-bottom: 15px;">@topic.Description</p>
+                                }
+
+                                <!-- PDF Link -->
+                                @if (!string.IsNullOrEmpty(topic.PdfFilePath))
+                                {
+                                    <div style="margin-bottom: 15px;">
+                                        <a href="@topic.PdfFilePath" target="_blank" class="pdf-link">
+                                            <i class="fas fa-file-pdf"></i> Download Topic PDF
+                                        </a>
                                     </div>
-                                    <a asp-action="TakeQuiz" asp-route-quizId="@quiz.Id" class="btn btn-sm btn-success">Attempt</a>
-                                </li>
-                            }
-                        }
-                    </ul>
+                                }
+
+                                <!-- Materials for this topic -->
+                                @if (Model.Materials?.Where(m => m.TopicId == topic.Id).Any() ?? false)
+                                {
+                                    <div class="materials-section">
+                                        <h6><i class="fas fa-video"></i> Additional Materials</h6>
+                                        @foreach (var material in Model.Materials.Where(m => m.TopicId == topic.Id))
+                                        {
+                                            <div class="material-item">
+                                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                    <div>
+                                                        <strong>@material.Title</strong>
+                                                        <br />
+                                                        <small style="color: #999;">@material.FileType - @(material.FileSize / 1024)KB</small>
+                                                    </div>
+                                                    <a href="@material.FilePath" class="btn btn-sm btn-outline-primary" download>
+                                                        <i class="fas fa-download"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                <!-- Quizzes for this topic -->
+                                @if (Model.Quizzes?.Where(q => q.TopicId == topic.Id && q.IsActive).Any() ?? false)
+                                {
+                                    <div class="quiz-section">
+                                        <h6><i class="fas fa-pencil-alt"></i> Quizzes</h6>
+                                        @foreach (var quiz in Model.Quizzes.Where(q => q.TopicId == topic.Id && q.IsActive))
+                                        {
+                                            <div class="quiz-item">
+                                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                    <div>
+                                                        <strong>@quiz.Title</strong>
+                                                        <br />
+                                                        <small style="color: #999;">@quiz.TotalQuestions Q - @quiz.TotalMarks Marks - @quiz.DurationInMinutes min</small>
+                                                    </div>
+                                                    <a asp-action="TakeQuiz" asp-route-quizId="@quiz.Id" class="quiz-attempt-btn">
+                                                        <i class="fas fa-play"></i> Attempt
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
                 }
                 else
                 {
-                    <p class="text-muted">No quizzes available for this course.</p>
+                    <p class="text-muted"><i class="fas fa-info-circle"></i> No topics available yet. Check back soon!</p>
                 }
             </div>
         </div>
@@ -85,15 +297,42 @@
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">
-                <h5>Course Information</h5>
+                <h5 style="margin: 0;">📋 Course Information</h5>
             </div>
             <div class="card-body">
-                <p><strong>Instructor:</strong> @Model.Faculty?.FirstName @Model.Faculty?.LastName</p>
-                <p><strong>Category:</strong> @Model.Category</p>
-                <p><strong>Credits:</strong> @Model.Credits</p>
-                <p><strong>Students Enrolled:</strong> @(Model.Enrollments?.Count() ?? 0)</p>
-                <a class="btn btn-secondary btn-sm w-100" asp-action="Dashboard">Back to Dashboard</a>
+                <p><strong><i class="fas fa-user"></i> Instructor:</strong> <br />@Model.Faculty?.FirstName @Model.Faculty?.LastName</p>
+                <p><strong><i class="fas fa-tag"></i> Category:</strong> <br />@Model.Category</p>
+                <p><strong><i class="fas fa-star"></i> Credits:</strong> <br />@Model.Credits</p>
+                <p><strong><i class="fas fa-users"></i> Enrolled Students:</strong> <br />@(Model.Enrollments?.Count() ?? 0)</p>
+                <a class="btn btn-primary w-100" asp-action="Dashboard">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    function toggleDescription() {
+        const content = document.getElementById('descriptionContent');
+        const toggle = document.getElementById('descToggle');
+        content.classList.toggle('show');
+        toggle.classList.toggle('open');
+    }
+
+    function toggleTopic(headerElement) {
+        const content = headerElement.nextElementSibling;
+        const toggle = headerElement.querySelector('.toggle-icon');
+        
+        // Close other topics
+        document.querySelectorAll('.topic-content.show').forEach(el => {
+            if (el !== content) {
+                el.classList.remove('show');
+                el.previousElementSibling.querySelector('.toggle-icon').classList.remove('open');
+            }
+        });
+
+        content.classList.toggle('show');
+        toggle.classList.toggle('open');
+    }
+</script>

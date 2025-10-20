@@ -184,14 +184,53 @@
         <div class="card mb-3">
             <div class="card-header">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h5 style="margin: 0;">📂 Study Materials 
-                        <span class="badge bg-light text-dark">@(Model.Materials?.Count() ?? 0)</span>
+                    <h5 style="margin: 0;">� Topics
+                        <span class="badge bg-light text-dark">@(Model.Topics?.Count() ?? 0)</span>
                     </h5>
-                    <a class="btn btn-sm btn-primary" asp-action="UploadMaterial" asp-route-courseId="@Model.Id">
-                        <i class="fas fa-cloud-upload-alt"></i> Upload Material
+                    <a class="btn btn-sm btn-primary" asp-action="AddTopic" asp-route-courseId="@Model.Id">
+                        <i class="fas fa-plus-circle"></i> Add Topic
                     </a>
                 </div>
             </div>
+            <div class="card-body">
+                @if (Model.Topics?.Any() ?? false)
+                {
+                    <div class="list-group">
+                        @foreach (var topic in Model.Topics.OrderBy(t => t.CreatedAt))
+                        {
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div style="flex: 1;">
+                                    <strong><i class="fas fa-book"></i> @topic.Name</strong>
+                                    @if (!string.IsNullOrEmpty(topic.Description))
+                                    {
+                                        <br />
+                                        <small class="text-muted">@topic.Description</small>
+                                    }
+                                    <br />
+                                    @if (!string.IsNullOrEmpty(topic.PdfFilePath))
+                                    {
+                                        <small class="text-muted">
+                                            📄 PDF: <a href="@topic.PdfFilePath" target="_blank" style="color: #667eea; text-decoration: underline;">Download PDF</a>
+                                        </small>
+                                    }
+                                </div>
+                                <form method="post" asp-action="DeleteTopic" asp-route-topicId="@topic.Id" asp-route-courseId="@Model.Id" style="margin: 0;" onsubmit="return confirm('Are you sure you want to delete this topic?');">
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p style="font-size: 0.9em;">No topics added yet. Click "Add Topic" to create learning modules for your course</p>
+                }
+            </div>
+        </div>
+    </div>
+
             <div class="card-body">
                 @if (Model.Materials?.Any() ?? false)
                 {
