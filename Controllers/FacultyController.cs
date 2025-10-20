@@ -118,6 +118,7 @@ namespace EduConnect.Controllers
             if (id == null) return NotFound();
 
             var course = await _context.Courses
+                .Include(c => c.Topics)
                 .Include(c => c.Materials)
                 .Include(c => c.Enrollments)
                 .Include(c => c.Quizzes)

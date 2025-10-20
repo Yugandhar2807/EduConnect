@@ -292,6 +292,60 @@
                 }
             </div>
         </div>
+
+        <!-- Materials Section (Unlinked Materials) -->
+        @if (Model.Materials?.Where(m => m.TopicId == null).Any() ?? false)
+        {
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 style="margin: 0;"><i class="fas fa-video"></i> Course Materials</h5>
+                </div>
+                <div class="card-body">
+                    @foreach (var material in Model.Materials.Where(m => m.TopicId == null))
+                    {
+                        <div class="material-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong>@material.Title</strong>
+                                    <br />
+                                    <small style="color: #999;">@material.FileType - @(material.FileSize / 1024)KB</small>
+                                </div>
+                                <a href="@material.FilePath" class="btn btn-sm btn-outline-primary" download>
+                                    <i class="fas fa-download"></i> Download
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Quizzes Section (Unlinked Quizzes) -->
+        @if (Model.Quizzes?.Where(q => q.TopicId == null && q.IsActive).Any() ?? false)
+        {
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 style="margin: 0;"><i class="fas fa-pencil-alt"></i> Course Quizzes</h5>
+                </div>
+                <div class="card-body">
+                    @foreach (var quiz in Model.Quizzes.Where(q => q.TopicId == null && q.IsActive))
+                    {
+                        <div class="quiz-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong>@quiz.Title</strong>
+                                    <br />
+                                    <small style="color: #999;">@quiz.TotalQuestions Questions - @quiz.TotalMarks Marks - @quiz.DurationInMinutes min</small>
+                                </div>
+                                <a asp-action="TakeQuiz" asp-route-quizId="@quiz.Id" class="quiz-attempt-btn">
+                                    <i class="fas fa-play"></i> Attempt
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
     </div>
 
     <div class="col-md-4">

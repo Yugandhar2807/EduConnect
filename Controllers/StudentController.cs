@@ -97,6 +97,7 @@ namespace EduConnect.Controllers
             if (enrollment == null) return Forbid();
 
             var course = await _context.Courses
+                .Include(c => c.Topics)
                 .Include(c => c.Materials)
                 .Include(c => c.Quizzes)
                 .FirstOrDefaultAsync(c => c.Id == id);
