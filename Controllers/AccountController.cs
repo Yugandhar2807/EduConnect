@@ -13,6 +13,19 @@ namespace EduConnect.Controllers
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ILogger<AccountController> _logger;
 
+        // Whitelist of allowed student emails
+        private static readonly HashSet<string> AllowedStudentEmails = new()
+        {
+            "22X01A6748@nrcmec.org",
+            "22X01A6647@nrcmec.org",
+            "22X01A6761@nrcmec.org",
+            "22X01A6751@nrcmec.org",
+            "22X01A6762@nrcmec.org"
+        };
+
+        // Only allowed faculty email
+        private static readonly string AllowedFacultyEmail = "RamuGandikota@gmail.com";
+
         public AccountController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
@@ -38,6 +51,13 @@ namespace EduConnect.Controllers
             ViewData["ReturnUrl"] = returnUrl;
             if (ModelState.IsValid)
             {
+                // Validate email against whitelist
+                if (!AllowedStudentEmails.Contains(model.Email ?? "") && model.Email != AllowedFacultyEmail && model.Email != "admin@educonnect.com")
+                {
+                    ModelState.AddModelError(string.Empty, "❌ Access Denied: Your email is not authorized to access this system.");
+                    return View(model);
+                }
+
                 var result = await _signInManager.PasswordSignInAsync(
                     model.Email ?? "", 
                     model.Password ?? "", 
@@ -77,6 +97,21 @@ namespace EduConnect.Controllers
             ViewData["ReturnUrl"] = returnUrl;
             if (ModelState.IsValid)
             {
+                // Validate email against whitelist
+                string role = model.Role == "Faculty" ? "Faculty" : "Student";
+                
+                if (role == "Student" && !AllowedStudentEmails.Contains(model.Email ?? ""))
+                {
+                    ModelState.AddModelError(string.Empty, "❌ Access Denied: Your email is not authorized to register as a student.");
+                    return View(model);
+                }
+
+                if (role == "Faculty" && model.Email != AllowedFacultyEmail)
+                {
+                    ModelState.AddModelError(string.Empty, "❌ Access Denied: Your email is not authorized to register as faculty.");
+                    return View(model);
+                }
+
                 var user = new ApplicationUser
                 {
                     UserName = model.Email,
@@ -91,7 +126,6 @@ namespace EduConnect.Controllers
                     _logger.LogInformation("User created a new account with password.");
 
                     // Assign role
-                    var role = model.Role == "Faculty" ? "Faculty" : "Student";
                     await _userManager.AddToRoleAsync(user, role);
 
                     await _signInManager.SignInAsync(user, isPersistent: false);
