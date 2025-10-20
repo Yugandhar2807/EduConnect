@@ -13,7 +13,15 @@ RUN dotnet build EduConnect.csproj -c Release -o /app/build
 # Publish stage
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
+
+# Create data directory for SQLite database
+RUN mkdir -p /var/data
+
+# Copy built application
 COPY --from=build /app/build .
+
+# Copy static files (wwwroot)
+COPY wwwroot ./wwwroot
 
 # Expose port
 EXPOSE 8080

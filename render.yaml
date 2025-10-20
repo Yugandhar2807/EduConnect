@@ -4,6 +4,10 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./Dockerfile
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
