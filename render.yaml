@@ -3,6 +3,7 @@ services:
     name: educonnect
     env: dotnet
     plan: free
+    rootDir: ./
     buildCommand: dotnet build EduConnect.csproj
     startCommand: dotnet EduConnect.dll
     envVars:
