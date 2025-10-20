@@ -1,11 +1,9 @@
 services:
   - type: web
     name: educonnect
-    env: dotnet
+    env: docker
     plan: free
-    rootDir: ./
-    buildCommand: dotnet build EduConnect.csproj
-    startCommand: dotnet EduConnect.dll
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
