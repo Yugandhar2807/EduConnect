@@ -426,5 +426,103 @@ namespace EduConnect.Controllers
 
             return Math.Min(topicsProgress + quizProgress, 100);
         }
+
+        /// <summary>
+        /// Execute student code for coding questions (basic implementation)
+        /// This is a simplified version for demonstration purposes
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> ExecuteCode([FromBody] dynamic request)
+        {
+            try
+            {
+                string? code = request?.code;
+                string? language = request?.language;
+
+                if (string.IsNullOrEmpty(code))
+                    return Json(new { success = false, error = "No code provided" });
+
+                // For this simple implementation, we'll use a basic approach
+                // In production, use a proper sandboxing solution like Docker or a code execution API
+                
+                // Timeout in milliseconds
+                int timeout = 5000;
+                
+                switch (language?.ToLower())
+                {
+                    case "csharp":
+                        return await ExecuteCSharp(code, timeout);
+                    case "python":
+                        return await ExecutePython(code, timeout);
+                    case "javascript":
+                        return await ExecuteJavaScript(code, timeout);
+                    default:
+                        return Json(new { success = false, error = "Unsupported language" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        private Task<IActionResult> ExecuteCSharp(string code, int timeout)
+        {
+            try
+            {
+                // Simple C# evaluation for basic expressions/console output
+                // For production, use Roslyn or a proper C# REPL service
+                
+                // This is a placeholder - actual implementation would use Roslyn compiler
+                var output = "C# code execution not yet implemented in demo. " +
+                            "Please check the expected output to verify your code logic.";
+                
+                return Task.FromResult((IActionResult)Json(new { success = true, output = output }));
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult((IActionResult)Json(new { success = false, error = ex.Message }));
+            }
+        }
+
+        private Task<IActionResult> ExecutePython(string code, int timeout)
+        {
+            try
+            {
+                // For Python execution, you could use:
+                // 1. Python.NET (pythonnet)
+                // 2. External Python process
+                // 3. API call to a Python execution service
+                
+                var output = "Python code execution not yet implemented in demo. " +
+                            "Please check the expected output to verify your code logic.";
+                
+                return Task.FromResult((IActionResult)Json(new { success = true, output = output }));
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult((IActionResult)Json(new { success = false, error = ex.Message }));
+            }
+        }
+
+        private Task<IActionResult> ExecuteJavaScript(string code, int timeout)
+        {
+            try
+            {
+                // For JavaScript execution, you could use:
+                // 1. Jint (JavaScript interpreter for .NET)
+                // 2. Node.js via external process
+                // 3. API call to a JS execution service
+                
+                var output = "JavaScript code execution not yet implemented in demo. " +
+                            "Please check the expected output to verify your code logic.";
+                
+                return Task.FromResult((IActionResult)Json(new { success = true, output = output }));
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult((IActionResult)Json(new { success = false, error = ex.Message }));
+            }
+        }
     }
 }

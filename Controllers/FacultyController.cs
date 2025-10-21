@@ -309,7 +309,7 @@ namespace EduConnect.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddQuizQuestion(int quizId, string questionText, string optionA, string optionB, string optionC, string optionD, char correctOption, int marks)
+        public async Task<IActionResult> AddQuizQuestion(int quizId, QuizQuestion model)
         {
             var quiz = await _context.Quizzes.Include(q => q.Course).FirstOrDefaultAsync(q => q.Id == quizId);
             if (quiz == null) return NotFound();
@@ -317,32 +317,54 @@ namespace EduConnect.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (quiz.Course?.FacultyId != userId) return Forbid();
 
-            if (string.IsNullOrEmpty(questionText) || string.IsNullOrEmpty(optionA) || string.IsNullOrEmpty(optionB) || 
-                string.IsNullOrEmpty(optionC) || string.IsNullOrEmpty(optionD) || marks <= 0)
+            // Validate based on question type
+            if (model.QuestionType == QuestionType.Coding)
             {
-                ModelState.AddModelError("", "Please fill in all fields properly.");
-                ViewBag.QuizId = quizId;
-                ViewBag.QuizTitle = quiz.Title;
-                return View();
+                // Coding question validation
+                if (string.IsNullOrEmpty(model.QuestionText) || string.IsNullOrEmpty(model.CodeTemplate) || 
+                    string.IsNullOrEmpty(model.ExpectedOutput) || model.Marks <= 0)
+                {
+                    ModelState.AddModelError("", "Please fill in all coding question fields.");
+                    ViewBag.QuizId = quizId;
+                    ViewBag.QuizTitle = quiz.Title;
+                    return View();
+                }
+            }
+            else
+            {
+                // Multiple choice or true/false validation
+                if (string.IsNullOrEmpty(model.QuestionText) || string.IsNullOrEmpty(model.OptionA) || 
+                    string.IsNullOrEmpty(model.OptionB) || string.IsNullOrEmpty(model.OptionC) || 
+                    string.IsNullOrEmpty(model.OptionD) || model.Marks <= 0)
+                {
+                    ModelState.AddModelError("", "Please fill in all fields properly.");
+                    ViewBag.QuizId = quizId;
+                    ViewBag.QuizTitle = quiz.Title;
+                    return View();
+                }
             }
 
             var question = new QuizQuestion
             {
                 QuizId = quizId,
-                QuestionText = questionText,
-                OptionA = optionA,
-                OptionB = optionB,
-                OptionC = optionC,
-                OptionD = optionD,
-                CorrectOption = char.ToUpper(correctOption),
-                Marks = marks
+                QuestionText = model.QuestionText,
+                QuestionType = model.QuestionType,
+                OptionA = model.OptionA,
+                OptionB = model.OptionB,
+                OptionC = model.OptionC,
+                OptionD = model.OptionD,
+                CorrectOption = char.ToUpper(model.CorrectOption),
+                Marks = model.Marks,
+                CodeTemplate = model.CodeTemplate,
+                ExpectedOutput = model.ExpectedOutput,
+                ProgrammingLanguage = model.ProgrammingLanguage ?? "csharp"
             };
 
             _context.Add(question);
 
             // Update quiz TotalQuestions and TotalMarks
             quiz.TotalQuestions += 1;
-            quiz.TotalMarks += marks;
+            quiz.TotalMarks += model.Marks;
             _context.Update(quiz);
 
             await _context.SaveChangesAsync();

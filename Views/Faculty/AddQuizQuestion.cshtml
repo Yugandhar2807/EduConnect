@@ -13,13 +13,24 @@
             <form asp-action="AddQuizQuestion" method="post">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
+                <!-- Question Type Selection -->
+                <div class="mb-3">
+                    <label asp-for="QuestionType" class="form-label">Question Type</label>
+                    <select asp-for="QuestionType" class="form-control" id="questionType" onchange="toggleQuestionType()">
+                        <option value="0">Multiple Choice</option>
+                        <option value="1">True/False</option>
+                        <option value="2">Coding</option>
+                    </select>
+                </div>
+
                 <div class="mb-3">
                     <label asp-for="QuestionText" class="form-label">Question</label>
                     <textarea asp-for="QuestionText" class="form-control" rows="3" placeholder="Enter the question"></textarea>
                     <span asp-validation-for="QuestionText" class="text-danger"></span>
                 </div>
 
-                <div class="card mb-3">
+                <!-- Multiple Choice Options -->
+                <div id="multipleChoiceSection" class="card mb-3">
                     <div class="card-header">Answer Options</div>
                     <div class="card-body">
                         <div class="mb-3">
@@ -48,7 +59,7 @@
                     </div>
                 </div>
 
-                <div class="mb-3">
+                <div id="correctAnswerSection" class="mb-3">
                     <label asp-for="CorrectOption" class="form-label">Correct Answer</label>
                     <select asp-for="CorrectOption" class="form-control">
                         <option value="">-- Select Correct Option --</option>
@@ -58,6 +69,30 @@
                         <option value="D">Option D</option>
                     </select>
                     <span asp-validation-for="CorrectOption" class="text-danger"></span>
+                </div>
+
+                <!-- Coding Question Fields -->
+                <div id="codingSection" style="display: none;">
+                    <div class="mb-3">
+                        <label asp-for="ProgrammingLanguage" class="form-label">Programming Language</label>
+                        <select asp-for="ProgrammingLanguage" class="form-control">
+                            <option value="csharp">C#</option>
+                            <option value="python">Python</option>
+                            <option value="javascript">JavaScript</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="CodeTemplate" class="form-label">Code Template (for students to complete)</label>
+                        <textarea asp-for="CodeTemplate" class="form-control" rows="6" placeholder="Provide starting code template for students" style="font-family: monospace;"></textarea>
+                        <small class="form-text text-muted">e.g., function sum(a, b) { // TODO: implement }</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ExpectedOutput" class="form-label">Expected Output</label>
+                        <textarea asp-for="ExpectedOutput" class="form-control" rows="3" placeholder="Expected program output when correct code is submitted" style="font-family: monospace;"></textarea>
+                        <small class="form-text text-muted">e.g., 10 (if sum(5, 5) should output 10)</small>
+                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -75,6 +110,30 @@
         </div>
     </div>
 </div>
+
+<script>
+    function toggleQuestionType() {
+        const typeSelect = document.getElementById('questionType');
+        const mcSection = document.getElementById('multipleChoiceSection');
+        const correctSection = document.getElementById('correctAnswerSection');
+        const codingSection = document.getElementById('codingSection');
+        
+        const selectedType = parseInt(typeSelect.value);
+        
+        if (selectedType === 2) { // Coding
+            mcSection.style.display = 'none';
+            correctSection.style.display = 'none';
+            codingSection.style.display = 'block';
+        } else { // Multiple Choice or True/False
+            mcSection.style.display = 'block';
+            correctSection.style.display = 'block';
+            codingSection.style.display = 'none';
+        }
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', toggleQuestionType);
+</script>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
