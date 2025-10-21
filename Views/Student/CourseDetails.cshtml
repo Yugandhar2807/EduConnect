@@ -319,18 +319,18 @@
                     @foreach (var material in Model.Materials.Where(m => m.TopicId == null))
                     {
                         <div class="material-item">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                                <div style="flex: 1; min-width: 0;">
                                     <strong>@material.Title</strong>
                                     <br />
                                     <small style="color: #999;">@material.FileType - @(material.FileSize / 1024)KB</small>
                                 </div>
-                                <div style="display: flex; gap: 5px;">
-                                    <a href="@material.FilePath" class="btn btn-sm btn-outline-primary" download>
+                                <div style="display: flex; gap: 5px; flex-shrink: 0;">
+                                    <a href="@material.FilePath" class="btn btn-sm btn-outline-primary" download style="white-space: nowrap;">
                                         <i class="fas fa-download"></i> Download
                                     </a>
-                                    <button class="btn btn-sm btn-success" onclick="markMaterialComplete(@material.Id, '@material.Title')">
-                                        <i class="fas fa-check-circle"></i>
+                                    <button class="btn btn-sm btn-success" onclick="markMaterialComplete(@material.Id, '@material.Title')" style="white-space: nowrap;">
+                                        <i class="fas fa-check-circle"></i> Complete
                                     </button>
                                 </div>
                             </div>

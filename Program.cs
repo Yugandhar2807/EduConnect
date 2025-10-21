@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using EduConnect.Data;
 using EduConnect.Models;
+using EduConnect.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,9 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
+
+// Register Chatbot Service
+builder.Services.AddScoped<IChatbotService, ChatbotService>();
 
 var app = builder.Build();
 

@@ -62,7 +62,7 @@
 
             <!-- Quiz Details -->
             <div class="card mb-4">
-                <div class="card-header bg-light">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                     <h5 class="mb-0">📋 Quiz Details</h5>
                 </div>
                 <div class="card-body">
@@ -92,14 +92,14 @@
 
             <!-- Performance Indicator -->
             <div class="card mb-4">
-                <div class="card-header bg-light">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                     <h5 class="mb-0">📊 Performance Analysis</h5>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span>Your Score vs Passing Score</span>
-                            <span><strong>@Math.Round(Model.PercentageScore, 1)% / @Model.Quiz?.PassingMarks%</strong></span>
+                            <span>Your Score vs Total Score</span>
+                            <span><strong>@Model.MarksObtained / @Model.TotalMarks</strong></span>
                         </div>
                         <div class="progress" style="height: 30px;">
                             <div class="progress-bar @(Model.IsPassed ? "bg-success" : "bg-danger")" 
@@ -116,7 +116,7 @@
                     @if (!Model.IsPassed)
                     {
                         <div class="alert alert-info mt-3 mb-0">
-                            <strong>💡 Tip:</strong> You need at least @Model.Quiz?.PassingMarks% to pass. 
+                            <strong>💡 Tip:</strong> You need at least @Model.Quiz?.PassingMarks marks to pass. 
                             Review the course materials and try again!
                         </div>
                     }

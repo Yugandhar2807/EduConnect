@@ -3,6 +3,7 @@ using System;
 using EduConnect.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EduConnect.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251021021926_AddFullNameAndDepartmentToUser")]
+    partial class AddFullNameAndDepartmentToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
@@ -130,45 +133,6 @@ namespace EduConnect.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("EduConnect.Models.ChatMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("Category")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsResolved")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Response")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Sender")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<double?>("Sentiment")
-                        .HasColumnType("REAL");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("ChatMessages");
                 });
 
             modelBuilder.Entity("EduConnect.Models.Course", b =>
@@ -620,17 +584,6 @@ namespace EduConnect.Migrations
                     b.Navigation("Course");
 
                     b.Navigation("Faculty");
-                });
-
-            modelBuilder.Entity("EduConnect.Models.ChatMessage", b =>
-                {
-                    b.HasOne("EduConnect.Models.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("EduConnect.Models.Course", b =>

@@ -1,0 +1,328 @@
+@{
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --success-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --warning-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --info-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+
+    .admin-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px 20px;
+        margin-bottom: 40px;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .admin-header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .admin-header p {
+        margin: 10px 0 0 0;
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        border-left: 5px solid;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: -50px;
+        width: 150px;
+        height: 150px;
+        background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .stat-card.students {
+        border-left-color: #667eea;
+    }
+
+    .stat-card.faculty {
+        border-left-color: #f093fb;
+    }
+
+    .stat-card.courses {
+        border-left-color: #4facfe;
+    }
+
+    .stat-card.enrollments {
+        border-left-color: #43e97b;
+    }
+
+    .stat-icon {
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+        opacity: 0.8;
+    }
+
+    .stat-icon.students { color: #667eea; }
+    .stat-icon.faculty { color: #f093fb; }
+    .stat-icon.courses { color: #4facfe; }
+    .stat-icon.enrollments { color: #43e97b; }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin: 10px 0;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #718096;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+        flex-wrap: wrap;
+    }
+
+    .action-btn {
+        flex: 1;
+        min-width: 200px;
+        padding: 15px 25px;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        color: white;
+    }
+
+    .action-btn.students { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .action-btn.faculty { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .action-btn.analytics { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+
+    .action-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .quick-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 40px;
+    }
+
+    .feature-section {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        margin-bottom: 30px;
+    }
+
+    .feature-section h3 {
+        color: #2d3748;
+        font-size: 1.5rem;
+        margin-top: 0;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .feature-section h3 i {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .progress-bar {
+        background: #e2e8f0;
+        height: 8px;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s ease;
+    }
+</style>
+</style>
+
+<div class="admin-header">
+    <h1>
+        <i class="fas fa-chart-line"></i>
+        Admin Dashboard
+    </h1>
+    <p>Welcome! Here's your system overview at a glance.</p>
+</div>
+
+<div class="container-fluid">
+    <!-- Quick Statistics -->
+    <div class="quick-stats">
+        <div class="stat-card students">
+            <i class="fas fa-users stat-icon students"></i>
+            <div class="stat-number">@Model.TotalStudents</div>
+            <div class="stat-label">Total Students</div>
+        </div>
+
+        <div class="stat-card faculty">
+            <i class="fas fa-chalkboard-user stat-icon faculty"></i>
+            <div class="stat-number">@Model.TotalFaculty</div>
+            <div class="stat-label">Total Faculty</div>
+        </div>
+
+        <div class="stat-card courses">
+            <i class="fas fa-book stat-icon courses"></i>
+            <div class="stat-number">@Model.TotalCourses</div>
+            <div class="stat-label">Active Courses</div>
+        </div>
+
+        <div class="stat-card enrollments">
+            <i class="fas fa-graduation-cap stat-icon enrollments"></i>
+            <div class="stat-number">@Model.TotalEnrollments</div>
+            <div class="stat-label">Total Enrollments</div>
+        </div>
+    </div>
+
+    <!-- Feature Sections -->
+    <div class="row mt-5">
+        <!-- Student Management -->
+        <div class="col-lg-6 mb-4">
+            <div class="feature-section">
+                <h3>
+                    <i class="fas fa-user-graduate"></i>
+                    Student Management
+                </h3>
+                <p style="color: #718096; margin-bottom: 20px;">Manage all students in the system. Add, edit, or remove students as needed.</p>
+                <div class="action-buttons" style="flex-direction: column; gap: 10px;">
+                    <a href="@Url.Action("ManageStudents")" class="action-btn students">
+                        <i class="fas fa-list"></i>
+                        View All Students
+                    </a>
+                    <a href="@Url.Action("AddStudent")" class="action-btn students" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); opacity: 0.8;">
+                        <i class="fas fa-plus"></i>
+                        Add New Student
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Faculty Management -->
+        <div class="col-lg-6 mb-4">
+            <div class="feature-section">
+                <h3>
+                    <i class="fas fa-chalkboard-user"></i>
+                    Faculty Management
+                </h3>
+                <p style="color: #718096; margin-bottom: 20px;">Manage all faculty members. Add, edit, or remove faculty as needed.</p>
+                <div class="action-buttons" style="flex-direction: column; gap: 10px;">
+                    <a href="@Url.Action("ManageFaculty")" class="action-btn faculty">
+                        <i class="fas fa-list"></i>
+                        View All Faculty
+                    </a>
+                    <a href="@Url.Action("AddFaculty")" class="action-btn faculty" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); opacity: 0.8;">
+                        <i class="fas fa-plus"></i>
+                        Add New Faculty
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="feature-section">
+                <h3>
+                    <i class="fas fa-chart-bar"></i>
+                    Analytics & Reports
+                </h3>
+                <p style="color: #718096; margin-bottom: 20px;">View detailed analytics about students, faculty, courses, and enrollments.</p>
+                <a href="@Url.Action("Analytics")" class="action-btn analytics" style="display: inline-flex;">
+                    <i class="fas fa-external-link-alt"></i>
+                    Go to Analytics Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Average Progress -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="feature-section">
+                <h3>
+                    <i class="fas fa-chart-pie"></i>
+                    Overall Progress
+                </h3>
+                <p style="color: #718096; margin-bottom: 20px;">Average student progress across the platform.</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: @Model.AverageStudentProgress%"></div>
+                </div>
+                <div style="margin-top: 10px; font-size: 1.2rem; font-weight: 700; color: #2d3748;">
+                    @Math.Round(Model.AverageStudentProgress, 2)%
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Animate stat numbers on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const statNumbers = document.querySelectorAll('.stat-number');
+        statNumbers.forEach(stat => {
+            const finalValue = parseInt(stat.textContent);
+            let currentValue = 0;
+            const increment = Math.ceil(finalValue / 30);
+            
+            const interval = setInterval(() => {
+                currentValue += increment;
+                if (currentValue >= finalValue) {
+                    stat.textContent = finalValue;
+                    clearInterval(interval);
+                } else {
+                    stat.textContent = currentValue;
+                }
+            }, 30);
+        });
+    });
+</script>

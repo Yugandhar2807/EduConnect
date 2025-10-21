@@ -20,6 +20,7 @@ namespace EduConnect.Data
         public DbSet<QuizResult> QuizResults { get; set; }
         public DbSet<Announcement> Announcements { get; set; }
         public DbSet<TopicProgress> TopicProgress { get; set; }
+        public DbSet<ChatMessage> ChatMessages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
