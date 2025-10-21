@@ -4,6 +4,9 @@
     ViewData["Title"] = @Model.Title;
 }
 
+<!-- Include CSRF Token -->
+<input type="hidden" id="csrf-token" name="__RequestVerificationToken" value="@Html.AntiForgeryToken()" />
+
 <style>
     .course-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -227,6 +230,13 @@
                                     <p style="color: #666; margin-bottom: 15px;">@topic.Description</p>
                                 }
 
+                                <!-- Mark as Complete Button -->
+                                <div style="margin-bottom: 15px;">
+                                    <button class="btn btn-success btn-sm" onclick="markTopicComplete(@topic.Id, '@topic.Name')">
+                                        <i class="fas fa-check-circle"></i> Mark as Complete
+                                    </button>
+                                </div>
+
                                 <!-- PDF Link -->
                                 @if (!string.IsNullOrEmpty(topic.PdfFilePath))
                                 {
@@ -246,14 +256,19 @@
                                         {
                                             <div class="material-item">
                                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                                    <div>
+                                                    <div style="flex: 1;">
                                                         <strong>@material.Title</strong>
                                                         <br />
                                                         <small style="color: #999;">@material.FileType - @(material.FileSize / 1024)KB</small>
                                                     </div>
-                                                    <a href="@material.FilePath" class="btn btn-sm btn-outline-primary" download>
-                                                        <i class="fas fa-download"></i>
-                                                    </a>
+                                                    <div style="display: flex; gap: 5px;">
+                                                        <a href="@material.FilePath" class="btn btn-sm btn-outline-primary" download>
+                                                            <i class="fas fa-download"></i>
+                                                        </a>
+                                                        <button class="btn btn-sm btn-success" onclick="markMaterialComplete(@material.Id, '@material.Title')">
+                                                            <i class="fas fa-check-circle"></i>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         }
@@ -305,14 +320,19 @@
                     {
                         <div class="material-item">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
+                                <div style="flex: 1;">
                                     <strong>@material.Title</strong>
                                     <br />
                                     <small style="color: #999;">@material.FileType - @(material.FileSize / 1024)KB</small>
                                 </div>
-                                <a href="@material.FilePath" class="btn btn-sm btn-outline-primary" download>
-                                    <i class="fas fa-download"></i> Download
-                                </a>
+                                <div style="display: flex; gap: 5px;">
+                                    <a href="@material.FilePath" class="btn btn-sm btn-outline-primary" download>
+                                        <i class="fas fa-download"></i> Download
+                                    </a>
+                                    <button class="btn btn-sm btn-success" onclick="markMaterialComplete(@material.Id, '@material.Title')">
+                                        <i class="fas fa-check-circle"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     }
@@ -367,6 +387,9 @@
 </div>
 
 <script>
+    // Get course ID from URL
+    const courseId = @Model.Id;
+
     function toggleDescription() {
         const content = document.getElementById('descriptionContent');
         const toggle = document.getElementById('descToggle');
@@ -388,5 +411,87 @@
 
         content.classList.toggle('show');
         toggle.classList.toggle('open');
+    }
+
+    /// Mark topic as complete
+    async function markTopicComplete(topicId, topicName) {
+        try {
+            const response = await fetch(`/Student/MarkComplete?topicId=${topicId}&courseId=${courseId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                if (data.isNew) {
+                    showToast(`✅ Topic "${topicName}" marked as complete!`, 'success');
+                    // Update button
+                    event.target.closest('button').innerHTML = '<i class="fas fa-check"></i> Completed';
+                    event.target.closest('button').disabled = true;
+                    event.target.closest('button').classList.add('btn-secondary');
+                    event.target.closest('button').classList.remove('btn-success');
+                } else {
+                    showToast('Already completed', 'info');
+                }
+            } else {
+                showToast('Error marking as complete', 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Error occurred', 'danger');
+        }
+    }
+
+    /// Mark material as complete
+    async function markMaterialComplete(materialId, materialName) {
+        try {
+            const response = await fetch(`/Student/MarkComplete?materialId=${materialId}&courseId=${courseId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                if (data.isNew) {
+                    showToast(`✅ Material "${materialName}" marked as complete!`, 'success');
+                    // Update button
+                    event.target.closest('button').innerHTML = '<i class="fas fa-check"></i>';
+                    event.target.closest('button').disabled = true;
+                    event.target.closest('button').classList.add('btn-secondary');
+                    event.target.closest('button').classList.remove('btn-success');
+                } else {
+                    showToast('Already completed', 'info');
+                }
+            } else {
+                showToast('Error marking as complete', 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Error occurred', 'danger');
+        }
+    }
+
+    /// Show toast notification
+    function showToast(message, type = 'info') {
+        const toastContainer = document.querySelector('.toast-container') || document.body;
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} alert-dismissible fade show`;
+        toast.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        toastContainer.appendChild(toast);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => toast.remove(), 3000);
     }
 </script>

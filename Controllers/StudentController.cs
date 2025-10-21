@@ -110,14 +110,27 @@ namespace EduConnect.Controllers
         public async Task<IActionResult> MyProgress()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var enrollments = await _context.Enrollments
                 .Where(e => e.StudentId == userId)
+                .Include(e => e.Course)
+                .ThenInclude(c => c!.Topics)
                 .Include(e => e.Course)
                 .ThenInclude(c => c!.Materials)
                 .Include(e => e.Course)
                 .ThenInclude(c => c!.Quizzes)
                 .ToListAsync();
+
+            // Calculate progress for each enrollment
+            foreach (var enrollment in enrollments)
+            {
+                if (enrollment.Course != null)
+                {
+                    enrollment.ProgressPercentage = (int)await CalculateCourseProgress(userId, enrollment.CourseId);
+                }
+            }
 
             var results = await _context.QuizResults
                 .Where(r => r.StudentId == userId)
@@ -277,6 +290,141 @@ namespace EduConnect.Controllers
 
             TempData["Success"] = "Course marked as completed! Congratulations! 🎉";
             return RedirectToAction(nameof(MyProgress));
+        }
+
+        /// <summary>
+        /// Mark a topic or material as complete
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> MarkComplete([FromQuery] int? topicId, [FromQuery] int? materialId, [FromQuery] int courseId)
+        {
+            if (!topicId.HasValue && !materialId.HasValue)
+                return BadRequest("Either topicId or materialId must be provided.");
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            // Verify enrollment
+            var enrollment = await _context.Enrollments
+                .FirstOrDefaultAsync(e => e.CourseId == courseId && e.StudentId == userId);
+
+            if (enrollment == null)
+                return Forbid("You are not enrolled in this course.");
+
+            TopicProgress? progress = null;
+
+            if (topicId.HasValue)
+            {
+                // Check if topic exists and belongs to the course
+                var topic = await _context.Topics.FirstOrDefaultAsync(t => t.Id == topicId && t.CourseId == courseId);
+                if (topic == null)
+                    return NotFound("Topic not found.");
+
+                // Check if already completed
+                var existing = await _context.TopicProgress
+                    .FirstOrDefaultAsync(tp => tp.StudentId == userId && tp.TopicId == topicId);
+
+                if (existing != null)
+                    return Ok(new { message = "Already completed", isNew = false });
+
+                progress = new TopicProgress
+                {
+                    StudentId = userId,
+                    TopicId = topicId,
+                    CompletedAt = DateTime.UtcNow
+                };
+            }
+            else if (materialId.HasValue)
+            {
+                // Check if material exists and belongs to the course
+                var material = await _context.Materials.FirstOrDefaultAsync(m => m.Id == materialId && m.CourseId == courseId);
+                if (material == null)
+                    return NotFound("Material not found.");
+
+                // Check if already completed
+                var existing = await _context.TopicProgress
+                    .FirstOrDefaultAsync(tp => tp.StudentId == userId && tp.MaterialId == materialId);
+
+                if (existing != null)
+                    return Ok(new { message = "Already completed", isNew = false });
+
+                progress = new TopicProgress
+                {
+                    StudentId = userId,
+                    MaterialId = materialId,
+                    CompletedAt = DateTime.UtcNow
+                };
+            }
+
+            if (progress != null)
+            {
+                _context.Add(progress);
+                await _context.SaveChangesAsync();
+            }
+
+            // Calculate progress
+            var courseProgress = await CalculateCourseProgress(userId, courseId);
+
+            return Ok(new { message = "Marked as complete", isNew = true, progress = courseProgress });
+        }
+
+        /// <summary>
+        /// Calculate overall progress for a course (50% topics/materials + 50% quizzes)
+        /// </summary>
+        private async Task<double> CalculateCourseProgress(string userId, int courseId)
+        {
+            var enrollment = await _context.Enrollments.FirstOrDefaultAsync(e => e.CourseId == courseId && e.StudentId == userId);
+            if (enrollment == null) return 0;
+
+            var course = await _context.Courses
+                .Include(c => c.Topics)
+                .Include(c => c.Materials)
+                .Include(c => c.Quizzes)
+                .FirstOrDefaultAsync(c => c.Id == courseId);
+
+            if (course == null) return 0;
+
+            // Count total topics + materials
+            int totalTopics = course.Topics?.Count ?? 0;
+            int totalMaterials = course.Materials?.Count ?? 0;
+            int totalTopicsAndMaterials = totalTopics + totalMaterials;
+
+            if (totalTopicsAndMaterials == 0)
+            {
+                // If no topics/materials, progress is 100% if they've attempted any quiz, else based on quizzes
+                totalTopicsAndMaterials = 1; // Avoid division by zero
+            }
+
+            // Count completed topics + materials
+            var completedItems = await _context.TopicProgress
+                .Where(tp => tp.StudentId == userId && 
+                    (tp.TopicId.HasValue || tp.MaterialId.HasValue))
+                .ToListAsync();
+
+            int completedCount = completedItems.Count(tp =>
+                (tp.TopicId.HasValue && course.Topics != null && course.Topics.Any(t => t.Id == tp.TopicId)) ||
+                (tp.MaterialId.HasValue && course.Materials != null && course.Materials.Any(m => m.Id == tp.MaterialId)));
+
+            double topicsProgress = (totalTopicsAndMaterials > 0) ? (completedCount / (double)totalTopicsAndMaterials) * 50 : 0;
+
+            // Count quizzes attempted (50% of progress)
+            int totalQuizzes = course.Quizzes?.Count ?? 0;
+            if (totalQuizzes == 0)
+            {
+                totalQuizzes = 1; // Avoid division by zero
+            }
+
+            var quizIds = course.Quizzes?.Select(q => q.Id).ToList() ?? new List<int>();
+            int quizzesAttempted = await _context.QuizResults
+                .Where(qr => qr.StudentId == userId && quizIds.Contains(qr.QuizId))
+                .Select(qr => qr.QuizId)
+                .Distinct()
+                .CountAsync();
+
+            double quizProgress = (totalQuizzes > 0) ? (quizzesAttempted / (double)totalQuizzes) * 50 : 0;
+
+            return Math.Min(topicsProgress + quizProgress, 100);
         }
     }
 }

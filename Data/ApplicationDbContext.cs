@@ -19,6 +19,7 @@ namespace EduConnect.Data
         public DbSet<QuizQuestion> QuizQuestions { get; set; }
         public DbSet<QuizResult> QuizResults { get; set; }
         public DbSet<Announcement> Announcements { get; set; }
+        public DbSet<TopicProgress> TopicProgress { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -105,6 +106,27 @@ namespace EduConnect.Data
                 .WithMany()
                 .HasForeignKey(a => a.CourseId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // TopicProgress relationships
+            builder.Entity<TopicProgress>()
+                .HasOne(tp => tp.Student)
+                .WithMany()
+                .HasForeignKey(tp => tp.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TopicProgress>()
+                .HasOne(tp => tp.Topic)
+                .WithMany()
+                .HasForeignKey(tp => tp.TopicId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired(false);
+
+            builder.Entity<TopicProgress>()
+                .HasOne(tp => tp.Material)
+                .WithMany()
+                .HasForeignKey(tp => tp.MaterialId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired(false);
         }
     }
 }
