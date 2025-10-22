@@ -27,6 +27,9 @@ builder.Services.AddRazorPages();
 // Register Chatbot Service
 builder.Services.AddScoped<IChatbotService, ChatbotService>();
 
+// Register Email Service
+builder.Services.AddScoped<IEmailService, EmailService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline

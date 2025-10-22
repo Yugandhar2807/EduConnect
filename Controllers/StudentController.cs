@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using EduConnect.Data;
 using EduConnect.Models;
+using EduConnect.Services;
 using System.Security.Claims;
 
 namespace EduConnect.Controllers
@@ -11,10 +12,12 @@ namespace EduConnect.Controllers
     public class StudentController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IEmailService _emailService;
 
-        public StudentController(ApplicationDbContext context)
+        public StudentController(ApplicationDbContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
 
         public async Task<IActionResult> Dashboard()
@@ -81,7 +84,21 @@ namespace EduConnect.Controllers
 
             _context.Add(enrollment);
             await _context.SaveChangesAsync();
-            TempData["Success"] = "Successfully enrolled in the course!";
+
+            // Send enrollment confirmation email
+            var student = await _context.Users.FindAsync(userId);
+            var course = await _context.Courses.FindAsync(courseId);
+            
+            if (student != null && course != null)
+            {
+                await _emailService.SendEnrollmentConfirmationAsync(
+                    student.Email!,
+                    student.FullName ?? student.UserName!,
+                    course.Title
+                );
+            }
+
+            TempData["Success"] = "Successfully enrolled in the course! Check your email for confirmation.";
             return RedirectToAction(nameof(Dashboard));
         }
 
@@ -244,6 +261,20 @@ namespace EduConnect.Controllers
 
             _context.Update(enrollment);
             await _context.SaveChangesAsync();
+
+            // Send grade notification email
+            var student = await _context.Users.FindAsync(userId);
+            if (student != null && quiz.Course != null)
+            {
+                await _emailService.SendGradeNotificationAsync(
+                    student.Email!,
+                    student.FullName ?? student.UserName!,
+                    quiz.Course.Title,
+                    quiz.Title,
+                    marksObtained,
+                    quiz.TotalMarks
+                );
+            }
 
             return Json(new { 
                 success = true, 
