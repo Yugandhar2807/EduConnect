@@ -1,53 +1,78 @@
-using SendGrid;
-using SendGrid.Helpers.Mail;
+using System.Net.Http.Headers;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace EduConnect.Services
 {
     /// <summary>
-    /// Email service implementation using SendGrid
+    /// Email service implementation using Twilio SendGrid REST API
     /// </summary>
     public class EmailService : IEmailService
     {
-        private readonly SendGridClient _sendGridClient;
+        private readonly string _twilioAccountSid;
+        private readonly string _twilioAuthToken;
         private readonly string _fromEmail;
         private readonly string _fromName;
         private readonly ILogger<EmailService> _logger;
+        private readonly HttpClient _httpClient;
 
         public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
         {
-            var apiKey = configuration["SendGrid:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
+            _twilioAccountSid = configuration["Twilio:AccountSid"] ?? "";
+            _twilioAuthToken = configuration["Twilio:AuthToken"] ?? "";
+            
+            if (string.IsNullOrEmpty(_twilioAccountSid) || string.IsNullOrEmpty(_twilioAuthToken))
             {
-                throw new InvalidOperationException("SendGrid API key is not configured. Please set SendGrid:ApiKey in appsettings.json");
+                throw new InvalidOperationException("Twilio credentials are not configured. Please set Twilio:AccountSid and Twilio:AuthToken in appsettings.json");
             }
 
-            _sendGridClient = new SendGridClient(apiKey);
-            _fromEmail = configuration["SendGrid:FromEmail"] ?? "noreply@educonnect.com";
-            _fromName = configuration["SendGrid:FromName"] ?? "EduConnect";
+            _fromEmail = configuration["Twilio:FromEmail"] ?? "noreply@educonnect.com";
+            _fromName = configuration["Twilio:FromName"] ?? "EduConnect";
             _logger = logger;
+            
+            _httpClient = new HttpClient();
+            // Set up Basic Auth for Twilio SendGrid API
+            var credentials = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes($"{_twilioAccountSid}:{_twilioAuthToken}"));
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
         }
 
         /// <summary>
-        /// Send a simple email
+        /// Send a simple email via Twilio SendGrid REST API
         /// </summary>
         public async Task<bool> SendEmailAsync(string toEmail, string subject, string htmlContent)
         {
             try
             {
-                var from = new EmailAddress(_fromEmail, _fromName);
-                var to = new EmailAddress(toEmail);
-                var msg = MailHelper.CreateSingleEmail(from, to, subject, null, htmlContent);
+                var mailContent = new
+                {
+                    personalizations = new[]
+                    {
+                        new { to = new[] { new { email = toEmail } } }
+                    },
+                    from = new { email = _fromEmail, name = _fromName },
+                    subject = subject,
+                    content = new[] { new { type = "text/html", value = htmlContent } }
+                };
 
-                var response = await _sendGridClient.SendEmailAsync(msg);
+                var json = JsonSerializer.Serialize(mailContent);
+                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                
+                var request = new HttpRequestMessage(HttpMethod.Post, "https://api.sendgrid.com/v3/mail/send")
+                {
+                    Content = content
+                };
+                
+                var response = await _httpClient.SendAsync(request);
 
-                if (response.StatusCode == System.Net.HttpStatusCode.Accepted || response.StatusCode == System.Net.HttpStatusCode.OK)
+                if (response.IsSuccessStatusCode)
                 {
                     _logger.LogInformation($"Email sent successfully to {toEmail}");
                     return true;
                 }
                 else
                 {
-                    _logger.LogError($"Failed to send email to {toEmail}. Status: {response.StatusCode}");
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError($"Failed to send email to {toEmail}. Status: {response.StatusCode}. Error: {errorContent}");
                     return false;
                 }
             }
@@ -65,20 +90,38 @@ namespace EduConnect.Services
         {
             try
             {
-                var from = new EmailAddress(_fromEmail, _fromName);
-                var tos = toEmails.Select(email => new EmailAddress(email)).ToList();
-                var msg = MailHelper.CreateSingleEmailToMultipleRecipients(from, tos, subject, null, htmlContent);
+                var recipients = toEmails.Select(email => new { email = email }).ToArray();
+                
+                var mailContent = new
+                {
+                    personalizations = new[]
+                    {
+                        new { to = recipients }
+                    },
+                    from = new { email = _fromEmail, name = _fromName },
+                    subject = subject,
+                    content = new[] { new { type = "text/html", value = htmlContent } }
+                };
 
-                var response = await _sendGridClient.SendEmailAsync(msg);
+                var json = JsonSerializer.Serialize(mailContent);
+                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                
+                var request = new HttpRequestMessage(HttpMethod.Post, "https://api.sendgrid.com/v3/mail/send")
+                {
+                    Content = content
+                };
+                
+                var response = await _httpClient.SendAsync(request);
 
-                if (response.StatusCode == System.Net.HttpStatusCode.Accepted || response.StatusCode == System.Net.HttpStatusCode.OK)
+                if (response.IsSuccessStatusCode)
                 {
                     _logger.LogInformation($"Bulk email sent to {toEmails.Count} recipients");
                     return true;
                 }
                 else
                 {
-                    _logger.LogError($"Failed to send bulk email. Status: {response.StatusCode}");
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError($"Failed to send bulk email. Status: {response.StatusCode}. Error: {errorContent}");
                     return false;
                 }
             }
