@@ -1,0 +1,78 @@
+# 🚀 Quick Fix - SendGrid API Key
+
+## The Problem
+```
+You're using placeholder API key: "your-sendgrid-api-key-here"
+↓
+SendGrid doesn't recognize it
+↓
+Authorization error in SendGrid
+```
+
+---
+
+## The Fix (3 Steps)
+
+### Step 1️⃣: Get Real API Key from SendGrid
+
+```
+1. Go to: https://sendgrid.com/login
+2. Sign in
+3. Go to: Settings → API Keys
+4. Click: "Create API Key"
+5. Name: "EduConnect"
+6. Permission: "Mail Send"
+7. Copy the key!
+```
+
+Your key will look like:
+```
+SG.abc123def456ghi789jkl000xyz111...
+```
+
+---
+
+### Step 2️⃣: Update appsettings.json
+
+File: `appsettings.json`
+
+Change this line:
+```json
+"ApiKey": "your-sendgrid-api-key-here"
+```
+
+To this:
+```json
+"ApiKey": "SG.abc123def456ghi789jkl000xyz111..."
+```
+
+---
+
+### Step 3️⃣: Restart Application
+
+```bash
+# Stop current app (Ctrl+C)
+# Then run:
+dotnet run --urls "http://localhost:8000"
+```
+
+---
+
+## ✅ Test It
+
+1. Go to app
+2. Enroll in course
+3. Check your email ✉️
+
+---
+
+## That's It! 🎉
+
+Emails will now work!
+
+---
+
+## Need Help?
+
+See full guide: `SENDGRID_SETUP_FIX.md`
+
