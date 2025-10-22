@@ -6,6 +6,7 @@ namespace EduConnect.Services
 {
     /// <summary>
     /// Email service implementation using Twilio SendGrid REST API
+    /// Development mode uses mock/logging only
     /// </summary>
     public class EmailService : IEmailService
     {
@@ -15,34 +16,53 @@ namespace EduConnect.Services
         private readonly string _fromName;
         private readonly ILogger<EmailService> _logger;
         private readonly HttpClient _httpClient;
+        private readonly bool _isDevelopment;
 
-        public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
+        public EmailService(IConfiguration configuration, ILogger<EmailService> logger, IWebHostEnvironment env)
         {
             _twilioAccountSid = configuration["Twilio:AccountSid"] ?? "";
             _twilioAuthToken = configuration["Twilio:AuthToken"] ?? "";
+            _logger = logger;
+            _isDevelopment = env.IsDevelopment();
             
             if (string.IsNullOrEmpty(_twilioAccountSid) || string.IsNullOrEmpty(_twilioAuthToken))
             {
-                throw new InvalidOperationException("Twilio credentials are not configured. Please set Twilio:AccountSid and Twilio:AuthToken in appsettings.json");
+                _logger.LogWarning("⚠️ Twilio credentials not configured. Email service will run in MOCK MODE (development)");
             }
 
             _fromEmail = configuration["Twilio:FromEmail"] ?? "noreply@educonnect.com";
             _fromName = configuration["Twilio:FromName"] ?? "EduConnect";
-            _logger = logger;
             
             _httpClient = new HttpClient();
             // Set up Basic Auth for Twilio SendGrid API
-            var credentials = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes($"{_twilioAccountSid}:{_twilioAuthToken}"));
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
+            if (!string.IsNullOrEmpty(_twilioAccountSid) && !string.IsNullOrEmpty(_twilioAuthToken))
+            {
+                var credentials = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes($"{_twilioAccountSid}:{_twilioAuthToken}"));
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
+            }
         }
 
         /// <summary>
-        /// Send a simple email via Twilio SendGrid REST API
+        /// Send a simple email via Twilio SendGrid REST API (or mock in development)
         /// </summary>
         public async Task<bool> SendEmailAsync(string toEmail, string subject, string htmlContent)
         {
             try
             {
+                // DEVELOPMENT MODE: Mock email sending if credentials are invalid (just log it)
+                bool hasValidCredentials = !string.IsNullOrEmpty(_twilioAccountSid) && 
+                                          !string.IsNullOrEmpty(_twilioAuthToken) &&
+                                          _twilioAccountSid.StartsWith("SG."); // SendGrid API keys start with SG.
+
+                if (_isDevelopment && !hasValidCredentials)
+                {
+                    _logger.LogInformation($"📧 [MOCK EMAIL - Development Mode] To: {toEmail}");
+                    _logger.LogInformation($"📧 [MOCK EMAIL - Development Mode] Subject: {subject}");
+                    _logger.LogInformation($"📧 [MOCK EMAIL - Development Mode] Content (first 100 chars): {htmlContent[..Math.Min(100, htmlContent.Length)]}...");
+                    return true;
+                }
+
+                // PRODUCTION MODE: Send via Twilio SendGrid API
                 var mailContent = new
                 {
                     personalizations = new[]
@@ -66,19 +86,19 @@ namespace EduConnect.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation($"Email sent successfully to {toEmail}");
+                    _logger.LogInformation($"✅ Email sent successfully to {toEmail}");
                     return true;
                 }
                 else
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError($"Failed to send email to {toEmail}. Status: {response.StatusCode}. Error: {errorContent}");
+                    _logger.LogError($"❌ Failed to send email to {toEmail}. Status: {response.StatusCode}. Error: {errorContent}");
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error sending email to {toEmail}: {ex.Message}");
+                _logger.LogError($"❌ Error sending email to {toEmail}: {ex.Message}");
                 return false;
             }
         }

@@ -555,5 +555,31 @@ namespace EduConnect.Controllers
                 return Task.FromResult((IActionResult)Json(new { success = false, error = ex.Message }));
             }
         }
+
+        // TEST EMAIL ENDPOINT
+        [AllowAnonymous]
+        [HttpGet]
+        public async Task<IActionResult> TestEmail()
+        {
+            try
+            {
+                var testEmail = "test@example.com";
+                var result = await _emailService.SendEmailAsync(
+                    testEmail,
+                    "Test Email from EduConnect",
+                    "<h1>Test Email</h1><p>If you received this, the email service is working!</p>"
+                );
+
+                return Json(new { 
+                    success = result, 
+                    message = result ? "Email sent successfully" : "Failed to send email",
+                    testEmail = testEmail
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
     }
 }
