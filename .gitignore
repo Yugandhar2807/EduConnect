@@ -40,6 +40,16 @@ package-lock.json
 .env
 .env.local
 
+## Sensitive Configuration Files (NEVER commit these!)
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.json
+!appsettings.Production.json
+secrets.json
+*.key
+*.pem
+*.pfx
+
 ## OS
 .DS_Store
 Thumbs.db
