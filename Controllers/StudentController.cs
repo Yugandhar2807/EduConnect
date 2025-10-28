@@ -581,5 +581,82 @@ namespace EduConnect.Controllers
                 return Json(new { success = false, error = ex.Message });
             }
         }
+
+        // ROADMAP FEATURE
+        public async Task<IActionResult> Roadmap()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // Get all roadmap nodes for this student
+            var roadmapNodes = await _context.RoadmapNodes
+                .Where(r => r.StudentId == userId || r.StudentId == null) // Include both student-specific and shared nodes
+                .Include(r => r.Parent)
+                .Include(r => r.Children)
+                .Include(r => r.Course)
+                .Include(r => r.Topic)
+                .OrderBy(r => r.Order)
+                .ToListAsync();
+
+            return View(roadmapNodes);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ToggleRoadmapNodeCompletion(int nodeId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var node = await _context.RoadmapNodes
+                .FirstOrDefaultAsync(r => r.Id == nodeId && r.StudentId == userId);
+
+            if (node == null)
+            {
+                return Json(new { success = false, message = "Node not found" });
+            }
+
+            node.IsCompleted = !node.IsCompleted;
+            node.CompletedAt = node.IsCompleted ? DateTime.UtcNow : null;
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, isCompleted = node.IsCompleted });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddRoadmapNode([FromBody] RoadmapNode model)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            var node = new RoadmapNode
+            {
+                Title = model.Title,
+                Description = model.Description,
+                ParentId = model.ParentId,
+                Order = model.Order,
+                StudentId = userId,
+                Icon = model.Icon ?? "fa-circle",
+                Color = model.Color ?? "#007bff"
+            };
+
+            _context.RoadmapNodes.Add(node);
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, nodeId = node.Id });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteRoadmapNode(int nodeId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var node = await _context.RoadmapNodes
+                .FirstOrDefaultAsync(r => r.Id == nodeId && r.StudentId == userId);
+
+            if (node == null)
+            {
+                return Json(new { success = false, message = "Node not found or unauthorized" });
+            }
+
+            _context.RoadmapNodes.Remove(node);
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true });
+        }
     }
 }

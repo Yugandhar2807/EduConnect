@@ -1,10 +1,15 @@
 @using System.Security.Principal
+@using Microsoft.AspNetCore.Identity
+@using EduConnect.Models
+@inject UserManager<ApplicationUser> UserManager
 
 <ul class="navbar-nav">
 @if (User?.Identity?.IsAuthenticated ?? false)
 {
+    var currentUser = await UserManager.GetUserAsync(User);
+    var displayName = !string.IsNullOrEmpty(currentUser?.FullName) ? currentUser.FullName : currentUser?.FirstName ?? User.Identity?.Name;
     <li class="nav-item">
-        <span class="navbar-text me-3">Hello, @User.Identity?.Name!</span>
+        <span class="navbar-text me-3">Hello, @displayName!</span>
     </li>
     <li class="nav-item">
         <form class="form-inline" asp-area="" asp-controller="Account" asp-action="Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">

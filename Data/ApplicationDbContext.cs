@@ -21,6 +21,7 @@ namespace EduConnect.Data
         public DbSet<Announcement> Announcements { get; set; }
         public DbSet<TopicProgress> TopicProgress { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<RoadmapNode> RoadmapNodes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -128,6 +129,19 @@ namespace EduConnect.Data
                 .HasForeignKey(tp => tp.MaterialId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired(false);
+
+            // RoadmapNode self-referencing relationship
+            builder.Entity<RoadmapNode>()
+                .HasOne(r => r.Parent)
+                .WithMany(r => r.Children)
+                .HasForeignKey(r => r.ParentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<RoadmapNode>()
+                .HasOne(r => r.Student)
+                .WithMany()
+                .HasForeignKey(r => r.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
