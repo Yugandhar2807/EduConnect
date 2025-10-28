@@ -45,63 +45,41 @@
         }
     }
 
-    // Setup animated background
+    // Setup animated bubble background
     function setupAnimatedBackground() {
         // Create background container if it doesn't exist
         let bgContainer = document.getElementById('animated-background');
         if (!bgContainer) {
             bgContainer = document.createElement('div');
             bgContainer.id = 'animated-background';
-            bgContainer.className = 'animated-background';
+            bgContainer.className = 'bubble-background';
 
-            // Create video element
-            const video = document.createElement('video');
-            video.autoplay = true;
-            video.muted = true;
-            video.loop = true;
-            video.className = 'background-video';
-            video.innerHTML = `
-                <source src="/videos/background.mp4" type="video/mp4">
-                Your browser does not support the video tag.
-            `;
+            // Create bubble container
+            const bubbleContainer = document.createElement('div');
+            bubbleContainer.className = 'bubble-container';
 
-            // Fallback: Create animated gradient
-            video.addEventListener('error', function() {
-                createGradientBackground(bgContainer);
-            });
+            // Create 15 bubbles
+            for (let i = 0; i < 15; i++) {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubbleContainer.appendChild(bubble);
+            }
+
+            // Create 3 floating particles
+            for (let i = 0; i < 3; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                bubbleContainer.appendChild(particle);
+            }
 
             // Create overlay
             const overlay = document.createElement('div');
-            overlay.className = 'background-overlay';
+            overlay.className = 'bubble-overlay';
 
-            bgContainer.appendChild(video);
+            bgContainer.appendChild(bubbleContainer);
             bgContainer.appendChild(overlay);
             document.body.insertBefore(bgContainer, document.body.firstChild);
         }
-    }
-
-    // Create animated gradient fallback
-    function createGradientBackground(container) {
-        container.style.background = 'linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab)';
-        container.style.backgroundSize = '400% 400%';
-        container.style.animation = 'gradient-animation 15s ease infinite';
-
-        // Add animation styles
-        const style = document.createElement('style');
-        style.innerHTML = `
-            @keyframes gradient-animation {
-                0% {
-                    background-position: 0% 50%;
-                }
-                50% {
-                    background-position: 100% 50%;
-                }
-                100% {
-                    background-position: 0% 50%;
-                }
-            }
-        `;
-        document.head.appendChild(style);
     }
 
     // Listen for system theme changes
