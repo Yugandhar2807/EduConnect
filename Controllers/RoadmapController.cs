@@ -35,6 +35,11 @@ namespace EduConnect.Controllers
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
+            if (string.IsNullOrEmpty(userId))
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
             var roadmap = await _context.RoadmapTemplates
                 .Include(r => r.Topics)
                 .FirstOrDefaultAsync(r => r.Id == id && r.IsActive);
@@ -42,6 +47,14 @@ namespace EduConnect.Controllers
             if (roadmap == null)
             {
                 return NotFound();
+            }
+
+            // Verify the user exists in the database
+            var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
+            if (!userExists)
+            {
+                // User not found, redirect to login
+                return RedirectToAction("Login", "Account");
             }
 
             // Get or create progress for this student
@@ -52,13 +65,24 @@ namespace EduConnect.Controllers
             {
                 progress = new StudentRoadmapProgress
                 {
-                    StudentId = userId!,
+                    StudentId = userId,
                     RoadmapTemplateId = id,
                     CompletedTopicIds = string.Empty,
                     ProgressPercentage = 0
                 };
                 _context.StudentRoadmapProgress.Add(progress);
-                await _context.SaveChangesAsync();
+                
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException ex)
+                {
+                    // Log the error and show user-friendly message
+                    Console.WriteLine($"Error creating progress: {ex.Message}");
+                    TempData["Error"] = "Unable to track your progress. Please try again.";
+                    return RedirectToAction("Index");
+                }
             }
 
             ViewBag.Progress = progress;

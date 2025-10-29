@@ -15,6 +15,16 @@
         margin-bottom: 2rem;
     }
 
+    [data-theme="dark"] .roadmap-header {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+    }
+
+    [data-theme="dark"] .roadmap-header .badge {
+        background: rgba(255, 255, 255, 0.2) !important;
+        color: white !important;
+    }
+
     .flowchart-container {
         position: relative;
         min-height: 1200px;
@@ -98,7 +108,11 @@
         font-weight: 700;
         font-size: 1rem;
         margin-bottom: 0.8rem;
-        color: inherit;
+        color: #333;
+    }
+
+    [data-theme="dark"] .topic-title {
+        color: #e0e0e0;
     }
 
     .topic-subtitle {
@@ -175,9 +189,19 @@
         opacity: 0.6;
     }
 
+    [data-theme="dark"] .connection-line {
+        stroke: #88a4f7;
+        opacity: 0.8;
+    }
+
     .connection-arrow {
         fill: var(--accent-primary);
         opacity: 0.6;
+    }
+
+    [data-theme="dark"] .connection-arrow {
+        fill: #88a4f7;
+        opacity: 0.8;
     }
 
     .modal-content {
@@ -199,6 +223,14 @@
         color: white;
         border-radius: 20px 20px 0 0;
         pointer-events: auto !important;
+    }
+
+    .modal-header .btn-close {
+        filter: brightness(0) invert(1);
+    }
+
+    [data-theme="dark"] .modal-header {
+        background: linear-gradient(135deg, #667eea, #764ba2);
     }
 
     .modal-backdrop {
@@ -225,6 +257,14 @@
     [data-theme="dark"] .modal-body {
         background: #1a1a2e;
         color: #e0e0e0;
+    }
+
+    [data-theme="dark"] .modal-body h6 {
+        color: #f0f0f0;
+    }
+
+    [data-theme="dark"] .modal-body p {
+        color: #d0d0d0;
     }
 
     .list-group-item {
@@ -263,6 +303,56 @@
     .btn {
         pointer-events: auto !important;
         cursor: pointer;
+    }
+
+    /* Resource link styling for clickable divs */
+    .resource-link {
+        transition: all 0.3s ease;
+        text-decoration: none;
+        cursor: pointer !important;
+    }
+
+    .resource-link:hover {
+        background-color: rgba(103, 126, 234, 0.15) !important;
+        transform: translateX(5px);
+        border-left: 3px solid #677eea;
+    }
+
+    [data-theme="dark"] .resource-link:hover {
+        background-color: rgba(103, 126, 234, 0.25) !important;
+    }
+
+    .resource-link:active {
+        transform: translateX(3px);
+        opacity: 0.8;
+    }
+
+    /* Button styles for dark theme */
+    [data-theme="dark"] .btn-outline-success {
+        color: #5bffa1;
+        border-color: #5bffa1;
+    }
+
+    [data-theme="dark"] .btn-outline-success:hover {
+        background-color: #5bffa1;
+        border-color: #5bffa1;
+        color: #000;
+    }
+
+    [data-theme="dark"] .btn-outline-warning {
+        color: #ffc107;
+        border-color: #ffc107;
+    }
+
+    [data-theme="dark"] .btn-outline-warning:hover {
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #000;
+    }
+
+    [data-theme="dark"] .badge {
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        color: #ffc107 !important;
     }
 </style>
 
@@ -391,20 +481,12 @@
 
                 <div class="mb-4" id="freeResourcesSection">
                     <h6><i class="fas fa-heart text-success me-2"></i>Free Resources</h6>
-                    <div class="list-group" id="freeResourcesList"></div>
-                </div>
-
-                <div class="mb-4" id="aiTutorSection">
-                    <h6><i class="fas fa-robot text-primary me-2"></i>Your Personalized AI Tutor</h6>
-                    <p id="aiTutorPrompt" class="text-muted"></p>
-                    <button class="btn btn-outline-primary">
-                        <i class="fas fa-comments me-2"></i>Ask AI Tutor
-                    </button>
+                    <div id="freeResourcesList"></div>
                 </div>
 
                 <div class="mb-4" id="paidResourcesSection">
                     <h6><i class="fas fa-star text-warning me-2"></i>Premium Resources</h6>
-                    <div class="list-group" id="paidResourcesList"></div>
+                    <div id="paidResourcesList"></div>
                 </div>
             </div>
         </div>
@@ -514,49 +596,57 @@
                 document.getElementById('topicModalTitle').innerHTML = `<i class="fas ${data.icon || 'fa-book'} me-2"></i>${data.title}`;
                 document.getElementById('topicDescription').textContent = data.description || 'No description available.';
                 
-                // Free Resources
+                // Free Resources - SIMPLE VERSION
                 const freeList = document.getElementById('freeResourcesList');
                 freeList.innerHTML = '';
                 if (data.freeResources && data.freeResources.length > 0) {
+                    let html = '<ul class="list-unstyled">';
                     data.freeResources.forEach(resource => {
-                        const item = document.createElement('a');
-                        item.className = 'list-group-item list-group-item-action d-flex align-items-center';
-                        item.href = resource.url || '#';
-                        item.target = '_blank';
-                        item.innerHTML = `
-                            <i class="fas fa-external-link-alt me-3 text-success"></i>
-                            <span>${resource.title || resource}</span>
+                        const url = resource.url || '#';
+                        const title = resource.title || resource;
+                        html += `
+                            <li class="mb-2">
+                                <a href="${url}" target="_blank" rel="noopener noreferrer" 
+                                   class="btn btn-outline-success w-100 text-start d-flex align-items-center justify-content-between">
+                                    <span>
+                                        <i class="fas fa-book-open me-2"></i>${title}
+                                    </span>
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                            </li>
                         `;
-                        freeList.appendChild(item);
                     });
+                    html += '</ul>';
+                    freeList.innerHTML = html;
                 } else {
-                    freeList.innerHTML = '<p class="text-muted mb-0">No free resources available.</p>';
+                    freeList.innerHTML = '<p class="text-muted">No free resources available.</p>';
                 }
 
-                // Paid Resources
+                // Paid Resources - SIMPLE VERSION
                 const paidList = document.getElementById('paidResourcesList');
                 paidList.innerHTML = '';
                 if (data.paidResources && data.paidResources.length > 0) {
+                    let html = '<ul class="list-unstyled">';
                     data.paidResources.forEach(resource => {
-                        const item = document.createElement('a');
-                        item.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-                        item.href = resource.url || '#';
-                        item.target = '_blank';
-                        item.innerHTML = `
-                            <div>
-                                <i class="fas fa-external-link-alt me-3 text-warning"></i>
-                                <span>${resource.title || resource}</span>
-                            </div>
-                            <span class="badge bg-warning text-dark">Premium</span>
+                        const url = resource.url || '#';
+                        const title = resource.title || resource;
+                        html += `
+                            <li class="mb-2">
+                                <a href="${url}" target="_blank" rel="noopener noreferrer" 
+                                   class="btn btn-outline-warning w-100 text-start d-flex align-items-center justify-content-between">
+                                    <span>
+                                        <i class="fas fa-crown me-2"></i>${title} <span class="badge bg-warning text-dark ms-2">Premium</span>
+                                    </span>
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                            </li>
                         `;
-                        paidList.appendChild(item);
                     });
+                    html += '</ul>';
+                    paidList.innerHTML = html;
                 } else {
-                    paidList.innerHTML = '<p class="text-muted mb-0">No premium resources available.</p>';
+                    paidList.innerHTML = '<p class="text-muted">No premium resources available.</p>';
                 }
-
-                // AI Tutor
-                document.getElementById('aiTutorPrompt').textContent = data.aiTutorPrompt || 'Ask me anything about this topic!';
 
                 const modal = new bootstrap.Modal(document.getElementById('topicModal'));
                 modal.show();

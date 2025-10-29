@@ -9,9 +9,44 @@ namespace EduConnect.Services
     {
         public static async Task SeedRoadmaps(ApplicationDbContext context)
         {
-            // Only seed if no roadmaps exist
+            // Check if roadmaps already exist
             if (context.RoadmapTemplates.Any())
+            {
+                Console.WriteLine("✅ Roadmaps already exist, skipping seed.");
                 return;
+            }
+
+            Console.WriteLine("🌱 Starting roadmap seeding...");
+
+            // Clear any existing data to avoid foreign key issues
+            try
+            {
+                // Delete in correct order to respect foreign keys
+                var existingProgress = await context.StudentRoadmapProgress.ToListAsync();
+                if (existingProgress.Any())
+                {
+                    context.StudentRoadmapProgress.RemoveRange(existingProgress);
+                    await context.SaveChangesAsync();
+                }
+
+                var existingTopics = await context.RoadmapTopics.ToListAsync();
+                if (existingTopics.Any())
+                {
+                    context.RoadmapTopics.RemoveRange(existingTopics);
+                    await context.SaveChangesAsync();
+                }
+
+                var existingTemplates = await context.RoadmapTemplates.ToListAsync();
+                if (existingTemplates.Any())
+                {
+                    context.RoadmapTemplates.RemoveRange(existingTemplates);
+                    await context.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Warning during cleanup: {ex.Message}");
+            }
 
             var roadmaps = new List<RoadmapTemplate>();
 
@@ -267,6 +302,7 @@ namespace EduConnect.Services
                     Color = "#217346",
                     FreeResources = JsonSerializer.Serialize(new[]
                     {
+                        new { title = "W3Schools Excel Tutorial", url = "https://www.w3schools.com/excel/" },
                         new { title = "Excel Easy Tutorial", url = "https://www.excel-easy.com/" },
                         new { title = "Microsoft Excel Training", url = "https://support.microsoft.com/en-us/excel" }
                     }),
