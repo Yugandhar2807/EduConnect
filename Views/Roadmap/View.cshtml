@@ -28,6 +28,15 @@
         align-items: flex-start;
     }
 
+    /* Ensure flowchart doesn't interfere with modal */
+    body.modal-open .flowchart-container {
+        pointer-events: none;
+    }
+
+    body.modal-open #topicModal {
+        pointer-events: auto;
+    }
+
     [data-theme="dark"] .flowchart-container {
         background: rgba(26, 26, 46, 0.4);
     }
@@ -174,24 +183,86 @@
     .modal-content {
         border-radius: 20px;
         border: none;
+        background: white;
+        backdrop-filter: none !important;
+        position: relative;
+        z-index: 10001 !important;
+        pointer-events: auto !important;
+    }
+
+    [data-theme="dark"] .modal-content {
+        background: #1a1a2e;
     }
 
     .modal-header {
         background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
         color: white;
         border-radius: 20px 20px 0 0;
+        pointer-events: auto !important;
+    }
+
+    .modal-backdrop {
+        backdrop-filter: none !important;
+        z-index: 9998 !important;
+    }
+
+    #topicModal {
+        z-index: 9999 !important;
+        pointer-events: auto !important;
+    }
+
+    #topicModal .modal-dialog {
+        z-index: 10000 !important;
+        pointer-events: auto !important;
+    }
+
+    .modal-body {
+        background: white;
+        color: #333;
+        pointer-events: auto !important;
+    }
+
+    [data-theme="dark"] .modal-body {
+        background: #1a1a2e;
+        color: #e0e0e0;
     }
 
     .list-group-item {
         border-radius: 10px;
         margin-bottom: 0.5rem;
         border: 2px solid rgba(0,0,0,0.1);
+        background: white;
+        cursor: pointer;
+        pointer-events: auto !important;
+    }
+
+    [data-theme="dark"] .list-group-item {
+        background: #0f0f1e;
+        border-color: rgba(255,255,255,0.1);
+        color: #e0e0e0;
     }
 
     .list-group-item:hover {
         background: rgba(103, 126, 234, 0.1);
         transform: translateX(5px);
         transition: all 0.3s ease;
+    }
+
+    .list-group-item a {
+        color: inherit;
+        text-decoration: none;
+        display: block;
+        width: 100%;
+        pointer-events: auto !important;
+    }
+
+    [data-theme="dark"] .list-group-item a {
+        color: #e0e0e0;
+    }
+
+    .btn {
+        pointer-events: auto !important;
+        cursor: pointer;
     }
 </style>
 

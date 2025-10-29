@@ -355,6 +355,7 @@ namespace EduConnect.Controllers
 
         // Delete Student
         [HttpPost]
+        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> DeleteStudent(string id)
         {
             try
@@ -368,6 +369,11 @@ namespace EduConnect.Controllers
                 var topicProgress = await _context.TopicProgress.Where(tp => tp.StudentId == id).ToListAsync();
                 if (topicProgress.Any())
                     _context.TopicProgress.RemoveRange(topicProgress);
+
+                // Delete StudentRoadmapProgress for this student
+                var roadmapProgress = await _context.StudentRoadmapProgress.Where(srp => srp.StudentId == id).ToListAsync();
+                if (roadmapProgress.Any())
+                    _context.StudentRoadmapProgress.RemoveRange(roadmapProgress);
 
                 // Delete QuizResults for this student
                 var quizResults = await _context.QuizResults.Where(qr => qr.StudentId == id).ToListAsync();
@@ -397,6 +403,7 @@ namespace EduConnect.Controllers
 
         // Delete Faculty
         [HttpPost]
+        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> DeleteFaculty(string id)
         {
             try
@@ -462,6 +469,7 @@ namespace EduConnect.Controllers
 
         // Deactivate/Activate Student
         [HttpPost]
+        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> ToggleStudentStatus(string id)
         {
             var student = await _userManager.FindByIdAsync(id);
