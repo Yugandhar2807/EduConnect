@@ -1,0 +1,495 @@
+@model EduConnect.Models.RoadmapTemplate
+
+@{
+    ViewData["Title"] = Model.Title + " Roadmap";
+    var progress = ViewBag.Progress as EduConnect.Models.StudentRoadmapProgress;
+    var completedTopicIds = ViewBag.CompletedTopicIds as List<int> ?? new List<int>();
+}
+
+<style>
+    .roadmap-header {
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+        color: white;
+        padding: 3rem 2rem;
+        border-radius: 20px;
+        margin-bottom: 2rem;
+    }
+
+    .flowchart-container {
+        position: relative;
+        min-height: 1200px;
+        padding: 3rem;
+        background: rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        overflow-x: auto;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+    [data-theme="dark"] .flowchart-container {
+        background: rgba(26, 26, 46, 0.4);
+    }
+
+    .roadmap-tree {
+        position: relative;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .topic-level {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 100px;
+        position: relative;
+        min-height: 150px;
+    }
+
+    .topic-node {
+        position: relative;
+        width: 220px;
+        margin: 0 30px;
+        padding: 1.5rem;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
+        border-radius: 15px;
+        border: 3px solid;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+
+    [data-theme="dark"] .topic-node {
+        background: rgba(26, 26, 46, 0.9);
+        color: white;
+    }
+
+    .topic-node:hover {
+        transform: scale(1.08) translateY(-8px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+        z-index: 10;
+    }
+
+    .topic-node.completed {
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.2), rgba(40, 167, 69, 0.1));
+        border-color: var(--accent-success);
+    }
+
+    .topic-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.8rem;
+        display: block;
+    }
+
+    .topic-title {
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 0.8rem;
+        color: inherit;
+    }
+
+    .topic-subtitle {
+        font-size: 0.75rem;
+        color: #666;
+        margin-bottom: 1rem;
+    }
+
+    [data-theme="dark"] .topic-subtitle {
+        color: #aaa;
+    }
+
+    .topic-check {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: white;
+        border: 2px solid var(--accent-success);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        color: var(--accent-success);
+    }
+
+    .topic-node.completed .topic-check {
+        background: var(--accent-success);
+        color: white;
+    }
+
+    /* Sub-topics */
+    .sub-topics {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
+
+    .sub-topic {
+        padding: 0.5rem 1rem;
+        background: rgba(103, 126, 234, 0.1);
+        border: 2px solid rgba(103, 126, 234, 0.3);
+        border-radius: 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--accent-primary);
+    }
+
+    [data-theme="dark"] .sub-topic {
+        background: rgba(103, 126, 234, 0.2);
+        border-color: rgba(103, 126, 234, 0.4);
+        color: #88a4f7;
+    }
+
+    /* Connection SVG */
+    .connection-svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .connection-line {
+        stroke: var(--accent-primary);
+        stroke-width: 3;
+        fill: none;
+        opacity: 0.6;
+    }
+
+    .connection-arrow {
+        fill: var(--accent-primary);
+        opacity: 0.6;
+    }
+
+    .modal-content {
+        border-radius: 20px;
+        border: none;
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+        color: white;
+        border-radius: 20px 20px 0 0;
+    }
+
+    .list-group-item {
+        border-radius: 10px;
+        margin-bottom: 0.5rem;
+        border: 2px solid rgba(0,0,0,0.1);
+    }
+
+    .list-group-item:hover {
+        background: rgba(103, 126, 234, 0.1);
+        transform: translateX(5px);
+        transition: all 0.3s ease;
+    }
+</style>
+
+<div class="roadmap-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1><i class="fas @(Model.Icon ?? "fa-code") me-3"></i>@Model.Title</h1>
+            <p class="mb-0">@Model.Description</p>
+            <div class="mt-3">
+                <span class="badge bg-light text-dark me-2">
+                    <i class="fas fa-clock me-1"></i>@Model.EstimatedHours Hours
+                </span>
+                <span class="badge bg-light text-dark me-2">
+                    <i class="fas fa-layer-group me-1"></i>@Model.Level
+                </span>
+                <span class="badge bg-light text-dark">
+                    <i class="fas fa-book me-1"></i>@(Model.Topics?.Count ?? 0) Topics
+                </span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="text-center">
+                <h3 class="mb-2">@(progress?.ProgressPercentage ?? 0)%</h3>
+                <p class="mb-2">Progress</p>
+                <div class="progress" style="height: 10px;">
+                    <div class="progress-bar bg-success" role="progressbar" 
+                         style="width: @(progress?.ProgressPercentage ?? 0)%"></div>
+                </div>
+                <small class="text-white-50">@completedTopicIds.Count / @(Model.Topics?.Count ?? 0) Topics Completed</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="flowchart-container" id="flowchart">
+    @if (Model.Topics != null && Model.Topics.Any())
+    {
+        <div class="roadmap-tree">
+            <svg class="connection-svg" id="connectionSvg">
+                <!-- Lines will be drawn here by JavaScript -->
+            </svg>
+
+            @{
+                var topicsByLevel = Model.Topics
+                    .OrderBy(t => t.Level)
+                    .ThenBy(t => t.OrderIndex)
+                    .GroupBy(t => t.Level)
+                    .ToList();
+            }
+
+            @foreach (var levelGroup in topicsByLevel)
+            {
+                <div class="topic-level" data-level="@levelGroup.Key">
+                    @foreach (var topic in levelGroup)
+                    {
+                        var isCompleted = completedTopicIds.Contains(topic.Id);
+                        var topColor = topic.Color ?? Model.Color ?? "#667eea";
+                        
+                        <div class="topic-node @(isCompleted ? "completed" : "")" 
+                             data-topic-id="@topic.Id"
+                             data-parent-id="@topic.ParentTopicId"
+                             id="topic-@topic.Id"
+                             style="border-color: @topColor;">
+                            
+                            <div class="topic-check">
+                                <i class="fas @(isCompleted ? "fa-check" : "fa-circle")"></i>
+                            </div>
+                            
+                            <div class="topic-icon" style="color: @topColor;">
+                                <i class="fas @(topic.Icon ?? "fa-book")"></i>
+                            </div>
+                            
+                            <div class="topic-title">@topic.Title</div>
+                            <div class="topic-subtitle">@(topic.Description?.Length > 50 ? topic.Description.Substring(0, 50) + "..." : topic.Description)</div>
+                            
+                            @* Show sub-topics as tags if this is a parent topic *@
+                            @{
+                                var childTopics = Model.Topics.Where(t => t.ParentTopicId == topic.Id).ToList();
+                                if (childTopics.Any())
+                                {
+                                    <div class="sub-topics">
+                                        @foreach (var child in childTopics.Take(3))
+                                        {
+                                            <span class="sub-topic">@child.Title</span>
+                                        }
+                                        @if (childTopics.Count > 3)
+                                        {
+                                            <span class="sub-topic">+@(childTopics.Count - 3) more</span>
+                                        }
+                                    </div>
+                                }
+                            }
+                            
+                            <button class="btn btn-sm btn-primary mt-3 w-100" onclick="toggleCompletion(@topic.Id, event)">
+                                <i class="fas @(isCompleted ? "fa-undo" : "fa-check")"></i>
+                                @(isCompleted ? "Undo" : "Complete")
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+            <p class="text-muted">This roadmap doesn't have any topics yet.</p>
+        </div>
+    }
+</div>
+
+<!-- Topic Detail Modal -->
+<div class="modal fade" id="topicModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="topicModalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="topicModalBody">
+                <div class="mb-4">
+                    <h6><i class="fas fa-info-circle me-2"></i>Description</h6>
+                    <p id="topicDescription"></p>
+                </div>
+
+                <div class="mb-4" id="freeResourcesSection">
+                    <h6><i class="fas fa-heart text-success me-2"></i>Free Resources</h6>
+                    <div class="list-group" id="freeResourcesList"></div>
+                </div>
+
+                <div class="mb-4" id="aiTutorSection">
+                    <h6><i class="fas fa-robot text-primary me-2"></i>Your Personalized AI Tutor</h6>
+                    <p id="aiTutorPrompt" class="text-muted"></p>
+                    <button class="btn btn-outline-primary">
+                        <i class="fas fa-comments me-2"></i>Ask AI Tutor
+                    </button>
+                </div>
+
+                <div class="mb-4" id="paidResourcesSection">
+                    <h6><i class="fas fa-star text-warning me-2"></i>Premium Resources</h6>
+                    <div class="list-group" id="paidResourcesList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Draw connection lines between parent and child topics
+    function drawConnections() {
+        const svg = document.getElementById('connectionSvg');
+        if (!svg) return;
+        
+        svg.innerHTML = ''; // Clear existing lines
+        
+        const nodes = document.querySelectorAll('.topic-node[data-parent-id]');
+        
+        nodes.forEach(node => {
+            const parentId = node.getAttribute('data-parent-id');
+            if (!parentId || parentId === 'null') return;
+            
+            const parent = document.getElementById(`topic-${parentId}`);
+            if (!parent) return;
+            
+            const parentRect = parent.getBoundingClientRect();
+            const childRect = node.getBoundingClientRect();
+            const containerRect = svg.getBoundingClientRect();
+            
+            // Calculate positions relative to SVG container
+            const x1 = parentRect.left + parentRect.width / 2 - containerRect.left;
+            const y1 = parentRect.bottom - containerRect.top;
+            const x2 = childRect.left + childRect.width / 2 - containerRect.left;
+            const y2 = childRect.top - containerRect.top;
+            
+            // Create curved path
+            const midY = (y1 + y2) / 2;
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`);
+            path.setAttribute('class', 'connection-line');
+            
+            // Add arrow marker
+            const defs = svg.querySelector('defs') || document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            if (!svg.querySelector('defs')) {
+                svg.appendChild(defs);
+            }
+            
+            if (!defs.querySelector('#arrowhead')) {
+                const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                marker.setAttribute('id', 'arrowhead');
+                marker.setAttribute('markerWidth', '10');
+                marker.setAttribute('markerHeight', '10');
+                marker.setAttribute('refX', '5');
+                marker.setAttribute('refY', '3');
+                marker.setAttribute('orient', 'auto');
+                
+                const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                polygon.setAttribute('points', '0 0, 10 3, 0 6');
+                polygon.setAttribute('class', 'connection-arrow');
+                
+                marker.appendChild(polygon);
+                defs.appendChild(marker);
+            }
+            
+            path.setAttribute('marker-end', 'url(#arrowhead)');
+            svg.appendChild(path);
+        });
+    }
+    
+    // Redraw connections on page load and resize
+    window.addEventListener('load', drawConnections);
+    window.addEventListener('resize', drawConnections);
+    setTimeout(drawConnections, 100);
+
+    // Toggle topic completion
+    function toggleCompletion(topicId, event) {
+        event.stopPropagation();
+        
+        fetch('@Url.Action("ToggleTopicCompletion", "Roadmap")', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ topicId: topicId, roadmapId: @Model.Id })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    // Show topic details in modal
+    document.querySelectorAll('.topic-node').forEach(node => {
+        node.addEventListener('click', function(e) {
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+            
+            const topicId = this.getAttribute('data-topic-id');
+            loadTopicDetails(topicId);
+        });
+    });
+
+    function loadTopicDetails(topicId) {
+        fetch('@Url.Action("GetTopicDetails", "Roadmap")?topicId=' + topicId)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('topicModalTitle').innerHTML = `<i class="fas ${data.icon || 'fa-book'} me-2"></i>${data.title}`;
+                document.getElementById('topicDescription').textContent = data.description || 'No description available.';
+                
+                // Free Resources
+                const freeList = document.getElementById('freeResourcesList');
+                freeList.innerHTML = '';
+                if (data.freeResources && data.freeResources.length > 0) {
+                    data.freeResources.forEach(resource => {
+                        const item = document.createElement('a');
+                        item.className = 'list-group-item list-group-item-action d-flex align-items-center';
+                        item.href = resource.url || '#';
+                        item.target = '_blank';
+                        item.innerHTML = `
+                            <i class="fas fa-external-link-alt me-3 text-success"></i>
+                            <span>${resource.title || resource}</span>
+                        `;
+                        freeList.appendChild(item);
+                    });
+                } else {
+                    freeList.innerHTML = '<p class="text-muted mb-0">No free resources available.</p>';
+                }
+
+                // Paid Resources
+                const paidList = document.getElementById('paidResourcesList');
+                paidList.innerHTML = '';
+                if (data.paidResources && data.paidResources.length > 0) {
+                    data.paidResources.forEach(resource => {
+                        const item = document.createElement('a');
+                        item.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                        item.href = resource.url || '#';
+                        item.target = '_blank';
+                        item.innerHTML = `
+                            <div>
+                                <i class="fas fa-external-link-alt me-3 text-warning"></i>
+                                <span>${resource.title || resource}</span>
+                            </div>
+                            <span class="badge bg-warning text-dark">Premium</span>
+                        `;
+                        paidList.appendChild(item);
+                    });
+                } else {
+                    paidList.innerHTML = '<p class="text-muted mb-0">No premium resources available.</p>';
+                }
+
+                // AI Tutor
+                document.getElementById('aiTutorPrompt').textContent = data.aiTutorPrompt || 'Ask me anything about this topic!';
+
+                const modal = new bootstrap.Modal(document.getElementById('topicModal'));
+                modal.show();
+            })
+            .catch(error => console.error('Error:', error));
+    }
+</script>

@@ -172,11 +172,18 @@ namespace EduConnect.Controllers
                 return View(model);
             }
 
+            // Split FullName into FirstName and LastName
+            var nameParts = model.FullName.Split(' ', 2);
+            var firstName = nameParts.Length > 0 ? nameParts[0] : model.FullName;
+            var lastName = nameParts.Length > 1 ? nameParts[1] : "";
+
             var user = new ApplicationUser
             {
                 UserName = model.Email,
                 Email = model.Email,
                 FullName = model.FullName,
+                FirstName = firstName,
+                LastName = lastName,
                 PhoneNumber = model.PhoneNumber,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -216,11 +223,18 @@ namespace EduConnect.Controllers
                 return View(model);
             }
 
+            // Split FullName into FirstName and LastName
+            var nameParts = model.FullName.Split(' ', 2);
+            var firstName = nameParts.Length > 0 ? nameParts[0] : model.FullName;
+            var lastName = nameParts.Length > 1 ? nameParts[1] : "";
+
             var user = new ApplicationUser
             {
                 UserName = model.Email,
                 Email = model.Email,
                 FullName = model.FullName,
+                FirstName = firstName,
+                LastName = lastName,
                 PhoneNumber = model.PhoneNumber,
                 Department = model.Department,
                 IsActive = true,
