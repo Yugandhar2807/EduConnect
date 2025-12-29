@@ -3,6 +3,7 @@ using System;
 using EduConnect.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EduConnect.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251128115703_RemoveChatbot")]
+    partial class RemoveChatbot
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
@@ -143,6 +146,9 @@ namespace EduConnect.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Credits")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Description")
                         .HasColumnType("TEXT");
@@ -366,6 +372,217 @@ namespace EduConnect.Migrations
                     b.HasIndex("StudentId");
 
                     b.ToTable("QuizResults");
+                });
+
+            modelBuilder.Entity("EduConnect.Models.RoadmapNode", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CourseId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ParentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StudentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("TopicId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("StudentId");
+
+                    b.HasIndex("TopicId");
+
+                    b.ToTable("RoadmapNodes");
+                });
+
+            modelBuilder.Entity("EduConnect.Models.RoadmapTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EstimatedHours")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("RoadmapTemplates");
+                });
+
+            modelBuilder.Entity("EduConnect.Models.RoadmapTopic", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AITutorPrompt")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FreeResources")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PaidResources")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ParentTopicId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PositionX")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PositionY")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RoadmapTemplateId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentTopicId");
+
+                    b.HasIndex("RoadmapTemplateId");
+
+                    b.ToTable("RoadmapTopics");
+                });
+
+            modelBuilder.Entity("EduConnect.Models.StudentRoadmapProgress", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CompletedTopicIds")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ProgressPercentage")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RoadmapTemplateId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StudentId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoadmapTemplateId");
+
+                    b.HasIndex("StudentId");
+
+                    b.ToTable("StudentRoadmapProgress");
                 });
 
             modelBuilder.Entity("EduConnect.Models.Topic", b =>
@@ -673,6 +890,72 @@ namespace EduConnect.Migrations
                     b.Navigation("Student");
                 });
 
+            modelBuilder.Entity("EduConnect.Models.RoadmapNode", b =>
+                {
+                    b.HasOne("EduConnect.Models.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId");
+
+                    b.HasOne("EduConnect.Models.RoadmapNode", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("EduConnect.Models.ApplicationUser", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("EduConnect.Models.Topic", "Topic")
+                        .WithMany()
+                        .HasForeignKey("TopicId");
+
+                    b.Navigation("Course");
+
+                    b.Navigation("Parent");
+
+                    b.Navigation("Student");
+
+                    b.Navigation("Topic");
+                });
+
+            modelBuilder.Entity("EduConnect.Models.RoadmapTopic", b =>
+                {
+                    b.HasOne("EduConnect.Models.RoadmapTopic", "ParentTopic")
+                        .WithMany("ChildTopics")
+                        .HasForeignKey("ParentTopicId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("EduConnect.Models.RoadmapTemplate", "RoadmapTemplate")
+                        .WithMany("Topics")
+                        .HasForeignKey("RoadmapTemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ParentTopic");
+
+                    b.Navigation("RoadmapTemplate");
+                });
+
+            modelBuilder.Entity("EduConnect.Models.StudentRoadmapProgress", b =>
+                {
+                    b.HasOne("EduConnect.Models.RoadmapTemplate", "RoadmapTemplate")
+                        .WithMany("StudentProgress")
+                        .HasForeignKey("RoadmapTemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EduConnect.Models.ApplicationUser", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RoadmapTemplate");
+
+                    b.Navigation("Student");
+                });
+
             modelBuilder.Entity("EduConnect.Models.Topic", b =>
                 {
                     b.HasOne("EduConnect.Models.Course", "Course")
@@ -785,6 +1068,23 @@ namespace EduConnect.Migrations
                     b.Navigation("Questions");
 
                     b.Navigation("Results");
+                });
+
+            modelBuilder.Entity("EduConnect.Models.RoadmapNode", b =>
+                {
+                    b.Navigation("Children");
+                });
+
+            modelBuilder.Entity("EduConnect.Models.RoadmapTemplate", b =>
+                {
+                    b.Navigation("StudentProgress");
+
+                    b.Navigation("Topics");
+                });
+
+            modelBuilder.Entity("EduConnect.Models.RoadmapTopic", b =>
+                {
+                    b.Navigation("ChildTopics");
                 });
 
             modelBuilder.Entity("EduConnect.Models.Topic", b =>

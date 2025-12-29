@@ -20,11 +20,6 @@ namespace EduConnect.Data
         public DbSet<QuizResult> QuizResults { get; set; }
         public DbSet<Announcement> Announcements { get; set; }
         public DbSet<TopicProgress> TopicProgress { get; set; }
-        public DbSet<ChatMessage> ChatMessages { get; set; }
-        public DbSet<RoadmapNode> RoadmapNodes { get; set; }
-        public DbSet<RoadmapTemplate> RoadmapTemplates { get; set; }
-        public DbSet<RoadmapTopic> RoadmapTopics { get; set; }
-        public DbSet<StudentRoadmapProgress> StudentRoadmapProgress { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -132,46 +127,6 @@ namespace EduConnect.Data
                 .HasForeignKey(tp => tp.MaterialId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired(false);
-
-            // RoadmapNode self-referencing relationship
-            builder.Entity<RoadmapNode>()
-                .HasOne(r => r.Parent)
-                .WithMany(r => r.Children)
-                .HasForeignKey(r => r.ParentId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.Entity<RoadmapNode>()
-                .HasOne(r => r.Student)
-                .WithMany()
-                .HasForeignKey(r => r.StudentId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // RoadmapTemplate relationships
-            builder.Entity<RoadmapTemplate>()
-                .HasMany(rt => rt.Topics)
-                .WithOne(t => t.RoadmapTemplate)
-                .HasForeignKey(t => t.RoadmapTemplateId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // RoadmapTopic self-referencing relationship
-            builder.Entity<RoadmapTopic>()
-                .HasOne(t => t.ParentTopic)
-                .WithMany(t => t.ChildTopics)
-                .HasForeignKey(t => t.ParentTopicId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            // StudentRoadmapProgress relationships
-            builder.Entity<StudentRoadmapProgress>()
-                .HasOne(srp => srp.Student)
-                .WithMany()
-                .HasForeignKey(srp => srp.StudentId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.Entity<StudentRoadmapProgress>()
-                .HasOne(srp => srp.RoadmapTemplate)
-                .WithMany(rt => rt.StudentProgress)
-                .HasForeignKey(srp => srp.RoadmapTemplateId)
-                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

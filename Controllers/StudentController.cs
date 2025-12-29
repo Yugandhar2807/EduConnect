@@ -416,46 +416,58 @@ namespace EduConnect.Controllers
 
             if (course == null) return 0;
 
-            // Count total topics + materials
+            // Progress Formula: 15% Topics + 25% Materials + 60% Quizzes = 100%
+
+            // 1. Topics Progress (15%)
             int totalTopics = course.Topics?.Count ?? 0;
+            double topicsProgress = 0;
+            
+            if (totalTopics > 0)
+            {
+                var completedTopics = await _context.TopicProgress
+                    .Where(tp => tp.StudentId == userId && tp.TopicId.HasValue &&
+                        course.Topics!.Any(t => t.Id == tp.TopicId))
+                    .Select(tp => tp.TopicId)
+                    .Distinct()
+                    .CountAsync();
+
+                topicsProgress = (completedTopics / (double)totalTopics) * 15;
+            }
+
+            // 2. Materials Progress (25%)
             int totalMaterials = course.Materials?.Count ?? 0;
-            int totalTopicsAndMaterials = totalTopics + totalMaterials;
-
-            if (totalTopicsAndMaterials == 0)
+            double materialsProgress = 0;
+            
+            if (totalMaterials > 0)
             {
-                // If no topics/materials, progress is 100% if they've attempted any quiz, else based on quizzes
-                totalTopicsAndMaterials = 1; // Avoid division by zero
+                var completedMaterials = await _context.TopicProgress
+                    .Where(tp => tp.StudentId == userId && tp.MaterialId.HasValue &&
+                        course.Materials!.Any(m => m.Id == tp.MaterialId))
+                    .Select(tp => tp.MaterialId)
+                    .Distinct()
+                    .CountAsync();
+
+                materialsProgress = (completedMaterials / (double)totalMaterials) * 25;
             }
 
-            // Count completed topics + materials
-            var completedItems = await _context.TopicProgress
-                .Where(tp => tp.StudentId == userId && 
-                    (tp.TopicId.HasValue || tp.MaterialId.HasValue))
-                .ToListAsync();
-
-            int completedCount = completedItems.Count(tp =>
-                (tp.TopicId.HasValue && course.Topics != null && course.Topics.Any(t => t.Id == tp.TopicId)) ||
-                (tp.MaterialId.HasValue && course.Materials != null && course.Materials.Any(m => m.Id == tp.MaterialId)));
-
-            double topicsProgress = (totalTopicsAndMaterials > 0) ? (completedCount / (double)totalTopicsAndMaterials) * 50 : 0;
-
-            // Count quizzes attempted (50% of progress)
+            // 3. Quizzes Progress (60%)
             int totalQuizzes = course.Quizzes?.Count ?? 0;
-            if (totalQuizzes == 0)
+            double quizzesProgress = 0;
+            
+            if (totalQuizzes > 0)
             {
-                totalQuizzes = 1; // Avoid division by zero
+                var quizIds = course.Quizzes!.Select(q => q.Id).ToList();
+                int quizzesAttempted = await _context.QuizResults
+                    .Where(qr => qr.StudentId == userId && quizIds.Contains(qr.QuizId))
+                    .Select(qr => qr.QuizId)
+                    .Distinct()
+                    .CountAsync();
+
+                quizzesProgress = (quizzesAttempted / (double)totalQuizzes) * 60;
             }
 
-            var quizIds = course.Quizzes?.Select(q => q.Id).ToList() ?? new List<int>();
-            int quizzesAttempted = await _context.QuizResults
-                .Where(qr => qr.StudentId == userId && quizIds.Contains(qr.QuizId))
-                .Select(qr => qr.QuizId)
-                .Distinct()
-                .CountAsync();
-
-            double quizProgress = (totalQuizzes > 0) ? (quizzesAttempted / (double)totalQuizzes) * 50 : 0;
-
-            return Math.Min(topicsProgress + quizProgress, 100);
+            double totalProgress = topicsProgress + materialsProgress + quizzesProgress;
+            return Math.Min(totalProgress, 100);
         }
 
         /// <summary>
@@ -826,83 +838,6 @@ public class Program
             {
                 return Json(new { success = false, error = ex.Message });
             }
-        }
-
-        // ROADMAP FEATURE
-        public async Task<IActionResult> Roadmap()
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            // Get all roadmap nodes for this student
-            var roadmapNodes = await _context.RoadmapNodes
-                .Where(r => r.StudentId == userId || r.StudentId == null) // Include both student-specific and shared nodes
-                .Include(r => r.Parent)
-                .Include(r => r.Children)
-                .Include(r => r.Course)
-                .Include(r => r.Topic)
-                .OrderBy(r => r.Order)
-                .ToListAsync();
-
-            return View(roadmapNodes);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> ToggleRoadmapNodeCompletion(int nodeId)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var node = await _context.RoadmapNodes
-                .FirstOrDefaultAsync(r => r.Id == nodeId && r.StudentId == userId);
-
-            if (node == null)
-            {
-                return Json(new { success = false, message = "Node not found" });
-            }
-
-            node.IsCompleted = !node.IsCompleted;
-            node.CompletedAt = node.IsCompleted ? DateTime.UtcNow : null;
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, isCompleted = node.IsCompleted });
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> AddRoadmapNode([FromBody] RoadmapNode model)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            
-            var node = new RoadmapNode
-            {
-                Title = model.Title,
-                Description = model.Description,
-                ParentId = model.ParentId,
-                Order = model.Order,
-                StudentId = userId,
-                Icon = model.Icon ?? "fa-circle",
-                Color = model.Color ?? "#007bff"
-            };
-
-            _context.RoadmapNodes.Add(node);
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, nodeId = node.Id });
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> DeleteRoadmapNode(int nodeId)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var node = await _context.RoadmapNodes
-                .FirstOrDefaultAsync(r => r.Id == nodeId && r.StudentId == userId);
-
-            if (node == null)
-            {
-                return Json(new { success = false, message = "Node not found or unauthorized" });
-            }
-
-            _context.RoadmapNodes.Remove(node);
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true });
         }
     }
 }

@@ -1,119 +1,109 @@
 # EduConnect Development Instructions
 
-## Project Overview
-EduConnect is an ASP.NET Core MVC-based interactive learning portal that connects students and faculty within a single system. Faculty can create courses, upload materials, and conduct quizzes, while students can enroll, access materials, and track progress.
+## Architecture Overview
 
-## Tech Stack
-- ASP.NET Core 8.0 MVC
-- SQL Server Database
-- Entity Framework Core
-- ASP.NET Identity
-- Bootstrap 5 Frontend
-- Microsoft Azure Ready
+EduConnect is a multi-tenant ASP.NET Core 8.0 MVC learning management system with three role-based workflows (Admin, Faculty, Student). The system uses Entity Framework Core with SQL Server and extends ASP.NET Identity for user management.
 
-## Project Structure
-```
-EduConnect/
-├── Models/                 # Database models
-├── Controllers/            # Application controllers
-├── Views/                  # Razor view templates
-├── Data/                   # DbContext and migrations
-├── Services/               # Business logic
-├── wwwroot/                # Static assets
-└── Program.cs              # Startup configuration
-```
+**Key architectural principle**: Each controller maps to a user role. Cross-cutting concerns (email, AI, PDF generation) live in `Services/` and are injected via dependency injection.
 
-## Getting Started
+## Critical Models & Relationships
 
-### Setup Database
-1. Update `appsettings.json` with your SQL Server connection string
-2. Run migrations: `dotnet ef database update`
-3. Default admin account created automatically
+The domain model uses cascading deletes strategically:
 
-### Run Application
+- **ApplicationUser** → Course (Faculty creates via `HasMany(CreatedCourses)`, `OnDelete(Restrict)` prevents deletion of courses)
+- **Course** → Enrollment, Material, Topic, Quiz (all `OnDelete(Cascade)` - deleting a course cleans up dependencies)
+- **Enrollment** → Student + Course (double cascade for cleanup)
+- **Material/Quiz** → Topic (optional, `OnDelete(SetNull)`)
+- **Topic** → Material, Quiz, TopicProgress (cascade delete)
+
+See [Data/ApplicationDbContext.cs](Data/ApplicationDbContext.cs#L25-L75) for relationship configuration. This structure supports courses structured into topics with nested materials and quizzes.
+
+## Service Integration Patterns
+
+**Email Notifications** ([Services/EmailService.cs](Services/EmailService.cs)):
+- Implements async SMTP or HTTP-based service (see `SendEmailAsync`, `SendBulkEmailAsync`)
+- Domain-specific helpers: `SendEnrollmentConfirmationAsync`, `SendGradeNotificationAsync`, `SendAnnouncementAsync`
+- All methods are async `Task<bool>` with try-catch logging
+- Injected in controllers as `private readonly IEmailService _emailService;`
+
+**AI Services** ([Services/IAIService.cs](Services/IAIService.cs) interface):
+- Swappable implementations: `GeminiAIService`, `MockAIService`, `NullAIService`
+- Configured in `Program.cs` to use Gemini by default (can swap for testing)
+- Used for student assistance features
+
+**PDF Generation** ([Services/PdfGenerationService.cs](Services/PdfGenerationService.cs)):
+- Generates HTML, then converts via external tool or library
+- `GenerateTopicPdfAsync()` method writes formatted HTML with embedded styles
+- Returns file path for download
+
+## Development Workflows
+
+### Running the Application
 ```bash
 dotnet restore
+dotnet ef database update      # Applies all migrations
 dotnet run
 ```
+Access: https://localhost:5001
 
-Access at: https://localhost:5001
+### Database Changes
+1. Modify model in `Models/`
+2. `dotnet ef migrations add DescriptiveName`
+3. Review generated migration in `Migrations/`
+4. `dotnet ef database update`
 
-## Default Credentials
-- Email: admin@educonnect.com
-- Password: Admin@123456
+**Naming pattern**: Migrations in this codebase use timestamps (e.g., `20251229182422_RemoveCreditsFromCourse.cs`). Always cascade delete unless you have a specific reason to restrict.
 
-## Key Features Implemented
+### Default Credentials
+- Admin: admin@educonnect.com / Admin@123456
+- Use [AccountController.cs](Controllers/AccountController.cs) for auth flows
 
-### Faculty Module
-- Dashboard with statistics
-- Create, edit, delete courses
-- Course management view
-- Integration with materials and quizzes
+## Controller Conventions
 
-### Student Module
-- Dashboard with progress tracking
-- Browse available courses
-- Course enrollment
-- Course details with materials and quizzes
-- Progress tracking dashboard
+- **AccountController**: Register, login, logout (accessible to all)
+- **AdminController**: System management, user roles (Admin only - add `[Authorize(Roles = "Admin")]`)
+- **FacultyController**: Create/edit courses, materials, quizzes (Faculty only)
+- **StudentController**: Browse, enroll, take quizzes, view progress (Student only)
+- **HomeController**: Public pages, redirects authenticated users based on role
 
-### Authentication
-- Role-based access (Admin, Faculty, Student)
-- ASP.NET Identity integration
-- Secure login/logout
+Protect controller actions with `[Authorize(Roles = "Faculty")]` or `[Authorize(Roles = "Student")]`.
 
-## Database Models
-- **ApplicationUser**: Extended Identity user
-- **Course**: Course information by faculty
-- **Material**: Study materials for courses
-- **Enrollment**: Student course registrations
-- **Quiz**: Course quizzes
-- **QuizQuestion**: Individual quiz questions
-- **QuizResult**: Student quiz performance
-- **Announcement**: Faculty announcements
+## Configuration & Secrets
 
-## Next Steps for Development
+- **Connection String**: `appsettings.json` property `DefaultConnection`
+- **Email Config**: Usually environment variables or secrets (see `EmailService` constructor)
+- **AI API Keys**: Injected via `IConfiguration`, typically from `appsettings.json` or Azure Key Vault
+- **Environment-specific**: `appsettings.Development.json`, `appsettings.Production.json` override base settings
 
-1. **Implement Material Management**
-   - File upload functionality
-   - Support PDF, Video, Document types
-   - Download/streaming capability
+## External Dependencies
 
-2. **Quiz System Enhancement**
-   - Quiz question management interface
-   - Quiz attempt functionality
-   - Score calculation and results
+- **Internal**: Google Gemini AI (optional, swappable), SMTP for email notifications
+- **NuGet**: Standard ASP.NET Core, EntityFrameworkCore packages (see `.csproj`)
+- **Render/Azure**: Deployment ready (see `Dockerfile`, `Procfile`, `render.yaml`)
 
-3. **Announcement System**
-   - Create announcement interface
-   - Distribution logic
-   - Dashboard display
+## Common Patterns to Follow
 
-4. **Progress Tracking**
-   - Calculate progress percentage
-   - Update based on material views and quizzes
+1. **Async/Await**: All service methods use `async Task<T>`. Example:
+   ```csharp
+   public async Task<QuizResult> SubmitQuizAsync(int quizId, List<Answer> answers)
+   {
+       // validate, calculate score, save to DB, send email async
+       await _emailService.SendGradeNotificationAsync(...);
+   }
+   ```
 
-5. **Advanced Features**
-   - Email notifications
-   - Real-time notifications (SignalR)
-   - Export/reporting
-   - Certificate generation
+2. **Dependency Injection**: Constructor inject interfaces, never `new` services:
+   ```csharp
+   public FacultyController(ApplicationDbContext db, IEmailService emailService) { ... }
+   ```
 
-## Important Files
-- `Program.cs`: Startup and dependency injection
-- `Data/ApplicationDbContext.cs`: Database relationships
-- `Models/*`: Data model definitions
-- `Views/Shared/_Layout.cshtml`: Master layout
+3. **Role-Based Authorization**: Use `[Authorize(Roles = "Faculty")]` on sensitive actions.
 
-## Development Workflow
-1. Create migrations for schema changes: `dotnet ef migrations add MigrationName`
-2. Apply migrations: `dotnet ef database update`
-3. Test locally before deployment
-4. Follow naming conventions for files and classes
-5. Keep views organized by controller/feature
+4. **View Naming**: Match controller action name. E.g., `FacultyController.CreateCourse()` → `Views/Faculty/CreateCourse.cshtml`
 
-## Deployment
-- Azure App Service compatible
-- Requires SQL Server database
-- HTTPS recommended for production
-- Change default admin credentials before deployment
+## Essential Files to Understand First
+
+- [Program.cs](Program.cs) — Dependency injection setup, authentication config
+- [Data/ApplicationDbContext.cs](Data/ApplicationDbContext.cs) — Relationship definitions
+- [Models/ApplicationUser.cs](Models/ApplicationUser.cs) — User role properties
+- [Controllers/StudentController.cs](Controllers/StudentController.cs) — Example workflow (browse → enroll → take quiz)

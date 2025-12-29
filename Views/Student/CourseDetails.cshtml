@@ -190,7 +190,7 @@
 
 <div class="course-header">
     <h1 style="margin-bottom: 10px;">@Model.Title</h1>
-    <p style="margin: 0; opacity: 0.9;">@Model.Category - @Model.Credits Credits</p>
+    <p style="margin: 0; opacity: 0.9;">@Model.Category</p>
 </div>
 
 <div class="row">
@@ -376,7 +376,6 @@
             <div class="card-body">
                 <p><strong><i class="fas fa-user"></i> Instructor:</strong> <br />@Model.Faculty?.FirstName @Model.Faculty?.LastName</p>
                 <p><strong><i class="fas fa-tag"></i> Category:</strong> <br />@Model.Category</p>
-                <p><strong><i class="fas fa-star"></i> Credits:</strong> <br />@Model.Credits</p>
                 <p><strong><i class="fas fa-users"></i> Enrolled Students:</strong> <br />@(Model.Enrollments?.Count() ?? 0)</p>
                 <a class="btn btn-primary w-100" asp-action="Dashboard">
                     <i class="fas fa-arrow-left"></i> Back to Dashboard

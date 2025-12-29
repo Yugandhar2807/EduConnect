@@ -29,23 +29,84 @@
                 <span asp-validation-for="Category" class="text-danger"></span>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="Credits" class="form-label">Credits</label>
-                <input asp-for="Credits" type="number" class="form-control" />
-                <span asp-validation-for="Credits" class="text-danger"></span>
-            </div>
-
             <div class="form-check mb-3">
                 <input asp-for="IsActive" type="checkbox" class="form-check-input" />
                 <label asp-for="IsActive" class="form-check-label">Active</label>
             </div>
 
-            <button type="submit" class="btn btn-primary">Create Course</button>
-            <a class="btn btn-secondary" asp-action="Dashboard">Cancel</a>
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">Create Course</button>
+                <button type="button" class="btn btn-info" onclick="generateTopicsWithAI()">
+                    <i class="fas fa-magic"></i> Generate Topics with AI
+                </button>
+                <a class="btn btn-secondary" asp-action="Dashboard">Cancel</a>
+            </div>
         </form>
     </div>
 </div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        function generateTopicsWithAI() {
+            const title = document.querySelector('input[name="Title"]').value;
+            const description = document.querySelector('textarea[name="Description"]').value;
+
+            if (!title || !description) {
+                alert('Please enter Course Title and Description first');
+                return;
+            }
+
+            // Show loading message
+            Swal.fire({
+                title: 'Generating Topics...',
+                html: 'Please wait while AI generates course topics<br><small>This may take 10-15 seconds</small>',
+                allowOutsideClick: false,
+                didOpen: async () => {
+                    Swal.showLoading();
+                    
+                    try {
+                        const response = await fetch('@Url.Action("GenerateTopicsAI", "Faculty")', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                courseTitle: title,
+                                courseDescription: description
+                            })
+                        });
+
+                        const data = await response.json();
+                        
+                        if (data.success && data.topics && data.topics.length > 0) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Topics Generated!',
+                                html: '<p>AI has generated the following topics:</p>' +
+                                    '<ol style="text-align: left; margin-top: 10px;">' +
+                                    data.topics.map(t => `<li>${t}</li>`).join('') +
+                                    '</ol>' +
+                                    '<p style="margin-top: 15px;"><strong>Topics will be saved after course creation!</strong></p>',
+                                confirmButtonText: 'OK'
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: data.message || 'Failed to generate topics. Please try again.'
+                            });
+                        }
+                    } catch (error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Failed to generate topics: ' + error.message
+                        });
+                    }
+                }
+            });
+        }
+    </script>
 }

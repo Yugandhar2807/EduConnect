@@ -370,11 +370,6 @@ namespace EduConnect.Controllers
                 if (topicProgress.Any())
                     _context.TopicProgress.RemoveRange(topicProgress);
 
-                // Delete StudentRoadmapProgress for this student
-                var roadmapProgress = await _context.StudentRoadmapProgress.Where(srp => srp.StudentId == id).ToListAsync();
-                if (roadmapProgress.Any())
-                    _context.StudentRoadmapProgress.RemoveRange(roadmapProgress);
-
                 // Delete QuizResults for this student
                 var quizResults = await _context.QuizResults.Where(qr => qr.StudentId == id).ToListAsync();
                 if (quizResults.Any())

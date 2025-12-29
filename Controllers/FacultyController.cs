@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using EduConnect.Data;
 using EduConnect.Models;
+using EduConnect.Services;
 using System.Security.Claims;
 
 namespace EduConnect.Controllers
@@ -11,10 +12,16 @@ namespace EduConnect.Controllers
     public class FacultyController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IAIService _aiService;
+        private readonly PdfGenerationService _pdfService;
+        private readonly ILogger<FacultyController> _logger;
 
-        public FacultyController(ApplicationDbContext context)
+        public FacultyController(ApplicationDbContext context, IAIService aiService, PdfGenerationService pdfService, ILogger<FacultyController> logger)
         {
             _context = context;
+            _aiService = aiService;
+            _pdfService = pdfService;
+            _logger = logger;
         }
 
         public async Task<IActionResult> Dashboard()
@@ -90,7 +97,6 @@ namespace EduConnect.Controllers
                 existingCourse.Title = course.Title;
                 existingCourse.Description = course.Description;
                 existingCourse.Category = course.Category;
-                existingCourse.Credits = course.Credits;
                 existingCourse.UpdatedAt = DateTime.UtcNow;
                 existingCourse.IsActive = course.IsActive;
 
@@ -518,6 +524,268 @@ namespace EduConnect.Controllers
 
             TempData["Success"] = "Topic deleted successfully!";
             return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+        }
+
+        /// <summary>
+        /// Generate topics using AI for a course
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> GenerateTopicsWithAI(int courseId)
+        {
+            var course = await _context.Courses.FirstOrDefaultAsync(c => c.Id == courseId);
+            if (course == null) return NotFound();
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (course.FacultyId != userId) return Forbid();
+
+            try
+            {
+                // Get AI Service from DI
+                var aiService = HttpContext.RequestServices.GetRequiredService<IAIService>();
+                
+                // Generate topics
+                var topics = await aiService.GenerateTopicsAsync(course.Title, course.Description ?? "");
+                
+                if (topics.Count == 0)
+                {
+                    TempData["Error"] = "Could not generate topics. Please try again.";
+                    return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+                }
+
+                // Create Topic entities
+                foreach (var topicName in topics)
+                {
+                    var topic = new Topic
+                    {
+                        CourseId = courseId,
+                        Name = topicName,
+                        Description = $"Auto-generated topic: {topicName}",
+                        PdfFilePath = "",
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.Topics.Add(topic);
+                }
+
+                await _context.SaveChangesAsync();
+                TempData["Success"] = $"Successfully generated {topics.Count} topics with AI!";
+                return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Error generating topics: {ex.Message}";
+                return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+            }
+        }
+
+        /// <summary>
+        /// Generate material content using AI for a topic
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> GenerateMaterialWithAI(int topicId)
+        {
+            var topic = await _context.Topics.Include(t => t.Course).FirstOrDefaultAsync(t => t.Id == topicId);
+            if (topic?.Course == null) return NotFound();
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (topic.Course.FacultyId != userId) return Forbid();
+
+            try
+            {
+                var aiService = HttpContext.RequestServices.GetRequiredService<IAIService>();
+                
+                // Generate material content
+                var content = await aiService.GenerateMaterialContentAsync(topic.Course.Title, topic.Name);
+                
+                if (string.IsNullOrEmpty(content))
+                {
+                    TempData["Error"] = "Could not generate material content. Please try again.";
+                    return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
+                }
+
+                // Create Material entity
+                var material = new Material
+                {
+                    TopicId = topicId,
+                    CourseId = topic.CourseId,
+                    Title = $"{topic.Name} - Learning Material",
+                    Description = content,
+                    FileType = "Text",
+                    FilePath = "",
+                    UploadedAt = DateTime.UtcNow
+                };
+
+                _context.Materials.Add(material);
+                await _context.SaveChangesAsync();
+                
+                TempData["Success"] = "Material generated and added successfully!";
+                return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Error generating material: {ex.Message}";
+                return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
+            }
+        }
+
+        /// <summary>
+        /// Generate quiz questions using AI for a topic
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> GenerateQuizWithAI(int topicId)
+        {
+            var topic = await _context.Topics.Include(t => t.Course).FirstOrDefaultAsync(t => t.Id == topicId);
+            if (topic?.Course == null) return NotFound();
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (topic.Course.FacultyId != userId) return Forbid();
+
+            try
+            {
+                var aiService = HttpContext.RequestServices.GetRequiredService<IAIService>();
+                
+                // Generate quiz questions
+                var questions = await aiService.GenerateQuizQuestionsAsync(topic.Course.Title, topic.Name, 5);
+                
+                if (questions.Count == 0)
+                {
+                    TempData["Error"] = "Could not generate quiz questions. Please try again.";
+                    return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
+                }
+
+                // Create Quiz entity
+                var quiz = new Quiz
+                {
+                    CourseId = topic.CourseId,
+                    TopicId = topicId,
+                    Title = $"{topic.Name} - Quiz",
+                    Description = "Auto-generated quiz using AI",
+                    TotalMarks = questions.Count,
+                    PassingMarks = (int)(questions.Count * 0.6), // 60% passing
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.Quizzes.Add(quiz);
+                await _context.SaveChangesAsync();
+
+                // Add questions to the quiz
+                foreach (var q in questions)
+                {
+                    var question = new QuizQuestion
+                    {
+                        QuizId = quiz.Id,
+                        QuestionText = q.Question,
+                        OptionA = q.OptionA,
+                        OptionB = q.OptionB,
+                        OptionC = q.OptionC,
+                        OptionD = q.OptionD,
+                        CorrectOption = char.Parse(q.CorrectOption),
+                        Marks = q.Marks,
+                        QuestionType = QuestionType.MultipleChoice
+                    };
+                    _context.QuizQuestions.Add(question);
+                }
+
+                await _context.SaveChangesAsync();
+                TempData["Success"] = $"Successfully generated quiz with {questions.Count} questions!";
+                return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Error generating quiz: {ex.Message}";
+                return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
+            }
+        }
+
+        /// <summary>
+        /// Generate topics using AI from the create course form
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> GenerateTopicsAI([FromBody] GenerateTopicsRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrEmpty(request.CourseTitle) || string.IsNullOrEmpty(request.CourseDescription))
+                {
+                    return Json(new { success = false, message = "Course title and description are required" });
+                }
+
+                _logger.LogInformation("Generating topics for course: {CourseTitle}", request.CourseTitle);
+
+                // Generate topics using AI
+                var topics = await _aiService.GenerateTopicsAsync(request.CourseTitle, request.CourseDescription);
+
+                if (topics == null || topics.Count == 0)
+                {
+                    _logger.LogWarning("Failed to generate topics for course: {CourseTitle}", request.CourseTitle);
+                    return Json(new { success = false, message = "Failed to generate topics. Please try again. Check server logs for details." });
+                }
+
+                _logger.LogInformation("Successfully generated {TopicCount} topics for course: {CourseTitle}", topics.Count, request.CourseTitle);
+                return Json(new { success = true, topics = topics });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating topics");
+                return Json(new { success = false, message = $"Error: {ex.GetBaseException().Message}" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SaveGeneratedTopics([FromBody] SaveGeneratedTopicsRequest request)
+        {
+            try
+            {
+                if (request == null || request.CourseId <= 0 || request.Topics == null || request.Topics.Count == 0)
+                {
+                    return Json(new { success = false, message = "Course ID and topics are required" });
+                }
+
+                var course = await _context.Courses.FindAsync(request.CourseId);
+                if (course == null)
+                {
+                    return Json(new { success = false, message = "Course not found" });
+                }
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (course.FacultyId != userId)
+                {
+                    return Json(new { success = false, message = "Unauthorized" });
+                }
+
+                // Initialize upload path
+                var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+
+                // Create Topic entities and generate PDFs
+                var topicEntities = new List<Topic>();
+                foreach (var topicName in request.Topics)
+                {
+                    // Generate PDF for the topic
+                    var pdfPath = await _pdfService.GenerateTopicPdfAsync(course.Title, topicName, uploadPath);
+
+                    var topic = new Topic
+                    {
+                        Name = topicName,
+                        Description = $"AI-generated topic for {course.Title}",
+                        PdfFilePath = pdfPath, // Store PDF path
+                        CourseId = request.CourseId,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    topicEntities.Add(topic);
+                }
+
+                _context.Topics.AddRange(topicEntities);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Saved {TopicCount} AI-generated topics with PDFs for course {CourseId}", topicEntities.Count, request.CourseId);
+                return Json(new { success = true, message = $"{topicEntities.Count} topics saved successfully with PDF materials!" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving generated topics");
+                return Json(new { success = false, message = "Error: " + ex.Message });
+            }
         }
     }
 }

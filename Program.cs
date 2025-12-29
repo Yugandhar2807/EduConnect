@@ -24,11 +24,19 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
-// Register Chatbot Service
-builder.Services.AddScoped<IChatbotService, ChatbotService>();
-
 // Register Email Service
 builder.Services.AddScoped<IEmailService, EmailService>();
+
+// Register PDF Generation Service
+builder.Services.AddScoped<PdfGenerationService>();
+
+// Register AI Service
+var geminiApiKey = builder.Configuration["AI:GeminiApiKey"];
+// Use Mock AI Service for demonstration (Gemini API free tier quota exhausted)
+// Change this to GeminiAIService when you add billing to your Google Cloud project
+builder.Services.AddScoped<IAIService>(sp =>
+    new MockAIService(sp.GetRequiredService<ILogger<MockAIService>>())
+);
 
 var app = builder.Build();
 
@@ -65,9 +73,6 @@ using (var scope = app.Services.CreateScope())
 
 // Initialize database with default roles and admin user
 await InitializeDatabase(app);
-
-// Seed roadmap data
-await SeedRoadmapData(app);
 
 app.Run();
 
@@ -186,25 +191,6 @@ async Task InitializeDatabase(WebApplication webApp)
         catch (Exception ex)
         {
             webApp.Logger.LogError(ex, "An error occurred seeding the database.");
-        }
-    }
-}
-// Roadmap data seeding method
-async Task SeedRoadmapData(WebApplication webApp)
-{
-    using (var scope = webApp.Services.CreateScope())
-    {
-        var services = scope.ServiceProvider;
-        var context = services.GetRequiredService<ApplicationDbContext>();
-
-        try
-        {
-            await RoadmapSeeder.SeedRoadmaps(context);
-            webApp.Logger.LogInformation("Roadmap data seeded successfully.");
-        }
-        catch (Exception ex)
-        {
-            webApp.Logger.LogError(ex, "An error occurred seeding roadmap data.");
         }
     }
 }

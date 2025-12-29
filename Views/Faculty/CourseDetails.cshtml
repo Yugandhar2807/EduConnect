@@ -161,7 +161,6 @@
     <h1>📚 @Model.Title</h1>
     <div>
         <span class="badge">@Model.Category</span>
-        <span class="badge">@Model.Credits Credits</span>
         <span class="badge">@(Model.IsActive ? "✓ Active" : "✗ Inactive")</span>
     </div>
 </div>
@@ -187,9 +186,14 @@
                     <h5 style="margin: 0;">� Topics
                         <span class="badge bg-light text-dark">@(Model.Topics?.Count() ?? 0)</span>
                     </h5>
-                    <a class="btn btn-sm btn-primary" asp-action="AddTopic" asp-route-courseId="@Model.Id">
-                        <i class="fas fa-plus-circle"></i> Add Topic
-                    </a>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-success" onclick="generateTopicsForCourse(@Model.Id)">
+                            <i class="fas fa-magic"></i> AI Generate
+                        </button>
+                        <a class="btn btn-sm btn-primary" asp-action="AddTopic" asp-route-courseId="@Model.Id">
+                            <i class="fas fa-plus-circle"></i> Add Topic
+                        </a>
+                    </div>
                 </div>
             </div>
             <div class="card-body">
@@ -374,4 +378,93 @@
             }, 3000);
         });
     });
-</script>
+
+    async function generateTopicsForCourse(courseId) {
+        const courseTitle = '@Model.Title';
+        const courseDescription = '@Model.Description';
+
+        if (!courseTitle || !courseDescription) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Course must have title and description'
+            });
+            return;
+        }
+
+        // Show loading message
+        Swal.fire({
+            title: 'Generating Topics...',
+            html: 'Please wait while AI generates course topics<br><small>This may take 10-15 seconds</small>',
+            allowOutsideClick: false,
+            didOpen: async () => {
+                Swal.showLoading();
+                
+                try {
+                    // Step 1: Generate topics from AI
+                    const generateResponse = await fetch('@Url.Action("GenerateTopicsAI", "Faculty")', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            courseTitle: courseTitle,
+                            courseDescription: courseDescription
+                        })
+                    });
+
+                    const generateData = await generateResponse.json();
+                    
+                    if (!generateData.success || !generateData.topics || generateData.topics.length === 0) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: generateData.message || 'Failed to generate topics. Please try again.'
+                        });
+                        return;
+                    }
+
+                    // Step 2: Save generated topics to database
+                    const saveResponse = await fetch('@Url.Action("SaveGeneratedTopics", "Faculty")', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            courseId: courseId,
+                            topics: generateData.topics
+                        })
+                    });
+
+                    const saveData = await saveResponse.json();
+                    
+                    if (saveData.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Topics Generated & Saved!',
+                            html: '<p>AI has generated and saved the following topics:</p>' +
+                                '<ol style="text-align: left; margin-top: 10px;">' +
+                                generateData.topics.map(t => `<li>${t}</li>`).join('') +
+                                '</ol>' +
+                                '<p style="margin-top: 15px;"><strong>✓ Topics saved successfully!</strong></p>',
+                            confirmButtonText: 'Refresh Page'
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Save Error',
+                            text: saveData.message || 'Failed to save topics. Please try again.'
+                        });
+                    }
+                } catch (error) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to generate topics: ' + error.message
+                    });
+                }
+            }
+        });
+    }
