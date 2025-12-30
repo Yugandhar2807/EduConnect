@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using EduConnect.Data;
@@ -23,6 +24,15 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
+
+// Configure forwarded headers (X-Forwarded-For, X-Forwarded-Proto) so the app
+// correctly detects the original request scheme when behind a proxy (e.g., Render)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // Register Email Service
 builder.Services.AddScoped<IEmailService, EmailService>();
@@ -52,6 +62,8 @@ else
     app.UseHsts();
     app.UseHttpsRedirection();
 }
+// Process forwarded headers before other middleware so `Request.Scheme` is correct
+app.UseForwardedHeaders();
 app.UseStaticFiles();
 
 app.UseRouting();

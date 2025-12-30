@@ -403,7 +403,7 @@
                 
                 try {
                     // Step 1: Generate topics from AI
-                    const generateResponse = await fetch('@Url.Action("GenerateTopicsAI", "Faculty")', {
+                    const generateResponse = await fetch('/Faculty/GenerateTopicsAI', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -426,7 +426,7 @@
                     }
 
                     // Step 2: Save generated topics to database
-                    const saveResponse = await fetch('@Url.Action("SaveGeneratedTopics", "Faculty")', {
+                    const saveResponse = await fetch('/Faculty/SaveGeneratedTopics', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
