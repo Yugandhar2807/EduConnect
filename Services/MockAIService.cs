@@ -124,28 +124,149 @@ Continue practicing to solidify your understanding!
 
         public async Task<List<QuizQuestionData>> GenerateQuizQuestionsAsync(string courseName, string topicName, int numberOfQuestions = 5)
         {
-            _logger.LogInformation("Mock AI: Generating {QuestionCount} quiz questions for topic: {TopicName}", numberOfQuestions, topicName);
+            _logger.LogInformation("Mock AI: Generating {QuestionCount} mixed quiz questions for topic: {TopicName}", numberOfQuestions, topicName);
             await Task.Delay(1000);
 
             var questions = new List<QuizQuestionData>();
             
-            for (int i = 1; i <= numberOfQuestions; i++)
+            // Mix of question types
+            var mcCount = numberOfQuestions / 2;
+            var tfCount = (numberOfQuestions - mcCount) / 2;
+            var codingCount = numberOfQuestions - mcCount - tfCount;
+
+            // Add Multiple Choice Questions
+            for (int i = 1; i <= mcCount; i++)
             {
                 questions.Add(new QuizQuestionData
                 {
-                    Question = $"What is the primary concept of {topicName} - Question {i}?",
-                    OptionA = "Option related to fundamentals",
-                    OptionB = "Option related to implementation",
-                    OptionC = "Option related to best practices",
-                    OptionD = "Option related to advanced concepts",
-                    CorrectOption = (i % 4) switch
-                    {
-                        0 => "A",
-                        1 => "B",
-                        2 => "C",
-                        _ => "D"
-                    },
-                    Marks = 1
+                    Question = $"Which of the following is a key concept in {topicName}?",
+                    OptionA = "Fundamental principle approach",
+                    OptionB = "Implementation strategy",
+                    OptionC = "Best practice pattern",
+                    OptionD = "Advanced technique",
+                    CorrectOption = "C",
+                    Marks = 1,
+                    QuestionType = "MCQ",
+                    Difficulty = "Medium"
+                });
+            }
+
+            // Add True/False Questions
+            for (int i = 1; i <= tfCount; i++)
+            {
+                questions.Add(new QuizQuestionData
+                {
+                    Question = $"True or False: {topicName} requires understanding of core principles.",
+                    OptionA = "True",
+                    OptionB = "False",
+                    CorrectOption = "True",
+                    Marks = 1,
+                    QuestionType = "TrueFalse",
+                    Difficulty = "Easy"
+                });
+            }
+
+            // Add Coding Questions
+            for (int i = 1; i <= codingCount; i++)
+            {
+                questions.Add(new QuizQuestionData
+                {
+                    Question = $"Write a simple implementation demonstrating a key concept of {topicName}.",
+                    OptionA = "// Solution code goes here",
+                    CorrectOption = "Code-based assessment",
+                    Marks = 5,
+                    QuestionType = "Coding",
+                    Difficulty = "Hard"
+                });
+            }
+
+            return questions;
+        }
+
+        public async Task<List<QuizQuestionData>> GenerateMultipleChoiceQuestionsAsync(string courseName, string topicName, int count = 3)
+        {
+            _logger.LogInformation("Mock AI: Generating {QuestionCount} MCQ questions for topic: {TopicName}", count, topicName);
+            await Task.Delay(1000);
+
+            var questions = new List<QuizQuestionData>();
+
+            for (int i = 1; i <= count; i++)
+            {
+                questions.Add(new QuizQuestionData
+                {
+                    Question = $"What is the {(i == 1 ? "primary" : i == 2 ? "secondary" : "tertiary")} aspect of {topicName}?",
+                    OptionA = "Foundational concept",
+                    OptionB = "Practical application",
+                    OptionC = "Industry standard practice",
+                    OptionD = "Emerging technology trend",
+                    CorrectOption = "C",
+                    Marks = 1,
+                    QuestionType = "MCQ",
+                    Difficulty = i == 1 ? "Easy" : i == 2 ? "Medium" : "Hard"
+                });
+            }
+
+            return questions;
+        }
+
+        public async Task<List<QuizQuestionData>> GenerateTrueFalseQuestionsAsync(string courseName, string topicName, int count = 2)
+        {
+            _logger.LogInformation("Mock AI: Generating {QuestionCount} True/False questions for topic: {TopicName}", count, topicName);
+            await Task.Delay(1000);
+
+            var questions = new List<QuizQuestionData>();
+
+            var tfStatements = new[]
+            {
+                $"{topicName} is a fundamental skill in modern {courseName}.",
+                $"Understanding {topicName} requires prior knowledge of related topics.",
+                $"{topicName} is used in practical real-world applications.",
+                $"Best practices for {topicName} have remained constant over time.",
+                $"{topicName} is typically one of the harder topics to master.",
+            };
+
+            for (int i = 0; i < count && i < tfStatements.Length; i++)
+            {
+                questions.Add(new QuizQuestionData
+                {
+                    Question = tfStatements[i],
+                    OptionA = "True",
+                    OptionB = "False",
+                    CorrectOption = i % 2 == 0 ? "True" : "False",
+                    Marks = 1,
+                    QuestionType = "TrueFalse",
+                    Difficulty = "Easy"
+                });
+            }
+
+            return questions;
+        }
+
+        public async Task<List<QuizQuestionData>> GenerateCodingQuestionsAsync(string courseName, string topicName, int count = 1)
+        {
+            _logger.LogInformation("Mock AI: Generating {QuestionCount} Coding questions for topic: {TopicName}", count, topicName);
+            await Task.Delay(1000);
+
+            var questions = new List<QuizQuestionData>();
+
+            var codingChallenges = new[]
+            {
+                $"Implement a solution that demonstrates the core concepts of {topicName}.",
+                $"Create a practical application using {topicName} principles.",
+                $"Debug and optimize existing code related to {topicName}.",
+                $"Design a system architecture incorporating {topicName} best practices.",
+            };
+
+            for (int i = 0; i < count && i < codingChallenges.Length; i++)
+            {
+                questions.Add(new QuizQuestionData
+                {
+                    Question = codingChallenges[i],
+                    OptionA = "// Write your solution here",
+                    CorrectOption = "Requires code submission and review",
+                    Marks = 5,
+                    QuestionType = "Coding",
+                    Difficulty = i == 0 ? "Medium" : i == 1 ? "Hard" : "Hard"
                 });
             }
 

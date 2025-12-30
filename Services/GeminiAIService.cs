@@ -97,13 +97,44 @@ Return clear, well-structured content suitable for a learning platform.";
         }
 
         /// <summary>
-        /// Generate quiz questions for a topic
+        /// Generate quiz questions for a topic (mixed types)
         /// </summary>
         public async Task<List<QuizQuestionData>> GenerateQuizQuestionsAsync(string courseName, string topicName, int numberOfQuestions = 5)
         {
             try
             {
-                var prompt = $@"Generate {numberOfQuestions} multiple-choice quiz questions for the following:
+                var mcCount = numberOfQuestions / 2;
+                var tfCount = (numberOfQuestions - mcCount) / 2;
+                var codingCount = numberOfQuestions - mcCount - tfCount;
+
+                var questions = new List<QuizQuestionData>();
+
+                // Generate multiple choice questions
+                questions.AddRange(await GenerateMultipleChoiceQuestionsAsync(courseName, topicName, mcCount));
+
+                // Generate true/false questions
+                questions.AddRange(await GenerateTrueFalseQuestionsAsync(courseName, topicName, tfCount));
+
+                // Generate coding questions
+                questions.AddRange(await GenerateCodingQuestionsAsync(courseName, topicName, codingCount));
+
+                return questions;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating mixed quiz questions for topic: {TopicName}", topicName);
+                return new List<QuizQuestionData>();
+            }
+        }
+
+        /// <summary>
+        /// Generate multiple-choice questions
+        /// </summary>
+        public async Task<List<QuizQuestionData>> GenerateMultipleChoiceQuestionsAsync(string courseName, string topicName, int count = 3)
+        {
+            try
+            {
+                var prompt = $@"Generate {count} multiple-choice quiz questions for the following:
 Course: {courseName}
 Topic: {topicName}
 
@@ -116,7 +147,9 @@ Return ONLY valid JSON array of questions in this exact format:
     ""optionC"": ""Third option"",
     ""optionD"": ""Fourth option"",
     ""correctOption"": ""A"",
-    ""marks"": 1
+    ""marks"": 1,
+    ""questionType"": ""MCQ"",
+    ""difficulty"": ""Medium""
   }}
 ]
 
@@ -124,7 +157,6 @@ Requirements:
 - Each question must test understanding of the topic
 - Options should be plausible but clearly different
 - Correct answer should vary (don't always use same option letter)
-- Questions should progress from basic to intermediate difficulty
 - Return ONLY the JSON array, no other text";
 
                 var response = await CallGeminiAPI(prompt);
@@ -137,13 +169,115 @@ Requirements:
                 }
                 catch
                 {
-                    _logger.LogWarning("Failed to parse quiz questions JSON: {Response}", response);
+                    _logger.LogWarning("Failed to parse MCQ JSON: {Response}", response);
                     return new List<QuizQuestionData>();
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error generating quiz questions for topic: {TopicName}", topicName);
+                _logger.LogError(ex, "Error generating MCQ questions for topic: {TopicName}", topicName);
+                return new List<QuizQuestionData>();
+            }
+        }
+
+        /// <summary>
+        /// Generate true/false questions
+        /// </summary>
+        public async Task<List<QuizQuestionData>> GenerateTrueFalseQuestionsAsync(string courseName, string topicName, int count = 2)
+        {
+            try
+            {
+                var prompt = $@"Generate {count} true/false quiz questions for the following:
+Course: {courseName}
+Topic: {topicName}
+
+Return ONLY valid JSON array of questions in this exact format:
+[
+  {{
+    ""question"": ""Statement to evaluate as true or false"",
+    ""optionA"": ""True"",
+    ""optionB"": ""False"",
+    ""correctOption"": ""True"",
+    ""marks"": 1,
+    ""questionType"": ""TrueFalse"",
+    ""difficulty"": ""Easy""
+  }}
+]
+
+Requirements:
+- Questions should clearly test understanding
+- Mix of true and false answers
+- Statements should be related to topic content
+- Return ONLY the JSON array, no other text";
+
+                var response = await CallGeminiAPI(prompt);
+                if (string.IsNullOrEmpty(response)) return new List<QuizQuestionData>();
+
+                try
+                {
+                    var questions = JsonSerializer.Deserialize<List<QuizQuestionData>>(response);
+                    return questions ?? new List<QuizQuestionData>();
+                }
+                catch
+                {
+                    _logger.LogWarning("Failed to parse True/False JSON: {Response}", response);
+                    return new List<QuizQuestionData>();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating True/False questions for topic: {TopicName}", topicName);
+                return new List<QuizQuestionData>();
+            }
+        }
+
+        /// <summary>
+        /// Generate coding challenge questions
+        /// </summary>
+        public async Task<List<QuizQuestionData>> GenerateCodingQuestionsAsync(string courseName, string topicName, int count = 1)
+        {
+            try
+            {
+                var prompt = $@"Generate {count} coding challenge questions for the following:
+Course: {courseName}
+Topic: {topicName}
+
+Return ONLY valid JSON array of questions in this exact format:
+[
+  {{
+    ""question"": ""Detailed coding problem description"",
+    ""optionA"": ""// Sample code or explanation"",
+    ""correctOption"": ""Requires code submission and review"",
+    ""marks"": 5,
+    ""questionType"": ""Coding"",
+    ""difficulty"": ""Hard""
+  }}
+]
+
+Requirements:
+- Questions should be practical coding challenges
+- Include clear problem statement and expectations
+- Should test application of topic concepts
+- Difficulty should increase with later questions
+- Return ONLY the JSON array, no other text";
+
+                var response = await CallGeminiAPI(prompt);
+                if (string.IsNullOrEmpty(response)) return new List<QuizQuestionData>();
+
+                try
+                {
+                    var questions = JsonSerializer.Deserialize<List<QuizQuestionData>>(response);
+                    return questions ?? new List<QuizQuestionData>();
+                }
+                catch
+                {
+                    _logger.LogWarning("Failed to parse Coding questions JSON: {Response}", response);
+                    return new List<QuizQuestionData>();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating coding questions for topic: {TopicName}", topicName);
                 return new List<QuizQuestionData>();
             }
         }

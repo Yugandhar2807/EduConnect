@@ -324,7 +324,7 @@ namespace EduConnect.Controllers
             if (quiz.Course?.FacultyId != userId) return Forbid();
 
             // Validate based on question type
-            if (model.QuestionType == QuestionType.Coding)
+            if (model.QuestionTypeEnum == QuestionType.Coding)
             {
                 // Coding question validation
                 if (string.IsNullOrEmpty(model.QuestionText) || string.IsNullOrEmpty(model.CodeTemplate) || 
@@ -354,12 +354,12 @@ namespace EduConnect.Controllers
             {
                 QuizId = quizId,
                 QuestionText = model.QuestionText,
-                QuestionType = model.QuestionType,
+                QuestionTypeEnum = model.QuestionTypeEnum,
                 OptionA = model.OptionA,
                 OptionB = model.OptionB,
                 OptionC = model.OptionC,
                 OptionD = model.OptionD,
-                CorrectOption = char.ToUpper(model.CorrectOption),
+                CorrectOption = model.CorrectOption?.ToString() ?? "A",
                 Marks = model.Marks,
                 CodeTemplate = model.CodeTemplate,
                 ExpectedOutput = model.ExpectedOutput,
@@ -679,9 +679,9 @@ namespace EduConnect.Controllers
                         OptionB = q.OptionB,
                         OptionC = q.OptionC,
                         OptionD = q.OptionD,
-                        CorrectOption = char.Parse(q.CorrectOption),
+                        CorrectOption = q.CorrectOption,
                         Marks = q.Marks,
-                        QuestionType = QuestionType.MultipleChoice
+                        QuestionTypeEnum = QuestionType.MultipleChoice
                     };
                     _context.QuizQuestions.Add(question);
                 }
@@ -778,8 +778,102 @@ namespace EduConnect.Controllers
                 _context.Topics.AddRange(topicEntities);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Saved {TopicCount} AI-generated topics with PDFs for course {CourseId}", topicEntities.Count, request.CourseId);
-                return Json(new { success = true, message = $"{topicEntities.Count} topics saved successfully with PDF materials!" });
+                // Auto-generate quizzes with mixed question types for each topic
+                var quizzes = new List<Quiz>();
+                foreach (var topic in topicEntities)
+                {
+                    _logger.LogInformation("Auto-generating diverse quiz for topic: {TopicName}", topic.Name);
+
+                    // Generate mixed question types: 3 MCQ + 2 True/False + 1 Coding
+                    var questions = new List<QuizQuestionData>();
+                    
+                    try
+                    {
+                        // Get 3 multiple choice questions
+                        var mcQuestions = await _aiService.GenerateMultipleChoiceQuestionsAsync(course.Title, topic.Name, 3);
+                        questions.AddRange(mcQuestions);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to generate MCQ for topic {TopicName}", topic.Name);
+                    }
+
+                    try
+                    {
+                        // Get 2 true/false questions
+                        var tfQuestions = await _aiService.GenerateTrueFalseQuestionsAsync(course.Title, topic.Name, 2);
+                        questions.AddRange(tfQuestions);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to generate True/False for topic {TopicName}", topic.Name);
+                    }
+
+                    try
+                    {
+                        // Get 1 coding question
+                        var codingQuestions = await _aiService.GenerateCodingQuestionsAsync(course.Title, topic.Name, 1);
+                        questions.AddRange(codingQuestions);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to generate Coding question for topic {TopicName}", topic.Name);
+                    }
+
+                    if (questions.Count > 0)
+                    {
+                        // Create Quiz entity
+                        var quiz = new Quiz
+                        {
+                            Title = $"{topic.Name} - Auto-Generated Quiz",
+                            Description = $"Comprehensive quiz for {topic.Name} with multiple question types",
+                            CourseId = course.Id,
+                            TopicId = topic.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            Questions = new List<QuizQuestion>()
+                        };
+
+                        // Add quiz questions from generated data
+                        int questionIndex = 1;
+                        foreach (var questionData in questions)
+                        {
+                            var quizQuestion = new QuizQuestion
+                            {
+                                Quiz = quiz,
+                                QuestionText = questionData.Question,
+                                OptionA = questionData.OptionA,
+                                OptionB = questionData.OptionB,
+                                OptionC = questionData.OptionC ?? string.Empty,
+                                OptionD = questionData.OptionD ?? string.Empty,
+                                CorrectOption = questionData.CorrectOption,
+                                Marks = questionData.Marks,
+                                QuestionType = questionData.QuestionType,
+                                Difficulty = questionData.Difficulty,
+                                Order = questionIndex++
+                            };
+                            quiz.Questions.Add(quizQuestion);
+                        }
+
+                        quizzes.Add(quiz);
+                        _logger.LogInformation("Created auto-generated quiz for topic {TopicName} with {QuestionCount} questions", 
+                            topic.Name, questions.Count);
+                    }
+                }
+
+                // Save all auto-generated quizzes
+                if (quizzes.Count > 0)
+                {
+                    _context.Quizzes.AddRange(quizzes);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Saved {QuizCount} auto-generated quizzes", quizzes.Count);
+                }
+
+                _logger.LogInformation("Saved {TopicCount} AI-generated topics with PDFs and auto-generated quizzes for course {CourseId}", 
+                    topicEntities.Count, request.CourseId);
+                return Json(new { 
+                    success = true, 
+                    message = $"{topicEntities.Count} topics saved successfully with PDF materials and {quizzes.Count} auto-generated quizzes!" 
+                });
             }
             catch (Exception ex)
             {

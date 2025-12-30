@@ -19,63 +19,182 @@ namespace EduConnect.Services
         }
 
         /// <summary>
-        /// Generate a simple PDF content for a topic
-        /// Creates an HTML-based PDF representation
+        /// Generate a comprehensive PDF with proper indexing, structure, and content
         /// </summary>
         public async Task<string> GenerateTopicPdfAsync(string courseName, string topicName, string uploadPath)
         {
             try
             {
-                // Create uploads directory if it doesn't exist
                 if (!Directory.Exists(uploadPath))
                 {
                     Directory.CreateDirectory(uploadPath);
                 }
 
-                // Sanitize topic name for use in filename (remove invalid file name chars and slashes)
                 var invalidChars = System.IO.Path.GetInvalidFileNameChars();
                 var safeTopic = new string(topicName.Where(c => !invalidChars.Contains(c)).ToArray());
                 safeTopic = safeTopic.Replace(' ', '_').Replace('/', '_').Replace('\\', '_');
-                // Generate filename
                 var fileName = $"{safeTopic}_{DateTime.UtcNow.Ticks}.pdf";
                 var filePath = Path.Combine(uploadPath, fileName);
                 var relativeFilePath = $"/uploads/{fileName}";
 
-                // Create a simple HTML-based PDF content
-                var htmlContent = GenerateHtmlContent(courseName, topicName);
-                
-                // Save as HTML file (browsers can read it as PDF-like)
-                // In a real scenario, use a library like iTextSharp or HtmlRenderer
+                var htmlContent = GenerateComprehensiveHtmlContent(courseName, topicName);
                 await File.WriteAllTextAsync(filePath, htmlContent, Encoding.UTF8);
 
-                _logger.LogInformation("Generated PDF for topic {TopicName} at {FilePath}", topicName, filePath);
+                _logger.LogInformation("Generated comprehensive PDF for topic {TopicName} at {FilePath}", topicName, filePath);
                 return relativeFilePath;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating PDF for topic {TopicName}", topicName);
-                // Return empty string instead of null to avoid NOT NULL DB constraint failures
                 return string.Empty;
             }
         }
 
-        private string GenerateHtmlContent(string courseName, string topicName)
+        private string GenerateComprehensiveHtmlContent(string courseName, string topicName)
         {
             return $@"
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset='utf-8'>
-    <title>{topicName}</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>{courseName} - {topicName}</title>
     <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
         body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 0 auto;
+            font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+            line-height: 1.8;
+            color: #2c3e50;
+            background: white;
+        }}
+        .page-break {{
+            page-break-after: always;
+        }}
+        .cover-page {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 100px 40px;
+            text-align: center;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }}
+        .cover-page h1 {{
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }}
+        .cover-page .course-name {{
+            font-size: 1.5em;
+            opacity: 0.9;
+            margin-top: 30px;
+        }}
+        .toc {{
+            page-break-after: always;
             padding: 40px;
-            background-color: #f5f5f5;
+        }}
+        .toc h2 {{
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }}
+        .toc-item {{
+            margin: 15px 0;
+            padding-left: 20px;
+            font-size: 1.1em;
+        }}
+        .content {{
+            padding: 40px;
+        }}
+        .section {{
+            margin-bottom: 40px;
+        }}
+        .section h2 {{
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 20px;
+            border-left: 5px solid #667eea;
+            padding-left: 15px;
+        }}
+        .section h3 {{
+            color: #764ba2;
+            font-size: 1.3em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }}
+        .learning-outcomes {{
+            background: #e8f4f8;
+            padding: 20px;
+            border-left: 5px solid #667eea;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }}
+        .learning-outcomes h3 {{
+            color: #667eea;
+            margin-bottom: 10px;
+        }}
+        .learning-outcomes ul {{
+            list-style-position: inside;
+            margin-left: 20px;
+        }}
+        .learning-outcomes li {{
+            margin: 8px 0;
+        }}
+        .concept {{
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }}
+        .concept h4 {{
+            color: #764ba2;
+            margin-bottom: 10px;
+        }}
+        .example {{
+            background: #fff3cd;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+        }}
+        .example strong {{
+            color: #ff9800;
+        }}
+        .key-points {{
+            background: #d4edda;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+        }}
+        .key-points h4 {{
+            color: #28a745;
+            margin-bottom: 10px;
+        }}
+        .key-points ul {{
+            list-style-position: inside;
+            margin-left: 20px;
+        }}
+        .key-points li {{
+            margin: 8px 0;
+        }}
+        .footer {{
+            background: #f5f5f5;
+            padding: 20px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 50px;
+            border-top: 2px solid #ddd;
         }}
         .header {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

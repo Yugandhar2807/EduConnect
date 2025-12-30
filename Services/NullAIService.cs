@@ -30,5 +30,23 @@ namespace EduConnect.Services
             _logger.LogWarning("AI Service is not configured. Cannot generate quiz questions.");
             return Task.FromResult(new List<QuizQuestionData>());
         }
+
+        public Task<List<QuizQuestionData>> GenerateMultipleChoiceQuestionsAsync(string courseName, string topicName, int count = 3)
+        {
+            _logger.LogWarning("AI Service is not configured. Cannot generate MCQ questions.");
+            return Task.FromResult(new List<QuizQuestionData>());
+        }
+
+        public Task<List<QuizQuestionData>> GenerateTrueFalseQuestionsAsync(string courseName, string topicName, int count = 2)
+        {
+            _logger.LogWarning("AI Service is not configured. Cannot generate True/False questions.");
+            return Task.FromResult(new List<QuizQuestionData>());
+        }
+
+        public Task<List<QuizQuestionData>> GenerateCodingQuestionsAsync(string courseName, string topicName, int count = 1)
+        {
+            _logger.LogWarning("AI Service is not configured. Cannot generate coding questions.");
+            return Task.FromResult(new List<QuizQuestionData>());
+        }
     }
 }
