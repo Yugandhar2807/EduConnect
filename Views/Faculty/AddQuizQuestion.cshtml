@@ -17,9 +17,9 @@
                 <div class="mb-3">
                     <label asp-for="QuestionType" class="form-label">Question Type</label>
                     <select asp-for="QuestionType" class="form-control" id="questionType" onchange="toggleQuestionType()">
-                        <option value="0">Multiple Choice</option>
-                        <option value="1">True/False</option>
-                        <option value="2">Coding</option>
+                        <option value="MCQ">Multiple Choice</option>
+                        <option value="TrueFalse">True/False</option>
+                        <option value="Coding">Coding</option>
                     </select>
                 </div>
 
@@ -61,7 +61,7 @@
 
                 <div id="correctAnswerSection" class="mb-3">
                     <label asp-for="CorrectOption" class="form-label">Correct Answer</label>
-                    <select asp-for="CorrectOption" class="form-control">
+                    <select asp-for="CorrectOption" class="form-control" id="correctOptionSelect">
                         <option value="">-- Select Correct Option --</option>
                         <option value="A">Option A</option>
                         <option value="B">Option B</option>
@@ -112,22 +112,51 @@
 </div>
 
 <script>
+    function setCorrectOptions(options) {
+        const select = document.getElementById('correctOptionSelect');
+        select.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.text = '-- Select Correct Option --';
+        select.appendChild(placeholder);
+        options.forEach(opt => {
+            const o = document.createElement('option');
+            o.value = opt.value;
+            o.text = opt.label;
+            select.appendChild(o);
+        });
+    }
+
     function toggleQuestionType() {
         const typeSelect = document.getElementById('questionType');
         const mcSection = document.getElementById('multipleChoiceSection');
         const correctSection = document.getElementById('correctAnswerSection');
         const codingSection = document.getElementById('codingSection');
         
-        const selectedType = parseInt(typeSelect.value);
+        const selectedType = typeSelect.value;
         
-        if (selectedType === 2) { // Coding
+        if (selectedType === 'Coding') {
             mcSection.style.display = 'none';
             correctSection.style.display = 'none';
             codingSection.style.display = 'block';
-        } else { // Multiple Choice or True/False
+        } else if (selectedType === 'TrueFalse') {
+            mcSection.style.display = 'none';
+            codingSection.style.display = 'none';
+            correctSection.style.display = 'block';
+            setCorrectOptions([
+                { value: 'True', label: 'True' },
+                { value: 'False', label: 'False' }
+            ]);
+        } else { // MCQ
             mcSection.style.display = 'block';
             correctSection.style.display = 'block';
             codingSection.style.display = 'none';
+            setCorrectOptions([
+                { value: 'A', label: 'Option A' },
+                { value: 'B', label: 'Option B' },
+                { value: 'C', label: 'Option C' },
+                { value: 'D', label: 'Option D' }
+            ]);
         }
     }
     

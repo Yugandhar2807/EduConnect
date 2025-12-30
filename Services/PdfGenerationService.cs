@@ -21,7 +21,7 @@ namespace EduConnect.Services
         /// <summary>
         /// Generate a comprehensive PDF with proper indexing, structure, and content
         /// </summary>
-        public async Task<string> GenerateTopicPdfAsync(string courseName, string topicName, string uploadPath)
+        public async Task<string> GenerateTopicPdfAsync(string courseName, string topicName, string uploadPath, string? materialContent = null, List<QuizQuestionData>? quizQuestions = null)
         {
             try
             {
@@ -37,7 +37,7 @@ namespace EduConnect.Services
                 var filePath = Path.Combine(uploadPath, fileName);
                 var relativeFilePath = $"/uploads/{fileName}";
 
-                var htmlContent = GenerateComprehensiveHtmlContent(courseName, topicName);
+                var htmlContent = GenerateComprehensiveHtmlContent(courseName, topicName, materialContent, quizQuestions);
                 await File.WriteAllTextAsync(filePath, htmlContent, Encoding.UTF8);
 
                 _logger.LogInformation("Generated comprehensive PDF for topic {TopicName} at {FilePath}", topicName, filePath);
@@ -50,8 +50,60 @@ namespace EduConnect.Services
             }
         }
 
-        private string GenerateComprehensiveHtmlContent(string courseName, string topicName)
+        private string GenerateComprehensiveHtmlContent(string courseName, string topicName, string? materialContent = null, List<QuizQuestionData>? quizQuestions = null)
         {
+            // Convert plain text / markdown-like material to minimal HTML
+            string materialHtml;
+            if (string.IsNullOrWhiteSpace(materialContent))
+            {
+                materialHtml = "<p>No detailed material available for this topic.</p>";
+            }
+            else
+            {
+                var escaped = System.Net.WebUtility.HtmlEncode(materialContent).Replace("\r\n", "\n");
+                // Paragraph conversion: double newlines -> paragraph break
+                escaped = escaped.Replace("\n\n", "</p><p>");
+                // Single newlines to line breaks
+                escaped = escaped.Replace("\n", "<br/>");
+                materialHtml = $"<p>{escaped}</p>";
+            }
+
+            // Build sample quiz HTML if quiz questions provided
+            var sampleQuizBuilder = new System.Text.StringBuilder();
+            if (quizQuestions != null && quizQuestions.Count > 0)
+            {
+                sampleQuizBuilder.AppendLine("<div class='section'><h2>Sample Quiz</h2>");
+                int idx = 1;
+                foreach (var q in quizQuestions)
+                {
+                    sampleQuizBuilder.AppendLine($"<div class='concept'><h3>Question {idx} - {System.Net.WebUtility.HtmlEncode(q.QuestionType)}</h3>");
+                    sampleQuizBuilder.AppendLine($"<p>{System.Net.WebUtility.HtmlEncode(q.Question)}</p>");
+                    if (q.QuestionType == "MCQ")
+                    {
+                        sampleQuizBuilder.AppendLine("<ul>");
+                        if (!string.IsNullOrEmpty(q.OptionA)) sampleQuizBuilder.AppendLine($"<li>A. {System.Net.WebUtility.HtmlEncode(q.OptionA)}</li>");
+                        if (!string.IsNullOrEmpty(q.OptionB)) sampleQuizBuilder.AppendLine($"<li>B. {System.Net.WebUtility.HtmlEncode(q.OptionB)}</li>");
+                        if (!string.IsNullOrEmpty(q.OptionC)) sampleQuizBuilder.AppendLine($"<li>C. {System.Net.WebUtility.HtmlEncode(q.OptionC)}</li>");
+                        if (!string.IsNullOrEmpty(q.OptionD)) sampleQuizBuilder.AppendLine($"<li>D. {System.Net.WebUtility.HtmlEncode(q.OptionD)}</li>");
+                        sampleQuizBuilder.AppendLine("</ul>");
+                        sampleQuizBuilder.AppendLine($"<p><strong>Answer:</strong> {System.Net.WebUtility.HtmlEncode(q.CorrectOption)}</p>");
+                    }
+                    else if (q.QuestionType == "TrueFalse")
+                    {
+                        sampleQuizBuilder.AppendLine($"<p>True / False question. Answer: <strong>{System.Net.WebUtility.HtmlEncode(q.CorrectOption)}</strong></p>");
+                    }
+                    else // Coding or other
+                    {
+                        sampleQuizBuilder.AppendLine($"<p>Coding challenge: {System.Net.WebUtility.HtmlEncode(q.Question)}</p>");
+                        if (!string.IsNullOrEmpty(q.OptionA)) sampleQuizBuilder.AppendLine($"<pre style='background:#f6f8fa;padding:10px;border-radius:4px;'>" + System.Net.WebUtility.HtmlEncode(q.OptionA) + "</pre>");
+                        sampleQuizBuilder.AppendLine($"<p><strong>Notes:</strong> {System.Net.WebUtility.HtmlEncode(q.CorrectOption)}</p>");
+                    }
+                    sampleQuizBuilder.AppendLine("</div>");
+                    idx++;
+                }
+                sampleQuizBuilder.AppendLine("</div>");
+            }
+
             return $@"
 <!DOCTYPE html>
 <html>
@@ -284,6 +336,13 @@ namespace EduConnect.Services
             <p><strong>Step 4:</strong> Review best practices and advanced topics</p>
             <p><strong>Step 5:</strong> Test your knowledge with quizzes and assessments</p>
         </div>
+
+        <h2>Material Content</h2>
+        <div class='section'>
+            {materialHtml}
+        </div>
+
+        {sampleQuizBuilder}
 
         <h2>Additional Resources</h2>
         <div class='section'>

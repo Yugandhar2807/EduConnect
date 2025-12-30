@@ -628,76 +628,6 @@ namespace EduConnect.Controllers
         }
 
         /// <summary>
-        /// Generate quiz questions using AI for a topic
-        /// </summary>
-        [HttpPost]
-        public async Task<IActionResult> GenerateQuizWithAI(int topicId)
-        {
-            var topic = await _context.Topics.Include(t => t.Course).FirstOrDefaultAsync(t => t.Id == topicId);
-            if (topic?.Course == null) return NotFound();
-
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (topic.Course.FacultyId != userId) return Forbid();
-
-            try
-            {
-                var aiService = HttpContext.RequestServices.GetRequiredService<IAIService>();
-                
-                // Generate quiz questions
-                var questions = await aiService.GenerateQuizQuestionsAsync(topic.Course.Title, topic.Name, 5);
-                
-                if (questions.Count == 0)
-                {
-                    TempData["Error"] = "Could not generate quiz questions. Please try again.";
-                    return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
-                }
-
-                // Create Quiz entity
-                var quiz = new Quiz
-                {
-                    CourseId = topic.CourseId,
-                    TopicId = topicId,
-                    Title = $"{topic.Name} - Quiz",
-                    Description = "Auto-generated quiz using AI",
-                    TotalMarks = questions.Count,
-                    PassingMarks = (int)(questions.Count * 0.6), // 60% passing
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                _context.Quizzes.Add(quiz);
-                await _context.SaveChangesAsync();
-
-                // Add questions to the quiz
-                foreach (var q in questions)
-                {
-                    var question = new QuizQuestion
-                    {
-                        QuizId = quiz.Id,
-                        QuestionText = q.Question,
-                        OptionA = q.OptionA,
-                        OptionB = q.OptionB,
-                        OptionC = q.OptionC,
-                        OptionD = q.OptionD,
-                        CorrectOption = q.CorrectOption,
-                        Marks = q.Marks,
-                        QuestionTypeEnum = QuestionType.MultipleChoice
-                    };
-                    _context.QuizQuestions.Add(question);
-                }
-
-                await _context.SaveChangesAsync();
-                TempData["Success"] = $"Successfully generated quiz with {questions.Count} questions!";
-                return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
-            }
-            catch (Exception ex)
-            {
-                TempData["Error"] = $"Error generating quiz: {ex.Message}";
-                return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
-            }
-        }
-
-        /// <summary>
         /// Generate topics using AI from the create course form
         /// </summary>
         [HttpPost]
@@ -756,12 +686,56 @@ namespace EduConnect.Controllers
                 // Initialize upload path
                 var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
 
-                // Create Topic entities and generate PDFs
+                // Create Topic entities and generate PDFs (include AI material + sample quiz in PDF)
                 var topicEntities = new List<Topic>();
+                var topicQuestionsList = new List<List<QuizQuestionData>>();
                 foreach (var topicName in request.Topics)
                 {
-                    // Generate PDF for the topic
-                    var pdfPath = await _pdfService.GenerateTopicPdfAsync(course.Title, topicName, uploadPath);
+                    // Generate material content for the topic
+                    string material = string.Empty;
+                    try
+                    {
+                        material = await _aiService.GenerateMaterialContentAsync(course.Title, topicName);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to generate material for topic {TopicName}", topicName);
+                    }
+
+                    // Generate mixed quiz questions for embedding in PDF
+                    var questions = new List<QuizQuestionData>();
+                    try
+                    {
+                        var mc = await _aiService.GenerateMultipleChoiceQuestionsAsync(course.Title, topicName, 3);
+                        questions.AddRange(mc);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to generate MCQ for topic {TopicName}", topicName);
+                    }
+
+                    try
+                    {
+                        var tf = await _aiService.GenerateTrueFalseQuestionsAsync(course.Title, topicName, 2);
+                        questions.AddRange(tf);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to generate True/False for topic {TopicName}", topicName);
+                    }
+
+                    try
+                    {
+                        var coding = await _aiService.GenerateCodingQuestionsAsync(course.Title, topicName, 1);
+                        questions.AddRange(coding);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to generate Coding question for topic {TopicName}", topicName);
+                    }
+
+                    // Generate PDF with material and sample quiz
+                    var pdfPath = await _pdfService.GenerateTopicPdfAsync(course.Title, topicName, uploadPath, material, questions);
 
                     var topic = new Topic
                     {
@@ -773,91 +747,54 @@ namespace EduConnect.Controllers
                         UpdatedAt = DateTime.UtcNow
                     };
                     topicEntities.Add(topic);
+                    topicQuestionsList.Add(questions);
                 }
 
                 _context.Topics.AddRange(topicEntities);
                 await _context.SaveChangesAsync();
 
-                // Auto-generate quizzes with mixed question types for each topic
+                // Create quiz entities from questions generated earlier per topic
                 var quizzes = new List<Quiz>();
-                foreach (var topic in topicEntities)
+                for (int i = 0; i < topicEntities.Count; i++)
                 {
-                    _logger.LogInformation("Auto-generating diverse quiz for topic: {TopicName}", topic.Name);
+                    var topic = topicEntities[i];
+                    var questions = topicQuestionsList.Count > i ? topicQuestionsList[i] : new List<QuizQuestionData>();
+                    if (questions == null || questions.Count == 0) continue;
 
-                    // Generate mixed question types: 3 MCQ + 2 True/False + 1 Coding
-                    var questions = new List<QuizQuestionData>();
-                    
-                    try
-                    {
-                        // Get 3 multiple choice questions
-                        var mcQuestions = await _aiService.GenerateMultipleChoiceQuestionsAsync(course.Title, topic.Name, 3);
-                        questions.AddRange(mcQuestions);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to generate MCQ for topic {TopicName}", topic.Name);
-                    }
+                    _logger.LogInformation("Creating quiz entity for topic: {TopicName} with {QuestionCount} questions", topic.Name, questions.Count);
 
-                    try
+                    var quiz = new Quiz
                     {
-                        // Get 2 true/false questions
-                        var tfQuestions = await _aiService.GenerateTrueFalseQuestionsAsync(course.Title, topic.Name, 2);
-                        questions.AddRange(tfQuestions);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to generate True/False for topic {TopicName}", topic.Name);
-                    }
+                        Title = $"{topic.Name} - Auto-Generated Quiz",
+                        Description = $"Comprehensive quiz for {topic.Name} with multiple question types",
+                        CourseId = course.Id,
+                        TopicId = topic.Id,
+                        CreatedAt = DateTime.UtcNow,
+                        Questions = new List<QuizQuestion>()
+                    };
 
-                    try
+                    int questionIndex = 1;
+                    foreach (var questionData in questions)
                     {
-                        // Get 1 coding question
-                        var codingQuestions = await _aiService.GenerateCodingQuestionsAsync(course.Title, topic.Name, 1);
-                        questions.AddRange(codingQuestions);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to generate Coding question for topic {TopicName}", topic.Name);
-                    }
-
-                    if (questions.Count > 0)
-                    {
-                        // Create Quiz entity
-                        var quiz = new Quiz
+                        var quizQuestion = new QuizQuestion
                         {
-                            Title = $"{topic.Name} - Auto-Generated Quiz",
-                            Description = $"Comprehensive quiz for {topic.Name} with multiple question types",
-                            CourseId = course.Id,
-                            TopicId = topic.Id,
-                            CreatedAt = DateTime.UtcNow,
-                            Questions = new List<QuizQuestion>()
+                            Quiz = quiz,
+                            QuestionText = questionData.Question,
+                            OptionA = questionData.OptionA,
+                            OptionB = questionData.OptionB,
+                            OptionC = questionData.OptionC ?? string.Empty,
+                            OptionD = questionData.OptionD ?? string.Empty,
+                            CorrectOption = questionData.CorrectOption,
+                            Marks = questionData.Marks,
+                            QuestionType = questionData.QuestionType,
+                            Difficulty = questionData.Difficulty,
+                            Order = questionIndex++
                         };
-
-                        // Add quiz questions from generated data
-                        int questionIndex = 1;
-                        foreach (var questionData in questions)
-                        {
-                            var quizQuestion = new QuizQuestion
-                            {
-                                Quiz = quiz,
-                                QuestionText = questionData.Question,
-                                OptionA = questionData.OptionA,
-                                OptionB = questionData.OptionB,
-                                OptionC = questionData.OptionC ?? string.Empty,
-                                OptionD = questionData.OptionD ?? string.Empty,
-                                CorrectOption = questionData.CorrectOption,
-                                Marks = questionData.Marks,
-                                QuestionType = questionData.QuestionType,
-                                Difficulty = questionData.Difficulty,
-                                Order = questionIndex++
-                            };
-                            quiz.Questions.Add(quizQuestion);
-                        }
-
-                        quizzes.Add(quiz);
-                        _logger.LogInformation("Created auto-generated quiz for topic {TopicName} with {QuestionCount} questions", 
-                            topic.Name, questions.Count);
+                        quiz.Questions.Add(quizQuestion);
                     }
+
+                    quizzes.Add(quiz);
+                    _logger.LogInformation("Created auto-generated quiz for topic {TopicName} with {QuestionCount} questions", topic.Name, questions.Count);
                 }
 
                 // Save all auto-generated quizzes
