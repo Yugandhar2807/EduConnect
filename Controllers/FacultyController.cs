@@ -767,7 +767,7 @@ namespace EduConnect.Controllers
                     {
                         Name = topicName,
                         Description = $"AI-generated topic for {course.Title}",
-                        PdfFilePath = pdfPath, // Store PDF path
+                        PdfFilePath = pdfPath ?? string.Empty, // store empty string when PDF generation failed
                         CourseId = request.CourseId,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -783,8 +783,10 @@ namespace EduConnect.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error saving generated topics");
-                return Json(new { success = false, message = "Error: " + ex.Message });
+                var inner = ex.GetBaseException()?.Message ?? ex.Message;
+                _logger.LogError(ex, "Error saving generated topics: {Inner}", inner);
+                // Return inner exception message temporarily to aid debugging (remove in production)
+                return Json(new { success = false, message = "Error: " + inner });
             }
         }
     }

@@ -32,8 +32,12 @@ namespace EduConnect.Services
                     Directory.CreateDirectory(uploadPath);
                 }
 
+                // Sanitize topic name for use in filename (remove invalid file name chars and slashes)
+                var invalidChars = System.IO.Path.GetInvalidFileNameChars();
+                var safeTopic = new string(topicName.Where(c => !invalidChars.Contains(c)).ToArray());
+                safeTopic = safeTopic.Replace(' ', '_').Replace('/', '_').Replace('\\', '_');
                 // Generate filename
-                var fileName = $"{topicName.Replace(" ", "_")}_{DateTime.UtcNow.Ticks}.pdf";
+                var fileName = $"{safeTopic}_{DateTime.UtcNow.Ticks}.pdf";
                 var filePath = Path.Combine(uploadPath, fileName);
                 var relativeFilePath = $"/uploads/{fileName}";
 
@@ -50,7 +54,8 @@ namespace EduConnect.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating PDF for topic {TopicName}", topicName);
-                return null;
+                // Return empty string instead of null to avoid NOT NULL DB constraint failures
+                return string.Empty;
             }
         }
 
