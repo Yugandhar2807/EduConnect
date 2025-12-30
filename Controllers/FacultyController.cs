@@ -820,5 +820,96 @@ namespace EduConnect.Controllers
                 return Json(new { success = false, message = "Error: " + inner });
             }
         }
+
+        /// <summary>
+        /// Generate questions for an existing quiz using AI based on requested counts per type.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> GenerateQuestionsFromPrompt([FromBody] GenerateQuestionsRequest model)
+        {
+            if (model == null || model.QuizId <= 0) return Json(new { success = false, message = "QuizId is required" });
+
+            var quiz = await _context.Quizzes.Include(q => q.Course).Include(q => q.Topic).FirstOrDefaultAsync(q => q.Id == model.QuizId);
+            if (quiz == null) return Json(new { success = false, message = "Quiz not found" });
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (quiz.Course?.FacultyId != userId) return Json(new { success = false, message = "Unauthorized" });
+
+            var allQuestions = new List<QuizQuestionData>();
+            try
+            {
+                if (model.MCCount > 0)
+                {
+                    var mc = await _aiService.GenerateMultipleChoiceQuestionsAsync(quiz.Course.Title, quiz.Topic?.Name ?? quiz.Title, model.MCCount);
+                    allQuestions.AddRange(mc);
+                }
+                if (model.TFCount > 0)
+                {
+                    var tf = await _aiService.GenerateTrueFalseQuestionsAsync(quiz.Course.Title, quiz.Topic?.Name ?? quiz.Title, model.TFCount);
+                    allQuestions.AddRange(tf);
+                }
+                if (model.CodingCount > 0)
+                {
+                    var coding = await _aiService.GenerateCodingQuestionsAsync(quiz.Course.Title, quiz.Topic?.Name ?? quiz.Title, model.CodingCount);
+                    allQuestions.AddRange(coding);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "AI generation failed for quiz {QuizId}", model.QuizId);
+                return Json(new { success = false, message = "AI generation failed" });
+            }
+
+            if (allQuestions.Count == 0) return Json(new { success = false, message = "No questions generated" });
+
+            // Create and add QuizQuestion entities
+            int nextOrder = (await _context.QuizQuestions.Where(q => q.QuizId == quiz.Id).MaxAsync(q => (int?)q.Order) ) ?? 0;
+            foreach (var qd in allQuestions)
+            {
+                nextOrder++;
+                var qq = new QuizQuestion
+                {
+                    QuizId = quiz.Id,
+                    QuestionText = qd.Question,
+                    OptionA = qd.OptionA,
+                    OptionB = qd.OptionB,
+                    OptionC = qd.OptionC,
+                    OptionD = qd.OptionD,
+                    CorrectOption = qd.CorrectOption,
+                    Marks = qd.Marks,
+                    QuestionType = qd.QuestionType,
+                    Difficulty = qd.Difficulty,
+                    Order = nextOrder
+                };
+                _context.QuizQuestions.Add(qq);
+            }
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = $"Added {allQuestions.Count} questions to quiz." });
+        }
+
+        /// <summary>
+        /// Download a generated PDF for a topic
+        /// </summary>
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult DownloadTopicPdf(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName)) return NotFound();
+
+            try
+            {
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "topics", fileName);
+                if (!System.IO.File.Exists(filePath)) return NotFound();
+
+                var bytes = System.IO.File.ReadAllBytes(filePath);
+                return File(bytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading PDF {FileName}", fileName);
+                return NotFound();
+            }
+        }
     }
 }

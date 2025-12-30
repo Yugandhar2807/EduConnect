@@ -214,7 +214,11 @@
                                     @if (!string.IsNullOrEmpty(topic.PdfFilePath))
                                     {
                                         <small class="text-muted">
-                                            📄 PDF: <a href="@topic.PdfFilePath" target="_blank" style="color: #667eea; text-decoration: underline;">Download PDF</a>
+                                            📄 PDF: 
+                                            @{
+                                                var pdfFileName = System.IO.Path.GetFileName(topic.PdfFilePath);
+                                            }
+                                            <a href="/Faculty/DownloadTopicPdf?fileName=@pdfFileName" target="_blank" style="color: #667eea; text-decoration: underline;" download>Download PDF</a>
                                         </small>
                                     }
                                 </div>

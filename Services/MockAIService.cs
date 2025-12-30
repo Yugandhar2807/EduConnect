@@ -22,70 +22,96 @@ namespace EduConnect.Services
             _logger.LogInformation("Mock AI: Generating topics for course: {CourseTitle}", courseTitle);
             await Task.Delay(1000); // Simulate API delay
 
-            // Return topics based on course title
-            if (courseTitle.ToLower().Contains("java"))
+            // Return structured topics from beginner to advanced
+            if (courseTitle.ToLower().Contains("full stack"))
             {
                 return new List<string>
                 {
-                    "Java Fundamentals and Syntax",
-                    "Object-Oriented Programming Concepts",
-                    "Data Types and Variables",
-                    "Control Flow and Loops",
-                    "Arrays and Collections",
-                    "Methods and Functions",
-                    "Exception Handling",
-                    "File I/O Operations",
-                    "Multithreading and Concurrency",
-                    "Advanced Java Features and Best Practices"
+                    "[Beginner] Frontend Fundamentals - HTML/CSS/JavaScript Basics",
+                    "[Beginner] JavaScript ES6+ Essentials",
+                    "[Beginner] Frontend Frameworks - Introduction to React/Vue",
+                    "[Intermediate] Building Responsive Web UIs",
+                    "[Intermediate] REST APIs and Data Fetching",
+                    "[Intermediate] Backend Basics - Node.js/Express",
+                    "[Intermediate] Database Fundamentals - SQL",
+                    "[Intermediate] Authentication and Authorization",
+                    "[Advanced] Full Stack Application Architecture",
+                    "[Advanced] Deployment and DevOps",
+                    "[Advanced] Performance Optimization and Scaling",
+                    "[Advanced] Advanced Patterns and Best Practices"
+                };
+            }
+            else if (courseTitle.ToLower().Contains("java"))
+            {
+                return new List<string>
+                {
+                    "[Beginner] Java Fundamentals and Syntax",
+                    "[Beginner] Variables, Data Types, and Operators",
+                    "[Beginner] Control Flow - If/Else and Loops",
+                    "[Intermediate] Object-Oriented Programming Concepts",
+                    "[Intermediate] Arrays and Collections",
+                    "[Intermediate] Methods and Functions",
+                    "[Intermediate] Exception Handling",
+                    "[Advanced] File I/O and Serialization",
+                    "[Advanced] Multithreading and Concurrency",
+                    "[Advanced] Java 8+ Features (Streams, Lambda)",
+                    "[Advanced] Design Patterns and Architectures",
+                    "[Advanced] Enterprise Java and Spring Framework"
                 };
             }
             else if (courseTitle.ToLower().Contains("python"))
             {
                 return new List<string>
                 {
-                    "Python Basics and Installation",
-                    "Variables and Data Types",
-                    "Operators and Expressions",
-                    "Control Structures (if/elif/else)",
-                    "Loops (for and while)",
-                    "Functions and Scope",
-                    "Lists, Tuples, and Dictionaries",
-                    "String Manipulation",
-                    "File Handling",
-                    "Object-Oriented Programming in Python"
+                    "[Beginner] Python Installation and Setup",
+                    "[Beginner] Variables, Data Types, and Operators",
+                    "[Beginner] Control Structures and Loops",
+                    "[Intermediate] Functions and Scope",
+                    "[Intermediate] Lists, Tuples, Dictionaries, and Sets",
+                    "[Intermediate] String Manipulation and Formatting",
+                    "[Intermediate] File Handling and I/O",
+                    "[Advanced] Object-Oriented Programming in Python",
+                    "[Advanced] Functional Programming and Decorators",
+                    "[Advanced] Libraries and Data Science (NumPy, Pandas)",
+                    "[Advanced] Web Development with Django/Flask",
+                    "[Advanced] Advanced Patterns and Performance"
                 };
             }
             else if (courseTitle.ToLower().Contains("web"))
             {
                 return new List<string>
                 {
-                    "HTML Fundamentals",
-                    "CSS Styling and Layouts",
-                    "JavaScript Basics",
-                    "DOM Manipulation",
-                    "Responsive Web Design",
-                    "CSS Frameworks (Bootstrap)",
-                    "JavaScript ES6+ Features",
-                    "Asynchronous Programming",
-                    "Web APIs and Fetch",
-                    "Modern Web Development Tools"
+                    "[Beginner] HTML Fundamentals",
+                    "[Beginner] CSS Styling and Layouts",
+                    "[Beginner] JavaScript Basics",
+                    "[Intermediate] DOM Manipulation",
+                    "[Intermediate] Responsive Web Design",
+                    "[Intermediate] CSS Frameworks (Bootstrap, Tailwind)",
+                    "[Intermediate] JavaScript ES6+ Features",
+                    "[Advanced] Asynchronous Programming (Promises, Async/Await)",
+                    "[Advanced] Web APIs and Fetch",
+                    "[Advanced] Frontend Frameworks (React, Vue, Angular)",
+                    "[Advanced] State Management and Testing",
+                    "[Advanced] Modern Web Development Tools and Bundlers"
                 };
             }
             else
             {
-                // Generic topics
+                // Generic structured topics
                 return new List<string>
                 {
-                    "Introduction and Overview",
-                    "Core Concepts and Fundamentals",
-                    "Basic Implementation",
-                    "Intermediate Techniques",
-                    "Advanced Topics",
-                    "Best Practices and Patterns",
-                    "Real-World Applications",
-                    "Troubleshooting and Debugging",
-                    "Performance Optimization",
-                    "Future Trends and Conclusion"
+                    "[Beginner] Introduction and Overview",
+                    "[Beginner] Core Concepts and Fundamentals",
+                    "[Beginner] Basic Implementation",
+                    "[Intermediate] Intermediate Techniques and Patterns",
+                    "[Intermediate] Hands-On Projects",
+                    "[Intermediate] Debugging and Troubleshooting",
+                    "[Advanced] Advanced Topics and Deep Dives",
+                    "[Advanced] Best Practices and Design Patterns",
+                    "[Advanced] Real-World Applications",
+                    "[Advanced] Performance Optimization and Scaling",
+                    "[Advanced] Future Trends and Emerging Technologies",
+                    "[Advanced] Conclusion and Next Steps"
                 };
             }
         }

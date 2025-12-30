@@ -2,7 +2,10 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using System.Linq;
+using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using Microsoft.Playwright;
 
 namespace EduConnect.Services
 {
@@ -25,20 +28,39 @@ namespace EduConnect.Services
         {
             try
             {
-                if (!Directory.Exists(uploadPath))
-                {
-                    Directory.CreateDirectory(uploadPath);
-                }
+                // Ensure we write to uploads/topics for consistency
+                var topicsFolder = Path.Combine(uploadPath, "topics");
+                if (!Directory.Exists(topicsFolder)) Directory.CreateDirectory(topicsFolder);
 
                 var invalidChars = System.IO.Path.GetInvalidFileNameChars();
                 var safeTopic = new string(topicName.Where(c => !invalidChars.Contains(c)).ToArray());
                 safeTopic = safeTopic.Replace(' ', '_').Replace('/', '_').Replace('\\', '_');
                 var fileName = $"{safeTopic}_{DateTime.UtcNow.Ticks}.pdf";
-                var filePath = Path.Combine(uploadPath, fileName);
-                var relativeFilePath = $"/uploads/{fileName}";
+                var filePath = Path.Combine(topicsFolder, fileName);
+                var relativeFilePath = $"/uploads/topics/{fileName}";
 
                 var htmlContent = GenerateComprehensiveHtmlContent(courseName, topicName, materialContent, quizQuestions);
-                await File.WriteAllTextAsync(filePath, htmlContent, Encoding.UTF8);
+
+                // Write HTML to a temporary .html file
+                var tempHtml = Path.Combine(topicsFolder, Path.GetFileNameWithoutExtension(fileName) + ".html");
+                await File.WriteAllTextAsync(tempHtml, htmlContent, Encoding.UTF8);
+
+                // Use Playwright to render HTML to a real PDF
+                try
+                {
+                    using var playwright = await Playwright.CreateAsync();
+                    await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+                    var page = await browser.NewPageAsync();
+                    // Load the HTML content directly to avoid file URL issues
+                    await page.SetContentAsync(htmlContent, new PageSetContentOptions { WaitUntil = WaitUntilState.NetworkIdle });
+                    await page.PdfAsync(new PagePdfOptions { Path = filePath, Format = "A4", PrintBackground = true });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Playwright PDF rendering failed, falling back to writing HTML as .pdf (not a true PDF)");
+                    // Fallback: write the HTML into the .pdf file as before
+                    await File.WriteAllTextAsync(filePath, htmlContent, Encoding.UTF8);
+                }
 
                 _logger.LogInformation("Generated comprehensive PDF for topic {TopicName} at {FilePath}", topicName, filePath);
                 return relativeFilePath;

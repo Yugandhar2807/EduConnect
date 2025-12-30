@@ -27,13 +27,15 @@ namespace EduConnect.Services
         {
             try
             {
-                var prompt = $@"Generate 8-10 comprehensive learning topics for a course titled '{courseTitle}'. 
+                var prompt = $@"Generate 10-12 comprehensive learning topics for a course titled '{courseTitle}'. 
 Description: {courseDescription}
 
-Return ONLY a JSON array of topic titles as strings, nothing else. Example format:
-[""Topic 1"", ""Topic 2"", ""Topic 3""]
+IMPORTANT: Structure topics from beginner to advanced. Prefix each topic with [Beginner], [Intermediate], or [Advanced].
 
-Make topics progressive, building on each other from basic to advanced concepts.";
+Example format:
+[""[Beginner] Introduction and Basics"", ""[Beginner] Core Fundamentals"", ""[Intermediate] Intermediate Concepts"", ""[Advanced] Advanced Topics""]
+
+Return ONLY a JSON array of topic titles with level prefixes. Make topics progressive and suitable for a complete learning path.";
 
                 var response = await CallGeminiAPI(prompt);
                 if (string.IsNullOrEmpty(response))
