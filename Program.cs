@@ -40,6 +40,9 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 // Register PDF Generation Service
 builder.Services.AddScoped<PdfGenerationService>();
 
+// Register Excel Export Service
+builder.Services.AddScoped<IExcelExportService, ExcelExportService>();
+
 // Register AI Service
 var geminiApiKey = builder.Configuration["AI:GeminiApiKey"];
 // Use Mock AI Service for demonstration (Gemini API free tier quota exhausted)

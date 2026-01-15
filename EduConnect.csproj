@@ -18,9 +18,11 @@
     </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="9.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="QRCoder" Version="1.4.3" />
     <PackageReference Include="SendGrid" Version="9.29.3" />
     <PackageReference Include="Twilio" Version="7.13.4" />
     <PackageReference Include="Microsoft.Playwright" Version="1.48.0" />
+    <PackageReference Include="EPPlus" Version="7.3.8" />
   </ItemGroup>
 
 </Project>

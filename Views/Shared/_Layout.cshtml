@@ -47,6 +47,11 @@
                             <li class="nav-item">
                                 <a class="nav-link" asp-area="" asp-controller="Admin" asp-action="ManageFaculty">Faculty</a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-controller="Admin" asp-action="ManageSemesterResults">
+                                    <i class="fas fa-graduation-cap me-1"></i>Semester Results
+                                </a>
+                            </li>
                         }
                         @if (User.IsInRole("Faculty"))
                         {
@@ -55,6 +60,11 @@
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" asp-area="" asp-controller="Faculty" asp-action="CreateCourse">Create Course</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-controller="Faculty" asp-action="ManageAttendance">
+                                    <i class="fas fa-clipboard-list me-1"></i>Attendance
+                                </a>
                             </li>
                         }
                         @if (User.IsInRole("Student"))

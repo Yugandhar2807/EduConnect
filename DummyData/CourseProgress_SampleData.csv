@@ -1,0 +1,10 @@
+StudentId,StudentName,CourseName,EnrollmentDate,TopicsCompleted,TotalTopics,CompletionPercentage,QuizzesTaken,AverageScore,ProgressStatus,LastActivityDate
+student1@educonnect.com,John Doe,C# Basics,2024-12-01,5,8,62.5,3,82.5,In Progress,2025-01-14
+student1@educonnect.com,John Doe,Database Design,2024-12-15,2,6,33.3,1,75.0,In Progress,2025-01-12
+student1@educonnect.com,John Doe,Web Development,2024-11-20,6,8,75.0,4,80.0,In Progress,2025-01-13
+student2@educonnect.com,Jane Smith,Web Development,2024-11-20,8,8,100,5,91.0,Completed,2025-01-10
+student2@educonnect.com,Jane Smith,JavaScript,2025-01-01,4,7,57.1,2,88.0,In Progress,2025-01-14
+student2@educonnect.com,Jane Smith,C# Basics,2024-12-01,7,8,87.5,4,85.5,In Progress,2025-01-13
+student3@educonnect.com,Michael Johnson,Database Design,2024-12-15,3,6,50.0,2,78.5,In Progress,2025-01-14
+student3@educonnect.com,Michael Johnson,SQL Mastery,2024-10-01,7,8,87.5,5,82.0,In Progress,2025-01-12
+student3@educonnect.com,Michael Johnson,Web Development,2025-01-01,2,8,25.0,1,70.0,Not Started,2025-01-11

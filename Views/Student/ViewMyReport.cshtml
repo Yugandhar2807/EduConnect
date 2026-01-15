@@ -1,0 +1,19 @@
+@{
+    ViewData["Title"] = "My Power BI Report";
+    var studentId = ViewBag.StudentId as string;
+    var reportUrl = ViewBag.ReportUrl as string;
+}
+
+<h2>My Academic Report</h2>
+@if (!string.IsNullOrEmpty(reportUrl))
+{
+    <div style="height:800px;width:100%;">
+        <iframe id="powerbi-report" width="100%" height="800" src="@reportUrl" frameborder="0" allowfullscreen></iframe>
+    </div>
+}
+else
+{
+    <div class="alert alert-warning mt-4">
+        <strong>No report available.</strong> Please contact your administrator if you believe this is an error.
+    </div>
+}

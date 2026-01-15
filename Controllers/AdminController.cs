@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using EduConnect.Data;
 using EduConnect.Models;
+using EduConnect.Services;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,12 +17,14 @@ namespace EduConnect.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly IExcelExportService _excelExportService;
 
-        public AdminController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
+        public AdminController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IExcelExportService excelExportService)
         {
             _context = context;
             _userManager = userManager;
             _roleManager = roleManager;
+            _excelExportService = excelExportService;
         }
 
         // Admin Dashboard - Analytics Overview
@@ -485,6 +488,174 @@ namespace EduConnect.Controllers
                 return 0;
 
             return Math.Round(enrollments.Average(e => e.ProgressPercentage), 2);
+        }
+
+        // ==================== SEMESTER RESULTS MANAGEMENT ====================
+
+        [HttpGet]
+        public async Task<IActionResult> ManageSemesterResults()
+        {
+            var students = await _userManager.GetUsersInRoleAsync("Student");
+            ViewBag.Students = students;
+            return View();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> SemesterResultsList(string studentId = null, string semester = null)
+        {
+            var query = _context.SemesterResults.Include(sr => sr.Student).AsQueryable();
+
+            if (!string.IsNullOrEmpty(studentId))
+                query = query.Where(sr => sr.StudentId == studentId);
+
+            if (!string.IsNullOrEmpty(semester))
+                query = query.Where(sr => sr.Semester == semester);
+
+            var results = await query.OrderByDescending(sr => sr.CreatedAt).ToListAsync();
+            
+            ViewBag.StudentId = studentId;
+            ViewBag.Semester = semester;
+            ViewBag.CurrentSemesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
+            
+            return View(results);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> CreateSemesterResult()
+        {
+            var students = await _userManager.GetUsersInRoleAsync("Student");
+            ViewBag.Students = students;
+            ViewBag.Semesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
+            ViewBag.Grades = new[] { "A", "B", "C", "D", "F" };
+            
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateSemesterResult(SemesterResult model)
+        {
+            if (!ModelState.IsValid)
+            {
+                var students = await _userManager.GetUsersInRoleAsync("Student");
+                ViewBag.Students = students;
+                ViewBag.Semesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
+                ViewBag.Grades = new[] { "A", "B", "C", "D", "F" };
+                return View(model);
+            }
+
+            try
+            {
+                model.CreatedAt = DateTime.UtcNow;
+                _context.SemesterResults.Add(model);
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Semester result created successfully!";
+                return RedirectToAction("SemesterResultsList", new { studentId = model.StudentId });
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", "Error creating semester result: " + ex.Message);
+                var students = await _userManager.GetUsersInRoleAsync("Student");
+                ViewBag.Students = students;
+                ViewBag.Semesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
+                ViewBag.Grades = new[] { "A", "B", "C", "D", "F" };
+                return View(model);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> EditSemesterResult(int id)
+        {
+            var result = await _context.SemesterResults
+                .Include(sr => sr.Student)
+                .FirstOrDefaultAsync(sr => sr.Id == id);
+
+            if (result == null) return NotFound();
+
+            ViewBag.Semesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
+            ViewBag.Grades = new[] { "A", "B", "C", "D", "F" };
+            
+            return View(result);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> EditSemesterResult(int id, SemesterResult model)
+        {
+            if (id != model.Id) return BadRequest();
+
+            if (!ModelState.IsValid)
+            {
+                ViewBag.Semesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
+                ViewBag.Grades = new[] { "A", "B", "C", "D", "F" };
+                return View(model);
+            }
+
+            try
+            {
+                var result = await _context.SemesterResults.FindAsync(id);
+                if (result == null) return NotFound();
+
+                result.Semester = model.Semester;
+                result.CourseName = model.CourseName;
+                result.MarksObtained = model.MarksObtained;
+                result.Grade = model.Grade;
+                result.GPA = model.GPA;
+                result.Remarks = model.Remarks;
+                result.UpdatedAt = DateTime.UtcNow;
+
+                _context.SemesterResults.Update(result);
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Semester result updated successfully!";
+                return RedirectToAction("SemesterResultsList", new { studentId = result.StudentId });
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", "Error updating semester result: " + ex.Message);
+                ViewBag.Semesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
+                ViewBag.Grades = new[] { "A", "B", "C", "D", "F" };
+                return View(model);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteSemesterResult(int id)
+        {
+            var result = await _context.SemesterResults.FindAsync(id);
+            if (result == null) return NotFound();
+
+            try
+            {
+                var studentId = result.StudentId;
+                _context.SemesterResults.Remove(result);
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Semester result deleted successfully!";
+                return RedirectToAction("SemesterResultsList", new { studentId });
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "Error deleting semester result: " + ex.Message;
+                return RedirectToAction("SemesterResultsList", new { studentId = result.StudentId });
+            }
+        }
+
+        // Download Student Data as Excel
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DownloadStudentData()
+        {
+            try
+            {
+                var excelData = await _excelExportService.ExportStudentDataAsync();
+                var fileName = $"StudentData_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+                
+                return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "Error generating Excel file: " + ex.Message;
+                return RedirectToAction("Dashboard");
+            }
         }
     }
 

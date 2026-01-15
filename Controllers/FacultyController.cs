@@ -911,5 +911,116 @@ namespace EduConnect.Controllers
                 return NotFound();
             }
         }
+
+        // ==================== ATTENDANCE MANAGEMENT ====================
+
+        [HttpGet]
+        [HttpGet]
+        public async Task<IActionResult> ManageAttendance()
+        {
+            var attendanceDate = DateTime.UtcNow.Date;
+
+            // Get ONLY students (from UserManager with Student role)
+            var allUsers = await _context.Users.ToListAsync();
+            var allStudents = new List<ApplicationUser>();
+
+            foreach (var user in allUsers)
+            {
+                var roles = await _context.UserRoles
+                    .Where(ur => ur.UserId == user.Id)
+                    .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
+                    .ToListAsync();
+
+                if (roles.Contains("Student"))
+                {
+                    allStudents.Add(user);
+                }
+            }
+
+            allStudents = allStudents.OrderBy(u => u.FullName ?? u.UserName).ToList();
+
+            // Get today's attendance records
+            var todayAttendance = await _context.Attendances
+                .Where(a => a.AttendanceDate.Date == attendanceDate)
+                .ToDictionaryAsync(a => a.StudentId, a => a.Status);
+
+            ViewBag.AttendanceDate = attendanceDate;
+            ViewBag.TodayAttendance = todayAttendance;
+            return View(allStudents);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ManageAttendance(IFormCollection form)
+        {
+            try
+            {
+                var attendanceDate = DateTime.UtcNow.Date;
+                var studentIds = form["studentIds"].ToList();
+
+                foreach (var studentId in studentIds)
+                {
+                    var status = form[$"status_{studentId}"];
+                    var remarks = form[$"remarks_{studentId}"];
+
+                    // Skip if no status selected
+                    if (string.IsNullOrEmpty(status))
+                        continue;
+
+                    // Check if student exists
+                    var studentExists = await _context.Users.AnyAsync(u => u.Id == studentId);
+                    if (!studentExists)
+                        continue;
+
+                    // Check if attendance already exists for today
+                    var existingAttendance = await _context.Attendances
+                        .FirstOrDefaultAsync(a => a.StudentId == studentId && 
+                                                  a.AttendanceDate.Date == attendanceDate);
+
+                    if (existingAttendance != null)
+                    {
+                        existingAttendance.Status = status;
+                        existingAttendance.Remarks = remarks;
+                        _context.Attendances.Update(existingAttendance);
+                    }
+                    else
+                    {
+                        var attendance = new Attendance
+                        {
+                            StudentId = studentId,
+                            CourseId = null,
+                            AttendanceDate = attendanceDate,
+                            Status = status,
+                            Remarks = remarks,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _context.Attendances.Add(attendance);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Attendance saved successfully!";
+                return RedirectToAction("ManageAttendance");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error marking attendance");
+                TempData["Error"] = "Error: " + ex.Message;
+                return RedirectToAction("ManageAttendance");
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> AttendanceList()
+        {
+            var attendance = await _context.Attendances
+                .Include(a => a.Student)
+                .OrderByDescending(a => a.AttendanceDate)
+                .Take(100)
+                .ToListAsync();
+
+            return View(attendance);
+        }
+
+
     }
 }

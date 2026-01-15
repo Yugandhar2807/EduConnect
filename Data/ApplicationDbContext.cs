@@ -20,6 +20,9 @@ namespace EduConnect.Data
         public DbSet<QuizResult> QuizResults { get; set; }
         public DbSet<Announcement> Announcements { get; set; }
         public DbSet<TopicProgress> TopicProgress { get; set; }
+        public DbSet<Attendance> Attendances { get; set; }
+        public DbSet<SemesterResult> SemesterResults { get; set; }
+        public DbSet<StudentCourseProgress> StudentCourseProgresses { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -127,6 +130,40 @@ namespace EduConnect.Data
                 .HasForeignKey(tp => tp.MaterialId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired(false);
+
+            // Attendance relationships
+            builder.Entity<Attendance>()
+                .HasOne(a => a.Student)
+                .WithMany()
+                .HasForeignKey(a => a.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Attendance>()
+                .HasOne(a => a.Course)
+                .WithMany()
+                .HasForeignKey(a => a.CourseId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired(false);
+
+            // SemesterResult relationships
+            builder.Entity<SemesterResult>()
+                .HasOne(sr => sr.Student)
+                .WithMany()
+                .HasForeignKey(sr => sr.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // StudentCourseProgress relationships
+            builder.Entity<StudentCourseProgress>()
+                .HasOne(scp => scp.Student)
+                .WithMany()
+                .HasForeignKey(scp => scp.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<StudentCourseProgress>()
+                .HasOne(scp => scp.Course)
+                .WithMany()
+                .HasForeignKey(scp => scp.CourseId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

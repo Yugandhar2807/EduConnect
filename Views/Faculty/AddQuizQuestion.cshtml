@@ -173,89 +173,73 @@
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
     
     <script>
-        async function generateQuestionsFromPrompt() {
+        function generateQuestionsFromPrompt() {
+            console.log('Generate clicked');
             const mcCount = parseInt(document.getElementById('mcCount').value) || 0;
             const tfCount = parseInt(document.getElementById('tfCount').value) || 0;
             const codingCount = parseInt(document.getElementById('codingCount').value) || 0;
             const quizId = document.getElementById('quizIdHidden').value;
 
             if (mcCount === 0 && tfCount === 0 && codingCount === 0) {
-                alert('Please specify at least one question type count');
+                alert('Please enter at least one count');
                 return;
             }
 
-            const generateBtn = document.getElementById('generateBtn');
-            generateBtn.disabled = true;
-            generateBtn.textContent = 'Generating...';
-
-            try {
-                const response = await fetch('/Faculty/GenerateQuestionsFromPrompt', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        quizId: parseInt(quizId),
-                        mcCount: mcCount,
-                        tfCount: tfCount,
-                        codingCount: codingCount
-                    })
-                });
-
-                const result = await response.json();
-                if (result.success) {
-                    alert(result.message);
-                    bootstrap.Modal.getInstance(document.getElementById('generateQuestionsModal')).hide();
-                    // Reload page to show new questions
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    alert('Error: ' + result.message);
+            console.log(`Sending: MCQ=${mcCount}, TF=${tfCount}, Coding=${codingCount}, QuizId=${quizId}`);
+            
+            fetch('/Faculty/GenerateQuestionsFromPrompt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quizId: parseInt(quizId), mcCount, tfCount, codingCount })
+            })
+            .then(r => r.json())
+            .then(data => {
+                console.log('Response:', data);
+                alert(data.message);
+                if (data.success) {
+                    location.reload();
                 }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error generating questions: ' + error.message);
-            } finally {
-                generateBtn.disabled = false;
-                generateBtn.textContent = 'Generate Questions';
-            }
+            })
+            .catch(e => alert('Error: ' + e));
         }
     </script>
 }
 
-<!-- Modal for AI Question Generation -->
-<div class="modal fade" id="generateQuestionsModal" tabindex="-1" aria-hidden="true">
+<!-- AI Question Generation Modal -->
+<style>
+    #generateQuestionsModal { z-index: 9999 !important; }
+    #generateQuestionsModal .modal-backdrop { z-index: 9998 !important; }
+</style>
+
+<div class="modal fade" id="generateQuestionsModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-info text-white">
                 <h5 class="modal-title">🤖 Generate Questions with AI</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Specify how many questions of each type you want to generate and add to this quiz:</p>
+                <p>How many questions of each type would you like to generate?</p>
+                <input type="hidden" id="quizIdHidden" value="@ViewBag.QuizId" />
                 
                 <div class="mb-3">
-                    <label for="mcCount" class="form-label">Multiple Choice Questions (MCQ)</label>
-                    <input type="number" class="form-control" id="mcCount" min="0" max="10" value="0" placeholder="0">
-                    <small class="text-muted">Number of MCQ questions to generate</small>
+                    <label for="mcCount" class="form-label fw-bold">Multiple Choice Questions</label>
+                    <input type="number" class="form-control" id="mcCount" min="0" max="20" value="0" />
                 </div>
-
+                
                 <div class="mb-3">
-                    <label for="tfCount" class="form-label">True/False Questions</label>
-                    <input type="number" class="form-control" id="tfCount" min="0" max="10" value="0" placeholder="0">
-                    <small class="text-muted">Number of True/False questions to generate</small>
+                    <label for="tfCount" class="form-label fw-bold">True/False Questions</label>
+                    <input type="number" class="form-control" id="tfCount" min="0" max="20" value="0" />
                 </div>
-
+                
                 <div class="mb-3">
-                    <label for="codingCount" class="form-label">Coding Challenge Questions</label>
-                    <input type="number" class="form-control" id="codingCount" min="0" max="5" value="0" placeholder="0">
-                    <small class="text-muted">Number of coding questions to generate</small>
+                    <label for="codingCount" class="form-label fw-bold">Coding Questions</label>
+                    <input type="number" class="form-control" id="codingCount" min="0" max="10" value="0" />
                 </div>
-
-                <input type="hidden" id="quizIdHidden" value="@ViewBag.QuizId" />
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="generateBtn" onclick="generateQuestionsFromPrompt()">Generate Questions</button>
+                <button type="button" class="btn btn-primary btn-lg" onclick="generateQuestionsFromPrompt()">Generate</button>
             </div>
         </div>
     </div>

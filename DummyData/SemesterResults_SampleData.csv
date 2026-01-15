@@ -1,0 +1,10 @@
+StudentId,StudentName,Semester,CourseName,MarksObtained,Grade,GPA,Remarks
+student1@educonnect.com,John Doe,Fall 2025,C# Basics,85,A,4.0,Excellent performance
+student1@educonnect.com,John Doe,Fall 2025,Database Design,78,B,3.5,Good understanding
+student1@educonnect.com,John Doe,Fall 2025,Web Development,82,A,3.8,Very Good
+student2@educonnect.com,Jane Smith,Fall 2025,Web Development,92,A,4.0,Outstanding performance
+student2@educonnect.com,Jane Smith,Fall 2025,JavaScript,88,A,4.0,Excellent
+student2@educonnect.com,Jane Smith,Fall 2025,C# Basics,80,B,3.7,Good
+student3@educonnect.com,Michael Johnson,Fall 2025,Database Design,75,B,3.3,Satisfactory
+student3@educonnect.com,Michael Johnson,Fall 2025,SQL Mastery,79,B,3.5,Good
+student3@educonnect.com,Michael Johnson,Fall 2025,Web Development,77,B,3.4,Satisfactory

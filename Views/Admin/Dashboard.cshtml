@@ -303,24 +303,23 @@
             </div>
         </div>
     </div>
-</div>
 
-<script>
-    // Animate stat numbers on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        const statNumbers = document.querySelectorAll('.stat-number');
-        statNumbers.forEach(stat => {
-            const finalValue = parseInt(stat.textContent);
-            let currentValue = 0;
-            const increment = Math.ceil(finalValue / 30);
-            
-            const interval = setInterval(() => {
-                currentValue += increment;
-                if (currentValue >= finalValue) {
-                    stat.textContent = finalValue;
-                    clearInterval(interval);
-                } else {
-                    stat.textContent = currentValue;
+    <!-- Data Export Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="feature-section">
+                <h3>
+                    <i class="fas fa-download"></i>
+                    Data Export
+                </h3>
+                <p style="color: #718096; margin-bottom: 20px;">Download all student data including attendance, course progress, and semester results in Excel format.</p>
+                <a href="@Url.Action("DownloadStudentData")" class="action-btn" style="display: inline-flex; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                    <i class="fas fa-file-excel"></i>
+                    Download Student Data (Excel)
+                </a>
+            </div>
+        </div>
+    </div>
                 }
             }, 30);
         });

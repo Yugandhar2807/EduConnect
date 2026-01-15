@@ -5,6 +5,7 @@ using EduConnect.Data;
 using EduConnect.Models;
 using EduConnect.Services;
 using System.Security.Claims;
+using QRCoder;
 
 namespace EduConnect.Controllers
 {
@@ -37,10 +38,46 @@ namespace EduConnect.Controllers
                 .Take(5)
                 .ToListAsync();
 
+            // Get student records
+            var attendance = await _context.Attendances
+                .Where(a => a.StudentId == userId)
+                .OrderByDescending(a => a.AttendanceDate)
+                .Take(10)
+                .ToListAsync();
+
+            var semesterResults = await _context.SemesterResults
+                .Where(sr => sr.StudentId == userId)
+                .OrderByDescending(sr => sr.CreatedAt)
+                .ToListAsync();
+
+            var courseProgress = await _context.StudentCourseProgresses
+                .Where(cp => cp.StudentId == userId)
+                .Include(cp => cp.Course)
+                .ToListAsync();
+
+            // Calculate attendance percentage
+            if (attendance.Any())
+            {
+                var presentCount = attendance.Count(a => a.Status == "Present");
+                ViewBag.AttendancePercentage = Math.Round((presentCount / (double)attendance.Count) * 100, 1);
+            }
+            else
+            {
+                ViewBag.AttendancePercentage = 0;
+            }
+
+            // Calculate average GPA
+            if (semesterResults.Any())
+            {
+                ViewBag.AverageGPA = Math.Round(semesterResults.Average(sr => sr.GPA), 2);
+            }
+
             ViewBag.EnrolledCourses = enrollments.Count;
             ViewBag.CompletedCourses = enrollments.Count(e => e.IsCompleted);
-
             ViewBag.Announcements = announcements;
+            ViewBag.RecentAttendance = attendance;
+            ViewBag.SemesterResults = semesterResults;
+            ViewBag.CourseProgress = courseProgress;
 
             return View(enrollments);
         }
@@ -60,6 +97,21 @@ namespace EduConnect.Controllers
 
             return View(courses);
         }
+
+            // GET: Student/ViewMyReport
+            [Authorize(Roles = "Student")]
+            public IActionResult ViewMyReport()
+            {
+                  var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                  string reportUrl = null;
+                  if (userId == "22x01a6748")
+                  {
+                     reportUrl = "https://app.powerbi.com/groups/me/reports/c1d9f206-3f63-40eb-a794-3504e9540108/16a75418e0a0e30782c6?experience=power-bi";
+                  }
+                  ViewBag.ReportUrl = reportUrl;
+                  ViewBag.StudentId = userId;
+                  return View();
+            }
 
         [HttpPost]
         public async Task<IActionResult> EnrollCourse(int courseId)
@@ -424,9 +476,10 @@ namespace EduConnect.Controllers
             
             if (totalTopics > 0)
             {
+                var topicIds = course.Topics!.Select(t => t.Id).ToList();
                 var completedTopics = await _context.TopicProgress
                     .Where(tp => tp.StudentId == userId && tp.TopicId.HasValue &&
-                        course.Topics!.Any(t => t.Id == tp.TopicId))
+                        topicIds.Contains(tp.TopicId.Value))
                     .Select(tp => tp.TopicId)
                     .Distinct()
                     .CountAsync();
@@ -440,9 +493,10 @@ namespace EduConnect.Controllers
             
             if (totalMaterials > 0)
             {
+                var materialIds = course.Materials!.Select(m => m.Id).ToList();
                 var completedMaterials = await _context.TopicProgress
                     .Where(tp => tp.StudentId == userId && tp.MaterialId.HasValue &&
-                        course.Materials!.Any(m => m.Id == tp.MaterialId))
+                        materialIds.Contains(tp.MaterialId.Value))
                     .Select(tp => tp.MaterialId)
                     .Distinct()
                     .CountAsync();
@@ -837,6 +891,135 @@ public class Program
             catch (Exception ex)
             {
                 return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Displays the Power BI analytics dashboard for individual student performance
+        /// </summary>
+        public async Task<IActionResult> Analytics()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var student = await _context.Users.FindAsync(userId);
+
+            if (student == null)
+                return NotFound();
+
+            var viewModel = new StudentAnalyticsViewModel
+            {
+                StudentId = userId,
+                StudentName = student.FullName ?? student.UserName,
+                Email = student.Email
+            };
+
+            return View(viewModel);
+        }
+
+        /// <summary>
+        /// API endpoint to get student analytics data for Power BI or dashboard visualization
+        /// </summary>
+        [HttpGet("api/student/analytics-data")]
+        public async Task<IActionResult> GetAnalyticsData()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // Get enrollment data
+            var enrollments = await _context.Enrollments
+                .Where(e => e.StudentId == userId)
+                .Include(e => e.Course)
+                .ToListAsync();
+
+            // Get course progress
+            var courseProgress = await _context.StudentCourseProgresses
+                .Where(cp => cp.StudentId == userId)
+                .Include(cp => cp.Course)
+                .ToListAsync();
+
+            // Get semester results
+            var semesterResults = await _context.SemesterResults
+                .Where(sr => sr.StudentId == userId)
+                .OrderBy(sr => sr.Semester)
+                .ToListAsync();
+
+            // Get attendance data
+            var attendance = await _context.Attendances
+                .Where(a => a.StudentId == userId)
+                .OrderBy(a => a.AttendanceDate)
+                .ToListAsync();
+
+            var analyticsData = new
+            {
+                enrollments = enrollments.Select(e => new
+                {
+                    e.CourseId,
+                    CourseName = e.Course?.Title,
+                    EnrollmentDate = e.EnrolledAt,
+                    e.IsCompleted
+                }),
+                courseProgress = courseProgress.Select(cp => new
+                {
+                    cp.CourseId,
+                    CourseName = cp.Course?.Title,
+                    cp.CompletionPercentage,
+                    cp.TopicsCompleted,
+                    cp.TotalTopics,
+                    cp.QuizzesTaken,
+                    cp.AverageScore,
+                    cp.ProgressStatus
+                }),
+                semesterResults = semesterResults.Select(sr => new
+                {
+                    sr.Semester,
+                    sr.CourseName,
+                    sr.MarksObtained,
+                    sr.Grade,
+                    sr.GPA
+                }),
+                attendanceSummary = new
+                {
+                    TotalRecords = attendance.Count,
+                    PresentDays = attendance.Count(a => a.Status == "Present"),
+                    AbsentDays = attendance.Count(a => a.Status == "Absent"),
+                    LeaveDays = attendance.Count(a => a.Status == "Leave"),
+                    AttendancePercentage = attendance.Count > 0 
+                        ? Math.Round((double)attendance.Count(a => a.Status == "Present") / attendance.Count * 100, 2)
+                        : 0
+                }
+            };
+
+            return Json(analyticsData);
+        }
+
+        [HttpGet("api/student/generate-qr")]
+        public IActionResult GenerateQRCode()
+        {
+            try
+            {
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized();
+                }
+
+                // Build the analytics URL
+                var analyticsUrl = $"{Request.Scheme}://{Request.Host}/Student/Analytics?studentId={userId}&view=powerbi";
+
+                // Generate QR Code using QRCoder
+                using (var qrGenerator = new QRCoder.QRCodeGenerator())
+                {
+                    var qrCodeData = qrGenerator.CreateQrCode(analyticsUrl, QRCoder.QRCodeGenerator.ECCLevel.H);
+                    using (var qrCode = new QRCoder.PngByteQRCode(qrCodeData))
+                    {
+                        var qrCodeImage = qrCode.GetGraphic(10); // 10 pixels per module
+                        return File(qrCodeImage, "image/png");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Return placeholder error image
+                var errorImage = System.Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
+                return File(errorImage, "image/png");
             }
         }
     }

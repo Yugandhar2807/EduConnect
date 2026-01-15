@@ -1,3 +1,4 @@
+@using System.Linq;
 @model IEnumerable<EduConnect.Models.Enrollment>
 
 @{
@@ -11,12 +12,15 @@
             <a class="btn btn-outline-primary" asp-action="MyProgress">
                 <i class="fas fa-chart-line me-2"></i>My Progress
             </a>
+            <a class="btn btn-outline-success" asp-action="Analytics">
+                <i class="fas fa-chart-bar me-2"></i>Analytics Dashboard
+            </a>
         </div>
     </div>
 </div>
 
 <div class="row mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">Enrolled Courses</h5>
@@ -24,7 +28,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">Completed Courses</h5>
@@ -32,20 +36,19 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Overall Progress</h5>
-                <p class="card-text display-4">
-                    @if (ViewBag.EnrolledCourses > 0)
-                    {
-                        <span>@Math.Round(Model.Average(e => e.ProgressPercentage), 1)%</span>
-                    }
-                    else
-                    {
-                        <span>0%</span>
-                    }
-                </p>
+                <h5 class="card-title">Attendance</h5>
+                <p class="card-text display-4">@ViewBag.AttendancePercentage%</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Average GPA</h5>
+                <p class="card-text display-4">@ViewBag.AverageGPA</p>
             </div>
         </div>
     </div>
@@ -70,6 +73,158 @@
         else
         {
             <p class="text-muted">No announcements at this time.</p>
+        }
+    </div>
+</div>
+
+<!-- Semester Results Section -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h3><i class="fas fa-graduation-cap me-2"></i>Latest Semester Results</h3>
+        @if (ViewBag.SemesterResults?.Count > 0)
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Semester</th>
+                            <th>Course</th>
+                            <th>Marks</th>
+                            <th>Grade</th>
+                            <th>GPA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var result in ((System.Collections.Generic.List<EduConnect.Models.SemesterResult>)ViewBag.SemesterResults).Take(5))
+                        {
+                            <tr>
+                                <td>@result.Semester</td>
+                                <td>@result.CourseName</td>
+                                <td><strong>@result.MarksObtained</strong>/100</td>
+                                <td><span class="badge bg-info">@result.Grade</span></td>
+                                <td>
+                                    @if (result.GPA >= 3.8m)
+                                    {
+                                        <span class="badge bg-success">@result.GPA</span>
+                                    }
+                                    else if (result.GPA >= 3.0m)
+                                    {
+                                        <span class="badge bg-info">@result.GPA</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning">@result.GPA</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="text-muted">No semester results available yet.</p>
+        }
+    </div>
+</div>
+
+<!-- Attendance Section -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h3><i class="fas fa-clipboard-check me-2"></i>Recent Attendance</h3>
+        @if (ViewBag.RecentAttendance?.Count > 0)
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Course</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var att in ((System.Collections.Generic.List<EduConnect.Models.Attendance>)ViewBag.RecentAttendance).Take(5))
+                        {
+                            <tr>
+                                <td>@att.Course?.Title</td>
+                                <td>@att.AttendanceDate.ToString("MMM dd, yyyy")</td>
+                                <td>
+                                    @if (att.Status == "Present")
+                                    {
+                                        <span class="badge bg-success">Present</span>
+                                    }
+                                    else if (att.Status == "Absent")
+                                    {
+                                        <span class="badge bg-danger">Absent</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning">Leave</span>
+                                    }
+                                </td>
+                                <td>@(string.IsNullOrEmpty(att.Remarks) ? "-" : att.Remarks)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="text-muted">No attendance records available.</p>
+        }
+    </div>
+</div>
+
+<!-- Course Progress Section -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h3><i class="fas fa-tasks me-2"></i>Course Progress Summary</h3>
+        @if (ViewBag.CourseProgress?.Count > 0)
+        {
+            <div class="row">
+                @foreach (var progress in ViewBag.CourseProgress)
+                {
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">@progress.Course?.Title</h6>
+                                <p class="card-text small mb-2">
+                                    <strong>Progress:</strong> @progress.CompletionPercentage%
+                                </p>
+                                <div class="progress mb-2" style="height: 15px;">
+                                    <div class="progress-bar" role="progressbar" style="width: @progress.CompletionPercentage%" aria-valuenow="@progress.CompletionPercentage" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <small class="text-muted">
+                                    Topics: @progress.TopicsCompleted/@progress.TotalTopics | 
+                                    Quizzes: @progress.QuizzesTaken | 
+                                    Avg Score: @progress.AverageScore%
+                                </small>
+                                <br />
+                                @if (progress.ProgressStatus == "Completed")
+                                {
+                                    <span class="badge bg-success mt-2">Completed</span>
+                                }
+                                else if (progress.ProgressStatus == "In Progress")
+                                {
+                                    <span class="badge bg-primary mt-2">In Progress</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary mt-2">Not Started</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted">No course progress data available.</p>
         }
     </div>
 </div>

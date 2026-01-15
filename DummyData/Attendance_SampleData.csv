@@ -1,0 +1,16 @@
+StudentId,StudentName,CourseName,AttendanceDate,Status,Remarks
+student1@educonnect.com,John Doe,C# Basics,2025-01-10,Present,
+student1@educonnect.com,John Doe,C# Basics,2025-01-11,Present,
+student1@educonnect.com,John Doe,C# Basics,2025-01-12,Absent,Sick Leave
+student1@educonnect.com,John Doe,C# Basics,2025-01-13,Present,
+student1@educonnect.com,John Doe,C# Basics,2025-01-14,Leave,Personal Work
+student2@educonnect.com,Jane Smith,Web Development,2025-01-10,Present,
+student2@educonnect.com,Jane Smith,Web Development,2025-01-11,Leave,Doctor Appointment
+student2@educonnect.com,Jane Smith,Web Development,2025-01-12,Present,
+student2@educonnect.com,Jane Smith,Web Development,2025-01-13,Present,
+student2@educonnect.com,Jane Smith,Web Development,2025-01-14,Present,
+student3@educonnect.com,Michael Johnson,Database Design,2025-01-10,Present,
+student3@educonnect.com,Michael Johnson,Database Design,2025-01-11,Present,
+student3@educonnect.com,Michael Johnson,Database Design,2025-01-12,Present,
+student3@educonnect.com,Michael Johnson,Database Design,2025-01-13,Absent,Technical Issue
+student3@educonnect.com,Michael Johnson,Database Design,2025-01-14,Present,
