@@ -24,6 +24,10 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
+builder.Services.AddHttpClient();
+
+// Register Power BI Service
+builder.Services.AddScoped<IPowerBIService, PowerBIService>();
 
 // Configure forwarded headers (X-Forwarded-For, X-Forwarded-Proto) so the app
 // correctly detects the original request scheme when behind a proxy (e.g., Render)

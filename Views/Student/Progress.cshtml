@@ -79,19 +79,19 @@
         <div class="col-md-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-light">
-                    <h5 class="mb-0">� Interactive Power BI Dashboard</h5>
+                    <h5 class="mb-0">📈 Interactive Power BI Dashboard</h5>
                     <small class="text-muted">Your complete academic performance report</small>
                 </div>
                 <div class="card-body p-0">
-                    <!-- Power BI Embedded Report with autoAuth -->
+                    <!-- Power BI Embedded Report -->
                     <iframe 
-                        title="students report" 
+                        title="Student Academic Dashboard"
                         width="100%" 
-                        height="800" 
-                        src="https://app.powerbi.com/reportEmbed?reportId=88d2ed15-ca2b-47ab-ace0-70abefe191cf&autoAuth=true&ctid=f212ef6f-3732-419b-9ad2-2df500873478&actionBarEnabled=true&reportCopilotInEmbed=true" 
+                        height="800px"
+                        src="https://app.powerbi.com/reportEmbed?reportId=88d2ed15-ca2b-47ab-ace0-70abefe191cf&autoAuth=true&ctid=common"
                         frameborder="0" 
                         allowFullScreen="true"
-                        style="display: block;">
+                        style="border: none;">
                     </iframe>
                 </div>
                 <div class="card-footer bg-light text-muted" style="font-size: 0.85rem;">
@@ -229,10 +229,3 @@
         font-size: 0.85rem;
     }
 </style>
-
-<script src="https://cdn.jsdelivr.net/npm/powerbi-client@latest/dist/powerbi.min.js"></script>
-<script>
-    // Power BI dashboard loads automatically via iframe with autoAuth=true
-    // No additional token generation needed
-    console.log('Power BI dashboard loaded');
-</script>

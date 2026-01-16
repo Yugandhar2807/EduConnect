@@ -14,11 +14,13 @@ namespace EduConnect.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IEmailService _emailService;
+        private readonly IPowerBIService _powerBIService;
 
-        public StudentController(ApplicationDbContext context, IEmailService emailService)
+        public StudentController(ApplicationDbContext context, IEmailService emailService, IPowerBIService powerBIService)
         {
             _context = context;
             _emailService = emailService;
+            _powerBIService = powerBIService;
         }
 
         public async Task<IActionResult> Dashboard()
@@ -182,34 +184,108 @@ namespace EduConnect.Controllers
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized();
 
-            var enrollments = await _context.Enrollments
-                .Where(e => e.StudentId == userId)
-                .Include(e => e.Course)
-                .ThenInclude(c => c!.Topics)
-                .Include(e => e.Course)
-                .ThenInclude(c => c!.Materials)
-                .Include(e => e.Course)
-                .ThenInclude(c => c!.Quizzes)
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            var viewModel = new StudentProgressViewModel
+            {
+                StudentId = userId,
+                StudentName = user.FullName ?? user.UserName ?? "Student",
+                Email = user.Email ?? string.Empty,
+            };
+
+            // Get attendance data
+            var attendances = await _context.Attendances
+                .Where(a => a.StudentId == userId)
                 .ToListAsync();
 
-            // Calculate progress for each enrollment
-            foreach (var enrollment in enrollments)
+            var totalAttendance = attendances.Count;
+            var presentDays = attendances.Count(a => a.Status == "Present");
+            var absentDays = attendances.Count(a => a.Status == "Absent");
+            var leaveDays = attendances.Count(a => a.Status == "Leave");
+
+            viewModel.TotalPresent = presentDays;
+            viewModel.TotalAbsent = absentDays;
+            viewModel.TotalLeave = leaveDays;
+            viewModel.AttendancePercentage = totalAttendance > 0 ? Math.Round((presentDays * 100.0) / totalAttendance, 2) : 0;
+
+            // Get course progress data
+            var courseProgresses = await _context.StudentCourseProgresses
+                .Where(cp => cp.StudentId == userId)
+                .Include(cp => cp.Course)
+                .ToListAsync();
+
+            viewModel.ActiveCourses = courseProgresses.Count(cp => (double)cp.CompletionPercentage < 100);
+            viewModel.CompletedCourses = courseProgresses.Count(cp => (double)cp.CompletionPercentage >= 100);
+
+            double totalCourseProgress = 0;
+            foreach (var cp in courseProgresses)
             {
-                if (enrollment.Course != null)
+                var courseDetail = new CourseProgressDetail
                 {
-                    enrollment.ProgressPercentage = (int)await CalculateCourseProgress(userId, enrollment.CourseId);
-                }
+                    CourseName = cp.Course?.Title ?? "Unknown Course",
+                    CompletionPercentage = Math.Round((double)cp.CompletionPercentage, 2),
+                    TopicsCompleted = cp.TopicsCompleted,
+                    TotalTopics = cp.TotalTopics ?? 0,
+                    QuizzesTaken = cp.QuizzesTaken,
+                    AverageScore = Math.Round((double)cp.AverageScore, 2),
+                    ProgressStatus = (double)cp.CompletionPercentage >= 100 ? "Completed" :
+                                    (double)cp.CompletionPercentage > 0 ? "In Progress" : "Not Started"
+                };
+                viewModel.CourseProgressDetails.Add(courseDetail);
+                totalCourseProgress += Math.Round((double)cp.CompletionPercentage, 2);
             }
 
-            var results = await _context.QuizResults
-                .Where(r => r.StudentId == userId)
-                .Include(r => r.Quiz)
-                .ThenInclude(q => q!.Course)
+            viewModel.AverageCourseProgress = courseProgresses.Count > 0 
+                ? Math.Round(totalCourseProgress / courseProgresses.Count, 2)
+                : 0;
+
+            // Get semester results
+            var semesterResults = await _context.SemesterResults
+                .Where(sr => sr.StudentId == userId)
+                .OrderBy(sr => sr.Semester)
                 .ToListAsync();
 
-            ViewBag.QuizResults = results;
+            double totalGPA = 0;
+            var semesterSet = new HashSet<string>();
 
-            return View(enrollments);
+            foreach (var sr in semesterResults)
+            {
+                semesterSet.Add(sr.Semester);
+                var detail = new SemesterResultDetail
+                {
+                    Semester = sr.Semester,
+                    CourseName = sr.CourseName,
+                    MarksObtained = Math.Round((double)sr.MarksObtained, 2),
+                    Grade = sr.Grade ?? "N/A",
+                    GPA = Math.Round((double)sr.GPA, 2)
+                };
+                viewModel.SemesterResultDetails.Add(detail);
+                totalGPA += Math.Round((double)sr.GPA, 2);
+            }
+
+            viewModel.TotalSemesters = semesterSet.Count;
+            viewModel.AverageGPA = semesterResults.Count > 0 
+                ? Math.Round(totalGPA / semesterResults.Count, 2)
+                : 0;
+
+            // Get attendance breakdown by month
+            var attendanceByMonth = attendances
+                .GroupBy(a => a.AttendanceDate.ToString("MMM yyyy"))
+                .OrderBy(g => g.Key)
+                .Select(g => new AttendanceBreakdownDetail
+                {
+                    Month = g.Key,
+                    Present = g.Count(a => a.Status == "Present"),
+                    Absent = g.Count(a => a.Status == "Absent"),
+                    Leave = g.Count(a => a.Status == "Leave")
+                })
+                .ToList();
+
+            viewModel.AttendanceBreakdown = attendanceByMonth;
+
+            return View(viewModel);
         }
 
         public async Task<IActionResult> TakeQuiz(int? quizId)
@@ -1020,6 +1096,35 @@ public class Program
                 // Return placeholder error image
                 var errorImage = System.Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
                 return File(errorImage, "image/png");
+            }
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        [Route("~/api/powerbi/embedconfig")]
+        public async Task<IActionResult> GetPowerBIEmbedConfig()
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Json(new PowerBIEmbedConfig { Success = false, Error = "User not authenticated" });
+                }
+
+                var config = await _powerBIService.GetEmbedConfigAsync(userId);
+                
+                // Ensure we always return a proper JSON response
+                if (config == null)
+                {
+                    return Json(new PowerBIEmbedConfig { Success = false, Error = "Failed to get embed config" });
+                }
+
+                return Json(config);
+            }
+            catch (Exception ex)
+            {
+                return Json(new PowerBIEmbedConfig { Success = false, Error = ex.Message });
             }
         }
     }
