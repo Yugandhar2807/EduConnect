@@ -64,9 +64,22 @@
         background: #ccc;
         cursor: not-allowed;
     }
+
+    .quiz-content,
+    .quiz-content p,
+    .quiz-content h5,
+    .quiz-content h6,
+    .quiz-content label,
+    .quiz-content strong,
+    .quiz-content small,
+    .quiz-content li,
+    .quiz-content .form-check-label {
+        color: #111 !important;
+    }
+
 </style>
 
-<div class="container mt-4">
+<div class="container mt-4 quiz-content">
     <div class="row">
         <div class="col-md-10 offset-md-1">
             <div class="card shadow-lg">
@@ -92,6 +105,7 @@
                             <li>Passing Marks: <strong>@Model.PassingMarks</strong></li>
                             <li>Duration: <strong>@Model.DurationInMinutes minutes</strong></li>
                         </ul>
+                    </div>
                     </div>
 
                     @if (Model.Questions != null && Model.Questions.Any())

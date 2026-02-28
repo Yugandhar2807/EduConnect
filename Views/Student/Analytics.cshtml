@@ -2,7 +2,7 @@
     ViewData["Title"] = "Student Analytics Dashboard";
 }
 
-<div class="container mt-5">
+<div class="container mt-5 analytics-page">
     <div class="row mb-4">
         <div class="col-md-8">
             <h1 class="mb-2">📊 Your Analytics Dashboard</h1>
@@ -10,7 +10,6 @@
         </div>
     </div>
 
-    <!-- Loading Spinner -->
     <div id="loadingSpinner" class="text-center py-5">
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
@@ -18,25 +17,7 @@
         <p class="mt-2">Loading your analytics data...</p>
     </div>
 
-    <!-- Analytics Content (Hidden until loaded) -->
     <div id="analyticsContent" style="display: none;">
-        <!-- Tabs for switching views -->
-        <div class="mb-4">
-            <ul class="nav nav-tabs" role="tablist">
-                <li class="nav-item">
-                    <a class="nav-link active" id="charts-tab" data-bs-toggle="tab" href="#chartsContent" role="tab">📊 Charts & Analytics</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" id="powerbi-tab" data-bs-toggle="tab" href="#powerbiContent" role="tab">📈 Power BI Dashboard</a>
-                </li>
-            </ul>
-        </div>
-
-        <!-- Charts Tab Content -->
-        <div class="tab-content">
-            <div id="chartsContent" class="tab-pane fade show active">
-
-        <!-- Row 1: Overview Stats -->
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="card text-center bg-light">
@@ -372,29 +353,9 @@
 
     function createQuizPerformanceChart(enrollments) {
         const ctx = document.getElementById('quizPerformanceChart').getContext('2d');
-        
-        // Group by course
-        const courseScores = {};
-        
-        enrollments.forEach(enrollment => {
-            if (!courseScores[enrollment.courseName]) {
-                courseScores[enrollment.courseName] = {
-                    totalQuizzes: 0,
-                    totalScore: 0,
-                    count: 0
-                };
-            }
-            if (enrollment.quizAverageScore) {
-                courseScores[enrollment.courseName].totalScore += enrollment.quizAverageScore;
-                courseScores[enrollment.courseName].count++;
-            }
-        });
 
-        const courseLabels = Object.keys(courseScores).slice(0, 8);
-        const courseAverages = courseLabels.map(course => 
-            courseScores[course].count > 0 ? 
-            courseScores[course].totalScore / courseScores[course].count : 0
-        );
+        const courseLabels = enrollments.map(e => e.courseName).slice(0, 8);
+        const courseAverages = enrollments.map(e => e.quizAverageScore || 0).slice(0, 8);
 
         charts.quizPerformance = new Chart(ctx, {
             type: 'bar',
@@ -415,137 +376,34 @@
                         beginAtZero: true,
                         max: 100,
                         ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            }
+                            callback: function(value) { return value + '%'; }
                         }
                     }
                 },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
+                plugins: { legend: { display: false } }
             }
         });
     }
 </script>
 
-            </div>
-
-            <!-- Power BI Tab Content -->
-            <div id="powerbiContent" class="tab-pane fade">
-                <div class="card">
-                    <div class="card-header bg-dark text-white">
-                        <h5 class="mb-0">🏥 Hospital Dashboard - Power BI</h5>
-                    </div>
-                    <div class="card-body">
-                        <!-- Power BI Embed Container -->
-                        <div id="powerbiContainer" style="width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 5px; display: flex; align-items: center; justify-content: center;">
-                            <div class="text-center">
-                                <p class="text-muted mb-3">Power BI dashboard will be displayed here</p>
-                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#embedCodeModal">
-                                    📋 Add Embed Code
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
-    <!-- Modal for Embed Code -->
-    <div class="modal fade" id="embedCodeModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add Power BI Embed Code</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Paste your Power BI iframe embed code:</label>
-                        <textarea id="embedCodeInput" class="form-control" rows="6" placeholder="<iframe title=... ></iframe>"></textarea>
-                        <small class="text-muted d-block mt-2">
-                            Get this code from Power BI > File > Embed report > Copy embed code
-                        </small>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="embedPowerBIDashboard()">Embed Dashboard</button>
-                </div>
-            </div>
-        </div>
+    <div id="errorMessage" class="alert alert-danger" style="display: none;">
+        <p>Failed to load analytics data. Please try again.</p>
     </div>
-
-<script>
-    // Default Power BI embed code - Hospital Overview Dashboard
-    const defaultPowerBICode = '<iframe title="Hospital_Overview_Dashboard" width="1140" height="541.25" src="https://app.powerbi.com/reportEmbed?reportId=c1d9f206-3f63-40eb-a794-3504e9540108&autoAuth=true&embeddedDemo=true" frameborder="0" allowFullScreen="true"></iframe>';
-
-    // Function to embed Power BI dashboard
-    function embedPowerBIDashboard() {
-        const embedCode = document.getElementById('embedCodeInput').value.trim();
-        
-        if (!embedCode) {
-            alert('Please paste the embed code');
-            return;
-        }
-        
-        // Store in localStorage
-        localStorage.setItem('powerbiEmbedCode', embedCode);
-        
-        // Update container
-        document.getElementById('powerbiContainer').innerHTML = embedCode;
-        
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('embedCodeModal'));
-        modal.hide();
-        
-        alert('Power BI dashboard embedded successfully!');
-    }
-
-    // Load Power BI embed code on page load
-    window.addEventListener('DOMContentLoaded', function() {
-        const savedEmbedCode = localStorage.getItem('powerbiEmbedCode') || defaultPowerBICode;
-        if (savedEmbedCode) {
-            document.getElementById('powerbiContainer').innerHTML = savedEmbedCode;
-        }
-    });
-</script>
+</div>
 
 <style>
-    .card {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        border: none;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    
-    .card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    
-    .card-header {
-        font-weight: 600;
-        padding: 1rem;
-    }
-    
-    .nav-tabs .nav-link {
-        color: #495057;
-        border: none;
-        border-bottom: 3px solid transparent;
-    }
-    
-    .nav-tabs .nav-link:hover {
-        border-color: #0d6efd;
-        color: #0d6efd;
-    }
-    
-    .nav-tabs .nav-link.active {
-        color: #0d6efd;
-        border-color: #0d6efd;
-        background-color: transparent;
+    .analytics-page,
+    .analytics-page .card,
+    .analytics-page .card-body,
+    .analytics-page h1,
+    .analytics-page h2,
+    .analytics-page h5,
+    .analytics-page p,
+    .analytics-page small,
+    .analytics-page li,
+    .analytics-page span {
+        color: #111 !important;
     }
 </style>

@@ -145,3 +145,33 @@ body {
 .list-group-item:hover {
     background-color: #f8f9fa;
 }
+
+
+/* Keep readable black text in data-heavy content areas */
+.main-content .card,
+.main-content .card-body,
+.main-content .table,
+.main-content .table td,
+.main-content .table th,
+.main-content .list-group-item,
+.main-content .form-label,
+.main-content .form-check-label,
+.main-content .text-muted {
+    color: #111 !important;
+}
+
+/* Keep white text for intentionally colored header areas */
+.main-content .card-header,
+.main-content .card-header *,
+.main-content .btn-primary,
+.main-content .btn-primary *,
+.main-content .btn-success,
+.main-content .btn-success *,
+.main-content .btn-danger,
+.main-content .btn-danger *,
+.main-content .btn-warning,
+.main-content .btn-warning *,
+.main-content .btn-info,
+.main-content .btn-info * {
+    color: #fff !important;
+}
