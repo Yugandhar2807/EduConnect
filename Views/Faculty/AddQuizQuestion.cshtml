@@ -109,7 +109,7 @@
                 <div class="mb-3">
                     <input asp-for="QuizId" type="hidden" />
                     <button type="submit" class="btn btn-primary">Add Question</button>
-                    <a asp-action="CourseDetails" class="btn btn-secondary">Cancel</a>
+                    <a asp-action="CourseDetails" asp-route-id="@ViewBag.CourseId" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>
         </div>

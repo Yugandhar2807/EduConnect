@@ -311,6 +311,7 @@ namespace EduConnect.Controllers
 
             ViewBag.QuizId = quizId;
             ViewBag.QuizTitle = quiz.Title;
+            ViewBag.CourseId = quiz.CourseId;
             return View();
         }
 
@@ -323,30 +324,56 @@ namespace EduConnect.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (quiz.Course?.FacultyId != userId) return Forbid();
 
-            // Validate based on question type
-            if (model.QuestionTypeEnum == QuestionType.Coding)
+            var questionType = model.QuestionType?.Trim();
+            var resolvedQuestionType = questionType?.ToLowerInvariant() switch
             {
-                // Coding question validation
-                if (string.IsNullOrEmpty(model.QuestionText) || string.IsNullOrEmpty(model.CodeTemplate) || 
-                    string.IsNullOrEmpty(model.ExpectedOutput) || model.Marks <= 0)
+                "coding" => QuestionType.Coding,
+                "truefalse" => QuestionType.TrueFalse,
+                _ => QuestionType.MultipleChoice
+            };
+
+            // Validate based on question type
+            if (resolvedQuestionType == QuestionType.Coding)
+            {
+                if (string.IsNullOrWhiteSpace(model.QuestionText) ||
+                    string.IsNullOrWhiteSpace(model.CodeTemplate) ||
+                    string.IsNullOrWhiteSpace(model.ExpectedOutput) ||
+                    model.Marks <= 0)
                 {
                     ModelState.AddModelError("", "Please fill in all coding question fields.");
                     ViewBag.QuizId = quizId;
                     ViewBag.QuizTitle = quiz.Title;
-                    return View();
+                    ViewBag.CourseId = quiz.CourseId;
+                    return View(model);
+                }
+            }
+            else if (resolvedQuestionType == QuestionType.TrueFalse)
+            {
+                if (string.IsNullOrWhiteSpace(model.QuestionText) ||
+                    model.Marks <= 0 ||
+                    (model.CorrectOption != "True" && model.CorrectOption != "False"))
+                {
+                    ModelState.AddModelError("", "Please provide question text, marks, and a valid True/False answer.");
+                    ViewBag.QuizId = quizId;
+                    ViewBag.QuizTitle = quiz.Title;
+                    ViewBag.CourseId = quiz.CourseId;
+                    return View(model);
                 }
             }
             else
             {
-                // Multiple choice or true/false validation
-                if (string.IsNullOrEmpty(model.QuestionText) || string.IsNullOrEmpty(model.OptionA) || 
-                    string.IsNullOrEmpty(model.OptionB) || string.IsNullOrEmpty(model.OptionC) || 
-                    string.IsNullOrEmpty(model.OptionD) || model.Marks <= 0)
+                if (string.IsNullOrWhiteSpace(model.QuestionText) ||
+                    string.IsNullOrWhiteSpace(model.OptionA) ||
+                    string.IsNullOrWhiteSpace(model.OptionB) ||
+                    string.IsNullOrWhiteSpace(model.OptionC) ||
+                    string.IsNullOrWhiteSpace(model.OptionD) ||
+                    model.Marks <= 0)
                 {
-                    ModelState.AddModelError("", "Please fill in all fields properly.");
+                    ModelState.AddModelError("", "Please fill in all MCQ fields properly.");
                     ViewBag.QuizId = quizId;
                     ViewBag.QuizTitle = quiz.Title;
-                    return View();
+                    ViewBag.CourseId = quiz.CourseId;
+                    return View(model);
                 }
             }
 
@@ -354,16 +381,22 @@ namespace EduConnect.Controllers
             {
                 QuizId = quizId,
                 QuestionText = model.QuestionText,
-                QuestionTypeEnum = model.QuestionTypeEnum,
-                OptionA = model.OptionA,
-                OptionB = model.OptionB,
-                OptionC = model.OptionC,
-                OptionD = model.OptionD,
-                CorrectOption = model.CorrectOption?.ToString() ?? "A",
+                QuestionType = resolvedQuestionType switch
+                {
+                    QuestionType.Coding => "Coding",
+                    QuestionType.TrueFalse => "TrueFalse",
+                    _ => "MCQ"
+                },
+                QuestionTypeEnum = resolvedQuestionType,
+                OptionA = resolvedQuestionType == QuestionType.TrueFalse ? "True" : model.OptionA,
+                OptionB = resolvedQuestionType == QuestionType.TrueFalse ? "False" : model.OptionB,
+                OptionC = resolvedQuestionType == QuestionType.MultipleChoice ? model.OptionC : null,
+                OptionD = resolvedQuestionType == QuestionType.MultipleChoice ? model.OptionD : null,
+                CorrectOption = model.CorrectOption?.ToString() ?? (resolvedQuestionType == QuestionType.TrueFalse ? "True" : "A"),
                 Marks = model.Marks,
-                CodeTemplate = model.CodeTemplate,
-                ExpectedOutput = model.ExpectedOutput,
-                ProgrammingLanguage = model.ProgrammingLanguage ?? "csharp"
+                CodeTemplate = resolvedQuestionType == QuestionType.Coding ? model.CodeTemplate : null,
+                ExpectedOutput = resolvedQuestionType == QuestionType.Coding ? model.ExpectedOutput : null,
+                ProgrammingLanguage = resolvedQuestionType == QuestionType.Coding ? (model.ProgrammingLanguage ?? "csharp") : null
             };
 
             _context.Add(question);

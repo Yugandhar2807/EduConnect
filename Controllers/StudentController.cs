@@ -1005,6 +1005,18 @@ public class Program
                 .Include(e => e.Course)
                 .ToListAsync();
 
+            // Get quiz averages by course for each enrollment card/chart
+            var quizAverageByCourse = await _context.QuizResults
+                .Where(qr => qr.StudentId == userId)
+                .Include(qr => qr.Quiz)
+                .GroupBy(qr => qr.Quiz!.CourseId)
+                .Select(g => new
+                {
+                    CourseId = g.Key,
+                    QuizAverageScore = g.Average(x => x.PercentageScore)
+                })
+                .ToDictionaryAsync(x => x.CourseId, x => x.QuizAverageScore);
+
             // Get course progress
             var courseProgress = await _context.StudentCourseProgresses
                 .Where(cp => cp.StudentId == userId)
@@ -1030,7 +1042,8 @@ public class Program
                     e.CourseId,
                     CourseName = e.Course?.Title,
                     EnrollmentDate = e.EnrolledAt,
-                    e.IsCompleted
+                    e.IsCompleted,
+                    QuizAverageScore = quizAverageByCourse.TryGetValue(e.CourseId, out var avgScore) ? Math.Round(avgScore, 2) : 0
                 }),
                 courseProgress = courseProgress.Select(cp => new
                 {
