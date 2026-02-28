@@ -41,13 +41,16 @@ package-lock.json
 .env.local
 
 ## Sensitive Configuration Files (NEVER commit these!)
+appsettings.json
 appsettings.Development.json
+appsettings.Production.json
 appsettings.Local.json
 appsettings.*.json
-!appsettings.Production.json
 secrets.json
 *.key
 *.pem
+DummyData/
+wwwroot/uploads/
 *.pfx
 
 ## OS
