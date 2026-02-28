@@ -2,6 +2,8 @@
 
 @{
     ViewData["Title"] = "Take Quiz - " + Model.Title;
+    var effectiveTotalMarks = Model.TotalMarks > 0 ? Model.TotalMarks : (Model.Questions?.Sum(q => q.Marks) ?? 0);
+    var hasValidQuizConfig = (Model.Questions?.Any() ?? false) && effectiveTotalMarks > 0 && Model.DurationInMinutes > 0;
 }
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
@@ -65,21 +67,68 @@
         cursor: not-allowed;
     }
 
-    .quiz-content,
-    .quiz-content p,
-    .quiz-content h5,
-    .quiz-content h6,
-    .quiz-content label,
-    .quiz-content strong,
-    .quiz-content small,
-    .quiz-content li,
-    .quiz-content .form-check-label {
+    .quiz-card,
+    .quiz-card p,
+    .quiz-card h5,
+    .quiz-card h6,
+    .quiz-card label,
+    .quiz-card strong,
+    .quiz-card small,
+    .quiz-card li,
+    .quiz-card .form-check-label {
         color: #111 !important;
     }
 
+    .terminal-shell {
+        border: 1px solid #222;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,.2);
+    }
+
+    .terminal-header {
+        background: #1f1f1f;
+        color: #f3f3f3 !important;
+        padding: 8px 12px;
+        font-size: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .terminal-dots span {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 6px;
+    }
+
+    .terminal-dots .red { background: #ff5f56; }
+    .terminal-dots .yellow { background: #ffbd2e; }
+    .terminal-dots .green { background: #27c93f; }
+
+    .terminal-body {
+        background: #0d1117;
+        color: #c9d1d9 !important;
+        padding: 12px;
+        font-family: 'Courier New', monospace;
+    }
+
+    .terminal-body pre,
+    .terminal-body code,
+    .terminal-body label,
+    .terminal-body span,
+    .terminal-body strong,
+    .terminal-body div {
+        color: #c9d1d9 !important;
+    }
+
+
 </style>
 
-<div class="container mt-4 quiz-content">
+<div class="container mt-4">
     <div class="row">
         <div class="col-md-10 offset-md-1">
             <div class="card shadow-lg">
@@ -100,8 +149,8 @@
                     <div class="alert alert-info">
                         <p class="mb-0"><strong>📊 Quiz Details:</strong></p>
                         <ul class="mb-0">
-                            <li>Total Questions: <strong>@Model.TotalQuestions</strong></li>
-                            <li>Total Marks: <strong>@Model.TotalMarks</strong></li>
+                            <li>Total Questions: <strong>@(Model.Questions?.Count ?? Model.TotalQuestions)</strong></li>
+                            <li>Total Marks: <strong>@effectiveTotalMarks</strong></li>
                             <li>Passing Marks: <strong>@Model.PassingMarks</strong></li>
                             <li>Duration: <strong>@Model.DurationInMinutes minutes</strong></li>
                         </ul>
@@ -110,6 +159,12 @@
 
                     @if (Model.Questions != null && Model.Questions.Any())
                     {
+                        @if (!hasValidQuizConfig)
+                        {
+                            <div class="alert alert-warning">
+                                ⚠️ This quiz configuration is incomplete (total marks or duration is 0). Please contact faculty before submitting.
+                            </div>
+                        }
                         <form id="quizForm">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="quizId" value="@Model.Id" />
@@ -117,7 +172,7 @@
                             @for (int i = 0; i < Model.Questions.Count; i++)
                             {
                                 var question = Model.Questions.ElementAt(i);
-                                <div class="mb-4 p-3 border rounded" style="background-color: #f9f9f9;">
+                                <div class="mb-4 p-3 border rounded quiz-card" style="background-color: #f9f9f9;">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <h5 class="mb-0">Question @(i + 1) of @Model.Questions.Count</h5>
                                         <span class="badge bg-success">@question.Marks marks</span>
@@ -134,14 +189,28 @@
                                             
                                             <div class="mb-3">
                                                 <label class="form-label"><strong>Code Template:</strong></label>
-                                                <div class="code-editor mb-2">
-                                                    <pre><code>@question.CodeTemplate</code></pre>
+                                                <div class="terminal-shell">
+                                                    <div class="terminal-header">
+                                                        <div class="terminal-dots"><span class="red"></span><span class="yellow"></span><span class="green"></span></div>
+                                                        <span>template.@(question.ProgrammingLanguage ?? "code")</span>
+                                                    </div>
+                                                    <div class="terminal-body">
+                                                        <pre><code>@question.CodeTemplate</code></pre>
+                                                    </div>
                                                 </div>
                                             </div>
 
                                             <div class="mb-3">
                                                 <label for="code_@question.Id" class="form-label"><strong>Your Solution:</strong></label>
-                                                <textarea class="code-input" id="code_@question.Id" name="question_@question.Id" placeholder="Write your code here...">@question.CodeTemplate</textarea>
+                                                <div class="terminal-shell">
+                                                    <div class="terminal-header">
+                                                        <div class="terminal-dots"><span class="red"></span><span class="yellow"></span><span class="green"></span></div>
+                                                        <span>student-solution.@(question.ProgrammingLanguage ?? "code")</span>
+                                                    </div>
+                                                    <div class="terminal-body">
+                                                        <textarea class="code-input" id="code_@question.Id" name="question_@question.Id" placeholder="Write your code here...">@question.CodeTemplate</textarea>
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <button type="button" class="run-code-btn" onclick="runCode(@question.Id, '@question.ProgrammingLanguage')">
@@ -150,12 +219,24 @@
                                             
                                             <div id="output_@question.Id" class="mt-3" style="display: none;">
                                                 <label class="form-label"><strong>Output:</strong></label>
-                                                <div class="code-output" id="result_@question.Id"></div>
+                                                <div class="terminal-shell">
+                                                    <div class="terminal-header">
+                                                        <div class="terminal-dots"><span class="red"></span><span class="yellow"></span><span class="green"></span></div>
+                                                        <span>runtime-output</span>
+                                                    </div>
+                                                    <div class="terminal-body code-output" id="result_@question.Id"></div>
+                                                </div>
                                             </div>
 
                                             <div class="mt-2">
                                                 <label class="form-label"><strong>Expected Output:</strong></label>
-                                                <div class="code-output">@question.ExpectedOutput</div>
+                                                <div class="terminal-shell">
+                                                    <div class="terminal-header">
+                                                        <div class="terminal-dots"><span class="red"></span><span class="yellow"></span><span class="green"></span></div>
+                                                        <span>expected-output</span>
+                                                    </div>
+                                                    <div class="terminal-body code-output">@question.ExpectedOutput</div>
+                                                </div>
                                             </div>
                                         </div>
                                     }
@@ -196,7 +277,7 @@
                             }
 
                             <div class="mt-4 d-flex gap-2">
-                                <button type="button" id="submitBtn" class="btn btn-success btn-lg">
+                                <button type="button" id="submitBtn" class="btn btn-success btn-lg" @(hasValidQuizConfig ? null : "disabled")>
                                     <i class="bi bi-check-circle"></i> Submit Quiz
                                 </button>
                                 <a asp-action="CourseDetails" asp-route-id="@Model.CourseId" class="btn btn-secondary btn-lg">

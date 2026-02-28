@@ -335,27 +335,45 @@ namespace EduConnect.Controllers
             // Validate based on question type
             if (resolvedQuestionType == QuestionType.Coding)
             {
-                // Coding question validation
-                if (string.IsNullOrEmpty(model.QuestionText) || string.IsNullOrEmpty(model.CodeTemplate) || 
-                    string.IsNullOrEmpty(model.ExpectedOutput) || model.Marks <= 0)
+                if (string.IsNullOrWhiteSpace(model.QuestionText) ||
+                    string.IsNullOrWhiteSpace(model.CodeTemplate) ||
+                    string.IsNullOrWhiteSpace(model.ExpectedOutput) ||
+                    model.Marks <= 0)
                 {
                     ModelState.AddModelError("", "Please fill in all coding question fields.");
                     ViewBag.QuizId = quizId;
                     ViewBag.QuizTitle = quiz.Title;
-                    return View();
+                    ViewBag.CourseId = quiz.CourseId;
+                    return View(model);
+                }
+            }
+            else if (resolvedQuestionType == QuestionType.TrueFalse)
+            {
+                if (string.IsNullOrWhiteSpace(model.QuestionText) ||
+                    model.Marks <= 0 ||
+                    (model.CorrectOption != "True" && model.CorrectOption != "False"))
+                {
+                    ModelState.AddModelError("", "Please provide question text, marks, and a valid True/False answer.");
+                    ViewBag.QuizId = quizId;
+                    ViewBag.QuizTitle = quiz.Title;
+                    ViewBag.CourseId = quiz.CourseId;
+                    return View(model);
                 }
             }
             else
             {
-                // Multiple choice or true/false validation
-                if (string.IsNullOrEmpty(model.QuestionText) || string.IsNullOrEmpty(model.OptionA) || 
-                    string.IsNullOrEmpty(model.OptionB) || string.IsNullOrEmpty(model.OptionC) || 
-                    string.IsNullOrEmpty(model.OptionD) || model.Marks <= 0)
+                if (string.IsNullOrWhiteSpace(model.QuestionText) ||
+                    string.IsNullOrWhiteSpace(model.OptionA) ||
+                    string.IsNullOrWhiteSpace(model.OptionB) ||
+                    string.IsNullOrWhiteSpace(model.OptionC) ||
+                    string.IsNullOrWhiteSpace(model.OptionD) ||
+                    model.Marks <= 0)
                 {
-                    ModelState.AddModelError("", "Please fill in all fields properly.");
+                    ModelState.AddModelError("", "Please fill in all MCQ fields properly.");
                     ViewBag.QuizId = quizId;
                     ViewBag.QuizTitle = quiz.Title;
-                    return View();
+                    ViewBag.CourseId = quiz.CourseId;
+                    return View(model);
                 }
             }
 

@@ -334,9 +334,23 @@ namespace EduConnect.Controllers
 
             if (enrollment == null) return Forbid();
 
+            if (quiz.Questions == null || !quiz.Questions.Any())
+            {
+                return BadRequest(new { success = false, error = "This quiz has no questions. Please contact faculty." });
+            }
+
+            var effectiveTotalMarks = quiz.TotalMarks > 0
+                ? quiz.TotalMarks
+                : quiz.Questions.Sum(q => q.Marks);
+
+            if (effectiveTotalMarks <= 0)
+            {
+                return BadRequest(new { success = false, error = "Quiz total marks is invalid. Please contact faculty." });
+            }
+
             // Calculate score
             int marksObtained = 0;
-            foreach (var question in quiz.Questions!)
+            foreach (var question in quiz.Questions)
             {
                 if (answers.TryGetValue($"question_{question.Id}", out var studentAnswer))
                 {
@@ -347,7 +361,7 @@ namespace EduConnect.Controllers
                 }
             }
 
-            var percentageScore = (marksObtained / (double)quiz.TotalMarks) * 100;
+            var percentageScore = (marksObtained / (double)effectiveTotalMarks) * 100;
             var isPassed = percentageScore >= quiz.PassingMarks;
 
             var quizResult = new QuizResult
@@ -355,7 +369,7 @@ namespace EduConnect.Controllers
                 QuizId = quizId,
                 StudentId = userId,
                 MarksObtained = marksObtained,
-                TotalMarks = quiz.TotalMarks,
+                TotalMarks = effectiveTotalMarks,
                 PercentageScore = percentageScore,
                 IsPassed = isPassed,
                 AttemptedAt = DateTime.UtcNow
@@ -377,8 +391,10 @@ namespace EduConnect.Controllers
                 .ToListAsync();
 
             // Calculate progress: (quiz_average + materials_count) / (total_items)
-            double avgQuizScore = allCourseQuizResults.Any() 
-                ? allCourseQuizResults.Average(r => r.PercentageScore) 
+            var allScores = allCourseQuizResults.Select(r => r.PercentageScore).ToList();
+            allScores.Add(percentageScore);
+            double avgQuizScore = allScores.Any()
+                ? allScores.Average()
                 : 0;
 
             int totalItems = Math.Max(materials.Count, 1) + Math.Max(quizzes.Count, 1);
@@ -400,7 +416,7 @@ namespace EduConnect.Controllers
                     quiz.Course.Title,
                     quiz.Title,
                     marksObtained,
-                    quiz.TotalMarks
+                    effectiveTotalMarks
                 );
             }
 
