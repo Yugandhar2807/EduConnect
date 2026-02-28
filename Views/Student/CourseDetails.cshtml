@@ -5,7 +5,7 @@
 }
 
 <!-- Include CSRF Token -->
-<input type="hidden" id="csrf-token" name="__RequestVerificationToken" value="@Html.AntiForgeryToken()" />
+@Html.AntiForgeryToken()
 
 <style>
     .course-header {

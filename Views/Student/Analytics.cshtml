@@ -179,7 +179,7 @@
 
         // Update overview stats
         const totalEnrollments = data.enrollments.length;
-        const coursesCompleted = data.courseProgress.filter(c => c.progress >= 100).length;
+        const coursesCompleted = data.courseProgress.filter(c => c.completionPercentage >= 100).length;
         const currentGpa = data.semesterResults.length > 0 ? data.semesterResults[data.semesterResults.length - 1].gpa : 0;
         const avgAttendance = data.attendanceSummary.attendancePercentage || 0;
 
@@ -212,7 +212,7 @@
                 labels: limitedData.map(c => c.courseName),
                 datasets: [{
                     label: 'Progress (%)',
-                    data: limitedData.map(c => c.progress),
+                    data: limitedData.map(c => c.completionPercentage),
                     backgroundColor: [
                         '#0d6efd', '#0dcaf0', '#198754', '#ffc107', '#fd7e14', '#dc3545', '#6f42c1', '#20c997'
                     ].slice(0, limitedData.length),
