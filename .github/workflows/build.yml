@@ -1,0 +1,52 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: |
+          if ls *.sln 1> /dev/null 2>&1 || ls **/*.csproj 1> /dev/null 2>&1; then
+            dotnet restore
+          else
+            echo "No .NET solution or project found yet — placeholder build passing."
+          fi
+
+      - name: Build
+        run: |
+          if ls *.sln 1> /dev/null 2>&1 || ls **/*.csproj 1> /dev/null 2>&1; then
+            dotnet build --no-restore --configuration Release
+          else
+            echo "No .NET solution or project found yet — placeholder build passing."
+          fi
+
+      - name: Test
+        run: |
+          if ls **/*.Tests.csproj 1> /dev/null 2>&1; then
+            dotnet test --no-build --configuration Release --verbosity normal
+          else
+            echo "No test projects yet — skipping."
+          fi

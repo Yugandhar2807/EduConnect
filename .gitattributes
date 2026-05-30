@@ -1,0 +1,36 @@
+# Normalize line endings on commit, leave checkout to OS preference
+* text=auto
+
+# Source code — force LF
+*.cs        text eol=lf
+*.csproj    text eol=lf
+*.sln       text eol=lf merge=union
+*.json      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.md        text eol=lf
+*.sql       text eol=lf
+*.py        text eol=lf
+*.ipynb     text eol=lf
+*.dax       text eol=lf
+
+# Windows-only scripts — keep CRLF
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
+*.ps1       text eol=crlf
+
+# Binary — never normalize
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.svg       text
+*.pdf       binary
+*.zip       binary
+*.gz        binary
+
+# Linguist hints (controls language stats on GitHub)
+*.ipynb     linguist-language=Python
+docs/**     linguist-documentation
+samples/**  linguist-vendored
