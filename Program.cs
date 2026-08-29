@@ -65,10 +65,14 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IExcelExportService, ExcelExportService>();
 
-// AI service: uses Gemini when an API key is configured, otherwise a deterministic
-// offline mock so AI-assisted features keep working in demos.
+// AI provider priority: OmniRoute gateway (when enabled) > Gemini (when a key is
+// configured) > deterministic offline mock, so AI features always keep working.
 var geminiApiKey = builder.Configuration["AI:GeminiApiKey"];
-if (!string.IsNullOrWhiteSpace(geminiApiKey))
+if (builder.Configuration.GetValue("AI:OmniRoute:Enabled", false))
+{
+    builder.Services.AddScoped<IAIService, OmniRouteAIService>();
+}
+else if (!string.IsNullOrWhiteSpace(geminiApiKey))
 {
     builder.Services.AddScoped<IAIService>(sp =>
         new GeminiAIService(geminiApiKey, sp.GetRequiredService<ILogger<GeminiAIService>>()));

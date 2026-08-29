@@ -64,7 +64,8 @@ All seed credentials come from the `Seed` section of `appsettings.json` / enviro
 | `Seed:AdminEmail` / `Seed:AdminPassword` | Bootstrap admin account |
 | `Seed:SeedDemoData` | Seed demo catalog when the database is empty |
 | `Twilio:AccountSid` / `Twilio:AuthToken` | SendGrid email credentials (optional) |
-| `AI:GeminiApiKey` | Google Gemini API key (optional — mock AI used otherwise) |
+| `AI:OmniRoute:Enabled` / `BaseUrl` / `ApiKey` / `Model` | Use an [OmniRoute](https://omniroute.online) AI gateway (OpenAI-compatible, 290+ providers) for AI content generation |
+| `AI:GeminiApiKey` | Google Gemini API key (used when OmniRoute is disabled; mock AI when neither is set) |
 
 ## Project Structure
 
