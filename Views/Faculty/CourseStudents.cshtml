@@ -1,0 +1,78 @@
+@model CourseStudentsViewModel
+@{
+    ViewData["Title"] = "Course Students";
+}
+
+<div class="page-header">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="Dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item"><a asp-action="CourseDetails" asp-route-id="@Model.Course.Id">@Model.Course.Title</a></li>
+                <li class="breadcrumb-item active">Students</li>
+            </ol>
+        </nav>
+        <h1>Enrolled Students</h1>
+        <p class="page-subtitle">@Model.Students.Count student@(Model.Students.Count == 1 ? "" : "s") in “@Model.Course.Title”</p>
+    </div>
+</div>
+
+<div class="card" data-table>
+    <div class="card-header">
+        <h6 class="card-title">Student Performance</h6>
+        <div class="table-search">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="search" class="form-control form-control-sm" placeholder="Search students…" data-table-search />
+        </div>
+    </div>
+    @if (Model.Students.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fa-solid fa-users"></i></div>
+            <h5>No students enrolled yet</h5>
+            <p>Students will appear here as soon as they enroll in this course.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table app-table" data-page-size="12">
+                <thead>
+                    <tr>
+                        <th data-sort="text">Student</th>
+                        <th data-sort="text">Email</th>
+                        <th data-sort="date">Enrolled</th>
+                        <th data-sort="num">Progress</th>
+                        <th data-sort="num">Quizzes Taken</th>
+                        <th data-sort="num">Avg. Quiz Score</th>
+                        <th data-sort="date">Last Attempt</th>
+                        <th data-sort="text">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Students)
+                    {
+                        <tr>
+                            <td class="fw-medium">@s.Name</td>
+                            <td class="text-muted">@s.Email</td>
+                            <td class="text-muted" data-value="@s.EnrolledAt.ToString("yyyy-MM-dd")">@s.EnrolledAt.ToString("dd MMM yyyy")</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2" style="min-width:120px">
+                                    <div class="progress flex-grow-1"><div class="progress-bar @(s.ProgressPercentage >= 100 ? "bg-success" : "")" style="width:@(s.ProgressPercentage)%"></div></div>
+                                    <span style="font-size:.82rem">@s.ProgressPercentage%</span>
+                                </div>
+                            </td>
+                            <td>@s.QuizzesTaken</td>
+                            <td>@(s.QuizzesTaken > 0 ? $"{s.AverageQuizScore}%" : "—")</td>
+                            <td class="text-muted" data-value="@(s.LastQuizAttempt?.ToString("yyyy-MM-dd") ?? "")">@(s.LastQuizAttempt?.ToString("dd MMM yyyy") ?? "—")</td>
+                            <td>
+                                <span class="badge @(s.IsCompleted ? "badge-soft-success" : "badge-soft-info")">@(s.IsCompleted ? "Completed" : "In Progress")</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer table-pagination" data-table-pagination></div>
+    }
+</div>

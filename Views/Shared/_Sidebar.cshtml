@@ -1,0 +1,106 @@
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+
+    string Active(string controller, params string[] actions) =>
+        string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase) &&
+        (actions.Length == 0 || actions.Contains(currentAction, StringComparer.OrdinalIgnoreCase))
+            ? "active" : "";
+}
+
+<aside class="sidebar">
+    <a class="sidebar-brand" asp-controller="Home" asp-action="Index">
+        <span class="brand-icon"><i class="fa-solid fa-graduation-cap"></i></span>
+        EduConnect
+    </a>
+
+    <nav class="sidebar-nav">
+        @if (User.IsInRole("Admin"))
+        {
+            <div class="sidebar-heading">Overview</div>
+            <a class="sidebar-link @Active("Admin", "Dashboard")" asp-controller="Admin" asp-action="Dashboard">
+                <i class="fa-solid fa-gauge-high"></i> Dashboard
+            </a>
+            <a class="sidebar-link @Active("Admin", "Analytics")" asp-controller="Admin" asp-action="Analytics">
+                <i class="fa-solid fa-chart-line"></i> Analytics
+            </a>
+
+            <div class="sidebar-heading">User Management</div>
+            <a class="sidebar-link @Active("Admin", "ManageStudents", "AddStudent", "EditStudent")" asp-controller="Admin" asp-action="ManageStudents">
+                <i class="fa-solid fa-user-graduate"></i> Students
+            </a>
+            <a class="sidebar-link @Active("Admin", "ManageFaculty", "AddFaculty", "EditFaculty")" asp-controller="Admin" asp-action="ManageFaculty">
+                <i class="fa-solid fa-chalkboard-user"></i> Faculty
+            </a>
+
+            <div class="sidebar-heading">Academics</div>
+            <a class="sidebar-link @Active("Admin", "SemesterResultsList", "CreateSemesterResult", "EditSemesterResult")" asp-controller="Admin" asp-action="SemesterResultsList">
+                <i class="fa-solid fa-award"></i> Semester Results
+            </a>
+            <a class="sidebar-link" asp-controller="Admin" asp-action="DownloadStudentData">
+                <i class="fa-solid fa-file-excel"></i> Export Data
+            </a>
+        }
+        else if (User.IsInRole("Faculty"))
+        {
+            <div class="sidebar-heading">Teaching</div>
+            <a class="sidebar-link @Active("Faculty", "Dashboard")" asp-controller="Faculty" asp-action="Dashboard">
+                <i class="fa-solid fa-gauge-high"></i> Dashboard
+            </a>
+            <a class="sidebar-link @Active("Faculty", "CreateCourse")" asp-controller="Faculty" asp-action="CreateCourse">
+                <i class="fa-solid fa-circle-plus"></i> Create Course
+            </a>
+            <a class="sidebar-link @Active("Faculty", "Announcements", "CreateAnnouncement")" asp-controller="Faculty" asp-action="Announcements">
+                <i class="fa-solid fa-bullhorn"></i> Announcements
+            </a>
+
+            <div class="sidebar-heading">Attendance</div>
+            <a class="sidebar-link @Active("Faculty", "ManageAttendance")" asp-controller="Faculty" asp-action="ManageAttendance">
+                <i class="fa-solid fa-clipboard-check"></i> Mark Attendance
+            </a>
+            <a class="sidebar-link @Active("Faculty", "AttendanceList")" asp-controller="Faculty" asp-action="AttendanceList">
+                <i class="fa-solid fa-clock-rotate-left"></i> Attendance Log
+            </a>
+        }
+        else if (User.IsInRole("Student"))
+        {
+            <div class="sidebar-heading">Learning</div>
+            <a class="sidebar-link @Active("Student", "Dashboard")" asp-controller="Student" asp-action="Dashboard">
+                <i class="fa-solid fa-gauge-high"></i> Dashboard
+            </a>
+            <a class="sidebar-link @Active("Student", "BrowseCourses")" asp-controller="Student" asp-action="BrowseCourses">
+                <i class="fa-solid fa-compass"></i> Browse Courses
+            </a>
+            <a class="sidebar-link @Active("Student", "Announcements")" asp-controller="Student" asp-action="Announcements">
+                <i class="fa-solid fa-bullhorn"></i> Announcements
+            </a>
+
+            <div class="sidebar-heading">My Performance</div>
+            <a class="sidebar-link @Active("Student", "MyResults", "QuizResult")" asp-controller="Student" asp-action="MyResults">
+                <i class="fa-solid fa-list-check"></i> Quiz Results
+            </a>
+            <a class="sidebar-link @Active("Student", "MyProgress")" asp-controller="Student" asp-action="MyProgress">
+                <i class="fa-solid fa-bars-progress"></i> My Progress
+            </a>
+            <a class="sidebar-link @Active("Student", "Analytics")" asp-controller="Student" asp-action="Analytics">
+                <i class="fa-solid fa-chart-pie"></i> Analytics
+            </a>
+            <a class="sidebar-link @Active("Student", "MyAttendance")" asp-controller="Student" asp-action="MyAttendance">
+                <i class="fa-solid fa-calendar-check"></i> Attendance
+            </a>
+        }
+
+        <div class="sidebar-heading">Account</div>
+        <a class="sidebar-link @Active("Account", "Profile")" asp-controller="Account" asp-action="Profile">
+            <i class="fa-solid fa-user"></i> My Profile
+        </a>
+        <a class="sidebar-link @Active("Account", "ChangePassword")" asp-controller="Account" asp-action="ChangePassword">
+            <i class="fa-solid fa-key"></i> Change Password
+        </a>
+    </nav>
+
+    <div class="sidebar-footer">
+        EduConnect Learning Portal
+    </div>
+</aside>
+<div class="sidebar-backdrop"></div>

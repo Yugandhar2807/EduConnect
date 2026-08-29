@@ -1,6 +1,7 @@
-using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using EduConnect.Data;
 using EduConnect.Models;
@@ -8,29 +9,77 @@ using EduConnect.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(connectionString));
-
+// ---------- Data access ----------
+// SQLite database lives under App_Data (created on first run). A relative Data Source
+// is anchored to the content root — under IIS in-process hosting the process working
+// directory is NOT the app folder, so relative paths would otherwise land in system32.
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Data Source=App_Data/educonnect.db";
+var sqliteBuilder = new SqliteConnectionStringBuilder(connectionString);
+if (!Path.IsPathRooted(sqliteBuilder.DataSource))
+{
+    sqliteBuilder.DataSource = Path.Combine(builder.Environment.ContentRootPath, sqliteBuilder.DataSource);
+    connectionString = sqliteBuilder.ToString();
+}
+Directory.CreateDirectory(Path.GetDirectoryName(sqliteBuilder.DataSource)!);
+builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
+// ---------- Identity ----------
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.SignIn.RequireConfirmedAccount = false;
+    options.Password.RequiredLength = 8;
+    options.Password.RequireDigit = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
 })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Account/Login";
+    options.AccessDeniedPath = "/Account/AccessDenied";
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+});
+
+// Persist Data Protection keys next to the database. Under IIS the app-pool identity
+// has no user profile, so without this every recycle would generate new keys and
+// invalidate all sign-in cookies and antiforgery tokens.
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(
+        Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys")))
+    .SetApplicationName("EduConnect");
+
+// ---------- MVC ----------
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddHttpClient();
 
-// Register Power BI Service
-builder.Services.AddScoped<IPowerBIService, PowerBIService>();
+// ---------- Application services ----------
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IExcelExportService, ExcelExportService>();
 
-// Configure forwarded headers (X-Forwarded-For, X-Forwarded-Proto) so the app
-// correctly detects the original request scheme when behind a proxy (e.g., Render)
+// AI service: uses Gemini when an API key is configured, otherwise a deterministic
+// offline mock so AI-assisted features keep working in demos.
+var geminiApiKey = builder.Configuration["AI:GeminiApiKey"];
+if (!string.IsNullOrWhiteSpace(geminiApiKey))
+{
+    builder.Services.AddScoped<IAIService>(sp =>
+        new GeminiAIService(geminiApiKey, sp.GetRequiredService<ILogger<GeminiAIService>>()));
+}
+else
+{
+    builder.Services.AddScoped<IAIService>(sp =>
+        new MockAIService(sp.GetRequiredService<ILogger<MockAIService>>()));
+}
+
+// Forwarded headers so the app detects the original scheme behind a reverse proxy.
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -38,43 +87,30 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
-// Register Email Service
-builder.Services.AddScoped<IEmailService, EmailService>();
-
-// Register PDF Generation Service
-builder.Services.AddScoped<PdfGenerationService>();
-
-// Register Excel Export Service
-builder.Services.AddScoped<IExcelExportService, ExcelExportService>();
-
-// Register AI Service
-var geminiApiKey = builder.Configuration["AI:GeminiApiKey"];
-// Use Mock AI Service for demonstration (Gemini API free tier quota exhausted)
-// Change this to GeminiAIService when you add billing to your Google Cloud project
-builder.Services.AddScoped<IAIService>(sp =>
-    new MockAIService(sp.GetRequiredService<ILogger<MockAIService>>())
-);
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
+// ---------- Pipeline ----------
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    app.UseMigrationsEndPoint();
 }
 else
 {
     app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
-    app.UseHttpsRedirection();
+
+    // HTTPS enforcement is opt-in so HTTP-only hosts (e.g. IIS on a LAN, or a TLS-
+    // terminating proxy) don't redirect into a binding that doesn't exist.
+    if (app.Configuration.GetValue("Security:EnforceHttps", false))
+    {
+        app.UseHsts();
+        app.UseHttpsRedirection();
+    }
 }
-// Process forwarded headers before other middleware so `Request.Scheme` is correct
+
+app.UseStatusCodePagesWithReExecute("/Home/Error", "?statusCode={0}");
 app.UseForwardedHeaders();
 app.UseStaticFiles();
-
 app.UseRouting();
-
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -83,133 +119,12 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
 
-// Apply migrations and initialize database
+// ---------- Database migration + seeding ----------
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.Migrate();
+    await DbSeeder.SeedAsync(scope.ServiceProvider, app.Configuration, app.Logger);
 }
-
-// Initialize database with default roles and admin user
-await InitializeDatabase(app);
 
 app.Run();
-
-// Database initialization method
-async Task InitializeDatabase(WebApplication webApp)
-{
-    using (var scope = webApp.Services.CreateScope())
-    {
-        var services = scope.ServiceProvider;
-        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-
-        try
-        {
-            // Create roles
-            string[] roles = { "Admin", "Faculty", "Student" };
-            foreach (var role in roles)
-            {
-                if (!await roleManager.RoleExistsAsync(role))
-                {
-                    var result = await roleManager.CreateAsync(new IdentityRole(role));
-                    if (!result.Succeeded)
-                    {
-                        webApp.Logger.LogWarning($"Failed to create role {role}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
-                    }
-                }
-            }
-
-            // Create default admin user
-            var adminUser = await userManager.FindByEmailAsync("admin@educonnect.com");
-            if (adminUser == null)
-            {
-                var admin = new ApplicationUser
-                {
-                    UserName = "admin@educonnect.com",
-                    Email = "admin@educonnect.com",
-                    FirstName = "Admin",
-                    LastName = "User",
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow
-                };
-                var result = await userManager.CreateAsync(admin, "Admin@123456");
-                if (result.Succeeded)
-                {
-                    await userManager.AddToRoleAsync(admin, "Admin");
-                    webApp.Logger.LogInformation("Admin user created successfully.");
-                }
-                else
-                {
-                    webApp.Logger.LogWarning($"Failed to create admin user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
-                }
-            }
-
-            // Create authorized student users
-            var studentEmails = new[]
-            {
-                ("22X01A6748@nrcmec.org", "Chichu@2004", "Yugandhar", "Reddy"),
-                ("22X01A6647@nrcmec.org", "Chichu@2005", "Sindhu", "Kumar"),
-                ("22X01A6761@nrcmec.org", "Chichu@2003", "Vikas", "Singh"),
-                ("22X01A6751@nrcmec.org", "Chichu@2002", "Pankaj", "Gupta"),
-                ("22X01A6762@nrcmec.org", "Chichu@2001", "Sujana", "Devi")
-            };
-
-            foreach (var (email, password, firstName, lastName) in studentEmails)
-            {
-                var studentUser = await userManager.FindByEmailAsync(email);
-                if (studentUser == null)
-                {
-                    var student = new ApplicationUser
-                    {
-                        UserName = email,
-                        Email = email,
-                        FirstName = firstName,
-                        LastName = lastName,
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    var result = await userManager.CreateAsync(student, password);
-                    if (result.Succeeded)
-                    {
-                        await userManager.AddToRoleAsync(student, "Student");
-                        webApp.Logger.LogInformation($"Student user {email} created successfully.");
-                    }
-                    else
-                    {
-                        webApp.Logger.LogWarning($"Failed to create student user {email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
-                    }
-                }
-            }
-
-            // Create authorized faculty user
-            var facultyUser = await userManager.FindByEmailAsync("RamuGandikota@gmail.com");
-            if (facultyUser == null)
-            {
-                var faculty = new ApplicationUser
-                {
-                    UserName = "RamuGandikota@gmail.com",
-                    Email = "RamuGandikota@gmail.com",
-                    FirstName = "Ramu",
-                    LastName = "Gandikota",
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow
-                };
-                var result = await userManager.CreateAsync(faculty, "Ramu@123");
-                if (result.Succeeded)
-                {
-                    await userManager.AddToRoleAsync(faculty, "Faculty");
-                    webApp.Logger.LogInformation("Faculty user created successfully.");
-                }
-                else
-                {
-                    webApp.Logger.LogWarning($"Failed to create faculty user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            webApp.Logger.LogError(ex, "An error occurred seeding the database.");
-        }
-    }
-}

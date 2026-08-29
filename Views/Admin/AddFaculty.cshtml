@@ -1,325 +1,69 @@
 @model AddFacultyViewModel
-
 @{
-    ViewData["Title"] = "Add New Faculty";
+    ViewData["Title"] = "Add Faculty";
 }
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-<style>
-    .form-header {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        color: white;
-        padding: 30px 20px;
-        margin-bottom: 30px;
-        border-radius: 0 0 15px 15px;
-        box-shadow: 0 10px 30px rgba(240, 147, 251, 0.3);
-    }
-
-    .form-header h1 {
-        margin: 0;
-        font-size: 2rem;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-    }
-
-    .form-container {
-        max-width: 600px;
-        margin: 0 auto;
-        background: white;
-        border-radius: 15px;
-        padding: 40px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    }
-
-    .form-group {
-        margin-bottom: 25px;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-        color: #2d3748;
-        font-size: 0.95rem;
-    }
-
-    .form-group input {
-        width: 100%;
-        padding: 12px 15px;
-        border: 2px solid #e2e8f0;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    .form-group input:focus {
-        outline: none;
-        border-color: #f093fb;
-        box-shadow: 0 0 0 3px rgba(240, 147, 251, 0.1);
-    }
-
-    .form-group input::placeholder {
-        color: #cbd5e0;
-    }
-
-    .input-icon {
-        position: relative;
-    }
-
-    .input-icon i {
-        position: absolute;
-        left: 15px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #cbd5e0;
-        font-size: 1rem;
-        pointer-events: none;
-    }
-
-    .input-icon input {
-        padding-left: 45px;
-    }
-
-    .form-group input.error {
-        border-color: #f56565;
-    }
-
-    .error-message {
-        color: #f56565;
-        font-size: 0.85rem;
-        margin-top: 5px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-
-    .form-actions {
-        display: flex;
-        gap: 15px;
-        margin-top: 35px;
-    }
-
-    .btn {
-        flex: 1;
-        padding: 13px 20px;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    }
-
-    .btn.submit {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        color: white;
-        text-decoration: none;
-    }
-
-    .btn.submit:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(240, 147, 251, 0.3);
-    }
-
-    .btn.cancel {
-        background: #e2e8f0;
-        color: #4a5568;
-        text-decoration: none;
-    }
-
-    .btn.cancel:hover {
-        background: #cbd5e0;
-        transform: translateY(-2px);
-    }
-
-    .password-requirements {
-        background: #edf2f7;
-        border-left: 4px solid #f093fb;
-        padding: 15px;
-        border-radius: 6px;
-        margin-top: 15px;
-        font-size: 0.85rem;
-        color: #4a5568;
-    }
-
-    .password-requirements li {
-        margin: 5px 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .password-requirements .check {
-        color: #48bb78;
-    }
-
-    .password-requirements .cross {
-        color: #f56565;
-    }
-
-    .success-message {
-        background: #c6f6d5;
-        border-left: 4px solid #48bb78;
-        color: #22543d;
-        padding: 15px;
-        border-radius: 6px;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-</style>
-
-<div class="form-header">
-    <h1>
-        <i class="fas fa-user-tie"></i>
-        Add New Faculty
-    </h1>
-</div>
-
-<div class="container-fluid">
-    <div class="form-container">
-        @if (ViewBag.Success != null)
-        {
-            <div class="success-message">
-                <i class="fas fa-check-circle"></i>
-                @ViewBag.Success
-            </div>
-        }
-
-        <form asp-action="AddFaculty" asp-controller="Admin" method="post" class="needs-validation" novalidate>
-            <!-- Full Name -->
-            <div class="form-group">
-                <label asp-for="FullName">Full Name</label>
-                <div class="input-icon">
-                    <i class="fas fa-user"></i>
-                    <input asp-for="FullName" type="text" placeholder="Enter faculty's full name" required>
-                </div>
-                <span asp-validation-for="FullName" class="error-message"></span>
-            </div>
-
-            <!-- Email -->
-            <div class="form-group">
-                <label asp-for="Email">Email Address</label>
-                <div class="input-icon">
-                    <i class="fas fa-envelope"></i>
-                    <input asp-for="Email" type="email" placeholder="Enter faculty's email" required>
-                </div>
-                <span asp-validation-for="Email" class="error-message"></span>
-            </div>
-
-            <!-- Department -->
-            <div class="form-group">
-                <label asp-for="Department">Department</label>
-                <div class="input-icon">
-                    <i class="fas fa-building"></i>
-                    <input asp-for="Department" type="text" placeholder="e.g., Computer Science, Mathematics" required>
-                </div>
-                <span asp-validation-for="Department" class="error-message"></span>
-            </div>
-
-            <!-- Phone Number -->
-            <div class="form-group">
-                <label asp-for="PhoneNumber">Phone Number</label>
-                <div class="input-icon">
-                    <i class="fas fa-phone"></i>
-                    <input asp-for="PhoneNumber" type="tel" placeholder="Enter faculty's phone number">
-                </div>
-                <span asp-validation-for="PhoneNumber" class="error-message"></span>
-            </div>
-
-            <!-- Password -->
-            <div class="form-group">
-                <label asp-for="Password">Password</label>
-                <div class="input-icon">
-                    <i class="fas fa-lock"></i>
-                    <input asp-for="Password" type="password" placeholder="Enter password" id="passwordInput" required>
-                </div>
-                <span asp-validation-for="Password" class="error-message"></span>
-                <div class="password-requirements">
-                    <strong style="display: block; margin-bottom: 8px;">Password Requirements:</strong>
-                    <ul style="margin: 0; padding-left: 0; list-style: none;">
-                        <li>
-                            <span id="lengthCheck" class="cross">✗</span>
-                            At least 8 characters
-                        </li>
-                        <li>
-                            <span id="uppercaseCheck" class="cross">✗</span>
-                            One uppercase letter
-                        </li>
-                        <li>
-                            <span id="lowercaseCheck" class="cross">✗</span>
-                            One lowercase letter
-                        </li>
-                        <li>
-                            <span id="numberCheck" class="cross">✗</span>
-                            One number
-                        </li>
-                        <li>
-                            <span id="specialCheck" class="cross">✗</span>
-                            One special character (!@@#$%^&*)
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Form Actions -->
-            <div class="form-actions">
-                <button type="submit" class="btn submit">
-                    <i class="fas fa-save"></i>
-                    Create Faculty
-                </button>
-                <a href="@Url.Action("ManageFaculty")" class="btn cancel">
-                    <i class="fas fa-times"></i>
-                    Cancel
-                </a>
-            </div>
-        </form>
+<div class="page-header">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="ManageFaculty">Faculty</a></li>
+                <li class="breadcrumb-item active">Add Faculty</li>
+            </ol>
+        </nav>
+        <h1>Add Faculty Member</h1>
+        <p class="page-subtitle">Create a new faculty account</p>
     </div>
 </div>
 
-<script>
-    const passwordInput = document.getElementById('passwordInput');
+<div class="row">
+    <div class="col-lg-7 col-xl-6">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="AddFaculty" method="post" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
 
-    if (passwordInput) {
-        passwordInput.addEventListener('input', function() {
-            const password = this.value;
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label"></label>
+                        <input asp-for="FullName" class="form-control" placeholder="e.g. Dr. Sarah Mitchell" autofocus />
+                        <span asp-validation-for="FullName"></span>
+                    </div>
 
-            // Check length
-            const length = password.length >= 8;
-            document.getElementById('lengthCheck').textContent = length ? '✓' : '✗';
-            document.getElementById('lengthCheck').className = length ? 'check' : 'cross';
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-7">
+                            <label asp-for="Email" class="form-label"></label>
+                            <input asp-for="Email" class="form-control" placeholder="faculty@example.com" />
+                            <span asp-validation-for="Email"></span>
+                        </div>
+                        <div class="col-sm-5">
+                            <label asp-for="PhoneNumber" class="form-label"></label>
+                            <input asp-for="PhoneNumber" class="form-control" placeholder="Optional" />
+                            <span asp-validation-for="PhoneNumber"></span>
+                        </div>
+                    </div>
 
-            // Check uppercase
-            const uppercase = /[A-Z]/.test(password);
-            document.getElementById('uppercaseCheck').textContent = uppercase ? '✓' : '✗';
-            document.getElementById('uppercaseCheck').className = uppercase ? 'check' : 'cross';
+                    <div class="mb-3">
+                        <label asp-for="Department" class="form-label"></label>
+                        <input asp-for="Department" class="form-control" placeholder="e.g. Computer Science" />
+                        <span asp-validation-for="Department"></span>
+                    </div>
 
-            // Check lowercase
-            const lowercase = /[a-z]/.test(password);
-            document.getElementById('lowercaseCheck').textContent = lowercase ? '✓' : '✗';
-            document.getElementById('lowercaseCheck').className = lowercase ? 'check' : 'cross';
+                    <div class="mb-4">
+                        <label asp-for="Password" class="form-label"></label>
+                        <input asp-for="Password" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="Password"></span>
+                        <div class="form-text">At least 8 characters with upper &amp; lower case, a number and a symbol.</div>
+                    </div>
 
-            // Check number
-            const number = /[0-9]/.test(password);
-            document.getElementById('numberCheck').textContent = number ? '✓' : '✗';
-            document.getElementById('numberCheck').className = number ? 'check' : 'cross';
-
-            // Check special character
-            const special = /[!@@#$%^&*]/.test(password);
-            document.getElementById('specialCheck').textContent = special ? '✓' : '✗';
-            document.getElementById('specialCheck').className = special ? 'check' : 'cross';
-        });
-    }
-</script>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-user-plus me-2"></i>Create Faculty</button>
+                        <a class="btn btn-outline-secondary" asp-action="ManageFaculty">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

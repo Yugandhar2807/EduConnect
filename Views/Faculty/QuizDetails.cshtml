@@ -1,0 +1,187 @@
+@model QuizDetailsViewModel
+@{
+    var quiz = Model.Quiz;
+    ViewData["Title"] = quiz.Title;
+    var questions = quiz.Questions?.OrderBy(q => q.Order).ToList() ?? new List<QuizQuestion>();
+}
+
+<div class="page-header">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="Dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item"><a asp-action="CourseDetails" asp-route-id="@quiz.CourseId">@quiz.Course?.Title</a></li>
+                <li class="breadcrumb-item active">@quiz.Title</li>
+            </ol>
+        </nav>
+        <h1>@quiz.Title</h1>
+        <p class="page-subtitle">
+            <span class="badge @(quiz.IsActive ? "badge-soft-success" : "badge-soft-muted") me-2">@(quiz.IsActive ? "Visible to students" : "Hidden")</span>
+            @questions.Count questions · @quiz.TotalMarks marks · pass at @quiz.PassingMarks% · @quiz.DurationInMinutes min
+        </p>
+    </div>
+    <div class="page-actions">
+        <form asp-action="ToggleQuizActive" method="post" class="d-inline">
+            <input type="hidden" name="quizId" value="@quiz.Id" />
+            <button type="submit" class="btn btn-outline-secondary">
+                <i class="fa-solid @(quiz.IsActive ? "fa-eye-slash" : "fa-eye") me-2"></i>@(quiz.IsActive ? "Hide" : "Publish")
+            </button>
+        </form>
+        <a class="btn btn-primary" asp-action="AddQuizQuestion" asp-route-quizId="@quiz.Id"><i class="fa-solid fa-plus me-2"></i>Add Question</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon primary"><i class="fa-solid fa-users"></i></span>
+            <div>
+                <div class="stat-value">@Model.AttemptCount</div>
+                <div class="stat-label">Attempts</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon info"><i class="fa-solid fa-percent"></i></span>
+            <div>
+                <div class="stat-value">@(Model.AttemptCount > 0 ? $"{Model.AverageScore}%" : "—")</div>
+                <div class="stat-label">Average Score</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon success"><i class="fa-solid fa-circle-check"></i></span>
+            <div>
+                <div class="stat-value">@(Model.AttemptCount > 0 ? $"{Model.PassRate}%" : "—")</div>
+                <div class="stat-label">Pass Rate</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon warning"><i class="fa-solid fa-star"></i></span>
+            <div>
+                <div class="stat-value">@quiz.TotalMarks</div>
+                <div class="stat-label">Total Marks</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header"><h6 class="card-title">Questions</h6></div>
+            @if (questions.Count == 0)
+            {
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fa-solid fa-circle-question"></i></div>
+                    <h5>No questions yet</h5>
+                    <p>Add questions manually or generate them with AI from the Add Question page.</p>
+                    <a class="btn btn-primary" asp-action="AddQuizQuestion" asp-route-quizId="@quiz.Id"><i class="fa-solid fa-plus me-2"></i>Add Question</a>
+                </div>
+            }
+            else
+            {
+                <div class="accordion accordion-flush" id="questionsAccordion">
+                    @foreach (var (question, index) in questions.Select((q, i) => (q, i)))
+                    {
+                        var typeBadge = question.QuestionType switch
+                        {
+                            "Coding" => "badge-soft-warning",
+                            "TrueFalse" => "badge-soft-info",
+                            _ => "badge-soft-primary",
+                        };
+                        <div class="accordion-item" style="border-color:#f1f5f9">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed py-3" type="button" data-bs-toggle="collapse" data-bs-target="#q-@question.Id" style="font-size:.9rem">
+                                    <span class="me-2 text-muted">Q@(index + 1).</span>
+                                    <span class="flex-grow-1 text-truncate me-2">@question.QuestionText</span>
+                                    <span class="badge @typeBadge me-1">@(question.QuestionType == "TrueFalse" ? "T/F" : question.QuestionType)</span>
+                                    <span class="badge badge-soft-muted">@question.Marks marks</span>
+                                </button>
+                            </h2>
+                            <div id="q-@question.Id" class="accordion-collapse collapse" data-bs-parent="#questionsAccordion">
+                                <div class="accordion-body" style="font-size:.9rem">
+                                    @if (question.QuestionType == "Coding")
+                                    {
+                                        <p class="mb-1"><strong>Language:</strong> @question.ProgrammingLanguage</p>
+                                        <p class="mb-1"><strong>Expected output:</strong> <code>@question.ExpectedOutput</code></p>
+                                        @if (!string.IsNullOrEmpty(question.CodeTemplate))
+                                        {
+                                            <pre class="code-output mb-2">@question.CodeTemplate</pre>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <ul class="list-unstyled mb-2">
+                                            @foreach (var (option, letter) in new[] { (question.OptionA, "A"), (question.OptionB, "B"), (question.OptionC, "C"), (question.OptionD, "D") })
+                                            {
+                                                @if (!string.IsNullOrEmpty(option))
+                                                {
+                                                    var optionValue = question.QuestionType == "TrueFalse" ? option : letter;
+                                                    var isCorrect = string.Equals(question.CorrectOption, optionValue, StringComparison.OrdinalIgnoreCase);
+                                                    <li class="mb-1 @(isCorrect ? "fw-semibold text-success" : "")">
+                                                        @if (isCorrect)
+                                                        {
+                                                            <i class="fa-solid fa-circle-check me-1"></i>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="me-1" style="width:1rem;display:inline-block"></span>
+                                                        }
+                                                        @letter. @option
+                                                    </li>
+                                                }
+                                            }
+                                        </ul>
+                                    }
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge badge-soft-muted">@(question.Difficulty ?? "Medium")</span>
+                                        <form asp-action="DeleteQuestion" method="post" class="ms-auto" data-confirm="Delete this question?">
+                                            <input type="hidden" name="questionId" value="@question.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash me-1"></i>Delete</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header"><h6 class="card-title">Recent Results</h6></div>
+            @if (Model.RecentResults.Count == 0)
+            {
+                <div class="empty-state py-4">
+                    <p class="mb-0">No attempts yet.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table app-table">
+                        <thead><tr><th>Student</th><th>Score</th><th>Result</th><th>Date</th></tr></thead>
+                        <tbody>
+                            @foreach (var result in Model.RecentResults)
+                            {
+                                <tr>
+                                    <td class="fw-medium">@(result.Student?.FullName ?? result.Student?.Email)</td>
+                                    <td>@result.MarksObtained/@result.TotalMarks (@result.PercentageScore.ToString("0"))%</td>
+                                    <td><span class="badge @(result.IsPassed ? "badge-soft-success" : "badge-soft-danger")">@(result.IsPassed ? "Passed" : "Failed")</span></td>
+                                    <td class="text-muted">@result.AttemptedAt.ToString("dd MMM, HH:mm")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>

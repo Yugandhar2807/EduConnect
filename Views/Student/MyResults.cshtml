@@ -1,0 +1,97 @@
+@model List<QuizResult>
+@{
+    ViewData["Title"] = "My Quiz Results";
+    var passed = Model.Count(r => r.IsPassed);
+    var avg = Model.Count > 0 ? Math.Round(Model.Average(r => r.PercentageScore), 1) : 0;
+}
+
+<div class="page-header">
+    <div>
+        <h1>My Quiz Results</h1>
+        <p class="page-subtitle">Every attempt across all of your courses</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-4">
+        <div class="card stat-card">
+            <span class="stat-icon primary"><i class="fa-solid fa-list-check"></i></span>
+            <div>
+                <div class="stat-value">@Model.Count</div>
+                <div class="stat-label">Total Attempts</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card stat-card">
+            <span class="stat-icon success"><i class="fa-solid fa-circle-check"></i></span>
+            <div>
+                <div class="stat-value">@passed</div>
+                <div class="stat-label">Passed</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card stat-card">
+            <span class="stat-icon info"><i class="fa-solid fa-percent"></i></span>
+            <div>
+                <div class="stat-value">@(Model.Count > 0 ? $"{avg}%" : "—")</div>
+                <div class="stat-label">Average Score</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card" data-table>
+    <div class="card-header">
+        <h6 class="card-title">Attempt History</h6>
+        <div class="table-search">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="search" class="form-control form-control-sm" placeholder="Search results…" data-table-search />
+        </div>
+    </div>
+    @if (Model.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fa-solid fa-list-check"></i></div>
+            <h5>No quiz attempts yet</h5>
+            <p>Open one of your courses and take a quiz — results will appear here.</p>
+            <a class="btn btn-primary" asp-action="Dashboard"><i class="fa-solid fa-book-open me-2"></i>Go to My Courses</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table app-table" data-page-size="12">
+                <thead>
+                    <tr>
+                        <th data-sort="text">Quiz</th>
+                        <th data-sort="text">Course</th>
+                        <th data-sort="num">Score</th>
+                        <th data-sort="num">Percentage</th>
+                        <th data-sort="text">Result</th>
+                        <th data-sort="date">Date</th>
+                        <th class="text-end"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var result in Model)
+                    {
+                        <tr>
+                            <td class="fw-medium">@result.Quiz?.Title</td>
+                            <td class="text-muted">@result.Quiz?.Course?.Title</td>
+                            <td>@result.MarksObtained/@result.TotalMarks</td>
+                            <td>@result.PercentageScore.ToString("0.#")%</td>
+                            <td><span class="badge @(result.IsPassed ? "badge-soft-success" : "badge-soft-danger")">@(result.IsPassed ? "Passed" : "Failed")</span></td>
+                            <td class="text-muted" data-value="@result.AttemptedAt.ToString("yyyy-MM-dd HH:mm")">@result.AttemptedAt.ToString("dd MMM yyyy, HH:mm")</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-secondary" asp-action="QuizResult" asp-route-quizResultId="@result.Id">View</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer table-pagination" data-table-pagination></div>
+    }
+</div>

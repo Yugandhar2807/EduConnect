@@ -1,0 +1,136 @@
+@model StudentAttendanceViewModel
+@{
+    ViewData["Title"] = "My Attendance";
+}
+
+<div class="page-header">
+    <div>
+        <h1>My Attendance</h1>
+        <p class="page-subtitle">@Model.Records.Count recorded day@(Model.Records.Count == 1 ? "" : "s")</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon success"><i class="fa-solid fa-circle-check"></i></span>
+            <div>
+                <div class="stat-value">@Model.TotalPresent</div>
+                <div class="stat-label">Days Present</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon danger"><i class="fa-solid fa-circle-xmark"></i></span>
+            <div>
+                <div class="stat-value">@Model.TotalAbsent</div>
+                <div class="stat-label">Days Absent</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon warning"><i class="fa-solid fa-umbrella-beach"></i></span>
+            <div>
+                <div class="stat-value">@Model.TotalLeave</div>
+                <div class="stat-label">Leave Days</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon primary"><i class="fa-solid fa-percent"></i></span>
+            <div>
+                <div class="stat-value">@Model.AttendancePercentage%</div>
+                <div class="stat-label">Attendance Rate</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card mb-4">
+            <div class="card-header"><h6 class="card-title">Monthly Trend</h6></div>
+            <div class="card-body">
+                <div class="chart-container" style="height:240px"><canvas id="monthlyChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card" data-table>
+            <div class="card-header">
+                <h6 class="card-title">Daily Records</h6>
+                <div class="table-search">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="search" class="form-control form-control-sm" placeholder="Search…" data-table-search />
+                </div>
+            </div>
+            @if (Model.Records.Count == 0)
+            {
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fa-solid fa-calendar-xmark"></i></div>
+                    <h5>No attendance recorded yet</h5>
+                    <p>Your attendance will appear here once faculty start marking it.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table app-table" data-page-size="10">
+                        <thead>
+                            <tr><th data-sort="date">Date</th><th data-sort="text">Day</th><th data-sort="text">Status</th><th>Remarks</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var record in Model.Records)
+                            {
+                                var badge = record.Status switch
+                                {
+                                    "Present" => "badge-soft-success",
+                                    "Absent" => "badge-soft-danger",
+                                    _ => "badge-soft-warning",
+                                };
+                                <tr>
+                                    <td data-value="@record.AttendanceDate.ToString("yyyy-MM-dd")">@record.AttendanceDate.ToString("dd MMM yyyy")</td>
+                                    <td class="text-muted">@record.AttendanceDate.DayOfWeek</td>
+                                    <td><span class="badge @badge">@record.Status</span></td>
+                                    <td class="text-muted">@(string.IsNullOrEmpty(record.Remarks) ? "—" : record.Remarks)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer table-pagination" data-table-pagination></div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script>
+        Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+        Chart.defaults.color = '#64748b';
+        const breakdown = @Html.Raw(Json.Serialize(Model.MonthlyBreakdown));
+        new Chart(document.getElementById('monthlyChart'), {
+            type: 'bar',
+            data: {
+                labels: breakdown.map(b => b.month),
+                datasets: [
+                    { label: 'Present', data: breakdown.map(b => b.present), backgroundColor: '#16a34a', borderRadius: 4, maxBarThickness: 26 },
+                    { label: 'Absent', data: breakdown.map(b => b.absent), backgroundColor: '#dc2626', borderRadius: 4, maxBarThickness: 26 },
+                    { label: 'Leave', data: breakdown.map(b => b.leave), backgroundColor: '#d97706', borderRadius: 4, maxBarThickness: 26 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } },
+                scales: {
+                    x: { stacked: true, grid: { display: false } },
+                    y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f1f5f9' } }
+                }
+            }
+        });
+    </script>
+}

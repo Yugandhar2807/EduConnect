@@ -1,395 +1,254 @@
 @model Quiz
-
 @{
-    ViewData["Title"] = "Take Quiz - " + Model.Title;
-    var effectiveTotalMarks = Model.TotalMarks > 0 ? Model.TotalMarks : (Model.Questions?.Sum(q => q.Marks) ?? 0);
-    var hasValidQuizConfig = (Model.Questions?.Any() ?? false) && effectiveTotalMarks > 0 && Model.DurationInMinutes > 0;
+    ViewData["Title"] = Model.Title;
+    var questions = Model.Questions?.ToList() ?? new List<QuizQuestion>();
+    int previousAttempts = ViewBag.PreviousAttempts ?? 0;
 }
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<style>
-    .code-editor {
-        background: #2d2d2d;
-        color: #f8f8f2;
-        border: 1px solid #444;
-        border-radius: 4px;
-        padding: 10px;
-        font-family: 'Courier New', monospace;
-        font-size: 14px;
-        line-height: 1.5;
-    }
-    
-    .code-input {
-        background: #2d2d2d;
-        color: #f8f8f2;
-        border: 1px solid #444;
-        border-radius: 4px;
-        padding: 10px;
-        font-family: 'Courier New', monospace;
-        font-size: 14px;
-        line-height: 1.5;
-        resize: vertical;
-        min-height: 150px;
-        width: 100%;
-    }
-    
-    .code-output {
-        background: #1e1e1e;
-        color: #00ff00;
-        border: 1px solid #333;
-        border-radius: 4px;
-        padding: 10px;
-        font-family: 'Courier New', monospace;
-        font-size: 13px;
-        max-height: 200px;
-        overflow-y: auto;
-        white-space: pre-wrap;
-    }
-    
-    .run-code-btn {
-        background: #667eea;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: background 0.3s;
-    }
-    
-    .run-code-btn:hover {
-        background: #764ba2;
-    }
-    
-    .run-code-btn:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-    }
-
-    .quiz-card,
-    .quiz-card p,
-    .quiz-card h5,
-    .quiz-card h6,
-    .quiz-card label,
-    .quiz-card strong,
-    .quiz-card small,
-    .quiz-card li,
-    .quiz-card .form-check-label {
-        color: #111 !important;
-    }
-
-    .terminal-shell {
-        border: 1px solid #222;
-        border-radius: 8px;
-        overflow: hidden;
-        margin-bottom: 12px;
-        box-shadow: 0 4px 10px rgba(0,0,0,.2);
-    }
-
-    .terminal-header {
-        background: #1f1f1f;
-        color: #f3f3f3 !important;
-        padding: 8px 12px;
-        font-size: 12px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .terminal-dots span {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        margin-right: 6px;
-    }
-
-    .terminal-dots .red { background: #ff5f56; }
-    .terminal-dots .yellow { background: #ffbd2e; }
-    .terminal-dots .green { background: #27c93f; }
-
-    .terminal-body {
-        background: #0d1117;
-        color: #c9d1d9 !important;
-        padding: 12px;
-        font-family: 'Courier New', monospace;
-    }
-
-    .terminal-body pre,
-    .terminal-body code,
-    .terminal-body label,
-    .terminal-body span,
-    .terminal-body strong,
-    .terminal-body div {
-        color: #c9d1d9 !important;
-    }
-
-
-</style>
-
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-10 offset-md-1">
-            <div class="card shadow-lg">
-                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h4 class="mb-0">📝 @Model.Title</h4>
-                            <small>@Model.Description</small>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <div id="timer" style="font-size: 1.5rem; font-weight: bold;">
-                                <span id="minutes">@Model.DurationInMinutes</span>:<span id="seconds">00</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <p class="mb-0"><strong>📊 Quiz Details:</strong></p>
-                        <ul class="mb-0">
-                            <li>Total Questions: <strong>@(Model.Questions?.Count ?? Model.TotalQuestions)</strong></li>
-                            <li>Total Marks: <strong>@effectiveTotalMarks</strong></li>
-                            <li>Passing Marks: <strong>@Model.PassingMarks</strong></li>
-                            <li>Duration: <strong>@Model.DurationInMinutes minutes</strong></li>
-                        </ul>
-                    </div>
-                    </div>
-
-                    @if (Model.Questions != null && Model.Questions.Any())
-                    {
-                        @if (!hasValidQuizConfig)
-                        {
-                            <div class="alert alert-warning">
-                                ⚠️ This quiz configuration is incomplete (total marks or duration is 0). Please contact faculty before submitting.
-                            </div>
-                        }
-                        <form id="quizForm">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="quizId" value="@Model.Id" />
-                            
-                            @for (int i = 0; i < Model.Questions.Count; i++)
-                            {
-                                var question = Model.Questions.ElementAt(i);
-                                <div class="mb-4 p-3 border rounded quiz-card" style="background-color: #f9f9f9;">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h5 class="mb-0">Question @(i + 1) of @Model.Questions.Count</h5>
-                                        <span class="badge bg-success">@question.Marks marks</span>
-                                    </div>
-                                    <p class="mb-3"><strong>@question.QuestionText</strong></p>
-
-                                    @if (question.QuestionType == "Coding")
-                                    {
-                                        <!-- Coding Question UI -->
-                                        <div class="coding-question">
-                                            <div class="mb-3">
-                                                <label class="form-label"><strong>💻 Programming Language:</strong> @question.ProgrammingLanguage</label>
-                                            </div>
-                                            
-                                            <div class="mb-3">
-                                                <label class="form-label"><strong>Code Template:</strong></label>
-                                                <div class="terminal-shell">
-                                                    <div class="terminal-header">
-                                                        <div class="terminal-dots"><span class="red"></span><span class="yellow"></span><span class="green"></span></div>
-                                                        <span>template.@(question.ProgrammingLanguage ?? "code")</span>
-                                                    </div>
-                                                    <div class="terminal-body">
-                                                        <pre><code>@question.CodeTemplate</code></pre>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <label for="code_@question.Id" class="form-label"><strong>Your Solution:</strong></label>
-                                                <div class="terminal-shell">
-                                                    <div class="terminal-header">
-                                                        <div class="terminal-dots"><span class="red"></span><span class="yellow"></span><span class="green"></span></div>
-                                                        <span>student-solution.@(question.ProgrammingLanguage ?? "code")</span>
-                                                    </div>
-                                                    <div class="terminal-body">
-                                                        <textarea class="code-input" id="code_@question.Id" name="question_@question.Id" placeholder="Write your code here...">@question.CodeTemplate</textarea>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <button type="button" class="run-code-btn" onclick="runCode(@question.Id, '@question.ProgrammingLanguage')">
-                                                ▶️ Run Code
-                                            </button>
-                                            
-                                            <div id="output_@question.Id" class="mt-3" style="display: none;">
-                                                <label class="form-label"><strong>Output:</strong></label>
-                                                <div class="terminal-shell">
-                                                    <div class="terminal-header">
-                                                        <div class="terminal-dots"><span class="red"></span><span class="yellow"></span><span class="green"></span></div>
-                                                        <span>runtime-output</span>
-                                                    </div>
-                                                    <div class="terminal-body code-output" id="result_@question.Id"></div>
-                                                </div>
-                                            </div>
-
-                                            <div class="mt-2">
-                                                <label class="form-label"><strong>Expected Output:</strong></label>
-                                                <div class="terminal-shell">
-                                                    <div class="terminal-header">
-                                                        <div class="terminal-dots"><span class="red"></span><span class="yellow"></span><span class="green"></span></div>
-                                                        <span>expected-output</span>
-                                                    </div>
-                                                    <div class="terminal-body code-output">@question.ExpectedOutput</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <!-- Multiple Choice / True-False -->
-                                        <div class="ms-3">
-                                            <div class="form-check mb-3">
-                                                <input class="form-check-input" type="radio" name="question_@question.Id" value="A" id="q@(question.Id)_A" />
-                                                <label class="form-check-label" for="q@(question.Id)_A" style="cursor: pointer;">
-                                                    <strong>A)</strong> @question.OptionA
-                                                </label>
-                                            </div>
-
-                                            <div class="form-check mb-3">
-                                                <input class="form-check-input" type="radio" name="question_@question.Id" value="B" id="q@(question.Id)_B" />
-                                                <label class="form-check-label" for="q@(question.Id)_B" style="cursor: pointer;">
-                                                    <strong>B)</strong> @question.OptionB
-                                                </label>
-                                            </div>
-
-                                            <div class="form-check mb-3">
-                                                <input class="form-check-input" type="radio" name="question_@question.Id" value="C" id="q@(question.Id)_C" />
-                                                <label class="form-check-label" for="q@(question.Id)_C" style="cursor: pointer;">
-                                                    <strong>C)</strong> @question.OptionC
-                                                </label>
-                                            </div>
-
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="question_@question.Id" value="D" id="q@(question.Id)_D" />
-                                                <label class="form-check-label" for="q@(question.Id)_D" style="cursor: pointer;">
-                                                    <strong>D)</strong> @question.OptionD
-                                                </label>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            }
-
-                            <div class="mt-4 d-flex gap-2">
-                                <button type="button" id="submitBtn" class="btn btn-success btn-lg" @(hasValidQuizConfig ? null : "disabled")>
-                                    <i class="bi bi-check-circle"></i> Submit Quiz
-                                </button>
-                                <a asp-action="CourseDetails" asp-route-id="@Model.CourseId" class="btn btn-secondary btn-lg">
-                                    <i class="bi bi-x-circle"></i> Cancel
-                                </a>
-                            </div>
-                        </form>
-                    }
-                    else
-                    {
-                        <div class="alert alert-warning">
-                            ⚠️ No questions added to this quiz yet.
-                        </div>
-                    }
-                </div>
-            </div>
+<div class="page-header">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="Dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item"><a asp-action="CourseDetails" asp-route-id="@Model.CourseId">@Model.Course?.Title</a></li>
+                <li class="breadcrumb-item active">@Model.Title</li>
+            </ol>
+        </nav>
+        <h1>@Model.Title</h1>
+        <p class="page-subtitle">
+            @questions.Count questions · @Model.TotalMarks marks · pass at @Model.PassingMarks%
+            @if (previousAttempts > 0)
+            {
+                <span class="badge badge-soft-muted ms-1">Attempt #@(previousAttempts + 1)</span>
+            }
+        </p>
+    </div>
+    <div class="page-actions">
+        <div class="card px-3 py-2 d-flex flex-row align-items-center gap-2">
+            <i class="fa-solid fa-stopwatch text-primary"></i>
+            <span class="quiz-timer" id="quizTimer">@(Model.DurationInMinutes):00</span>
         </div>
     </div>
 </div>
 
+<div class="card mb-3" style="position:sticky; top:calc(var(--topbar-height) + .5rem); z-index:1010">
+    <div class="card-body py-2 d-flex align-items-center gap-3">
+        <span class="text-muted" style="font-size:.87rem">Answered <span id="answeredCount">0</span> of @questions.Count</span>
+        <div class="progress flex-grow-1"><div class="progress-bar" id="answerProgress" style="width:0%"></div></div>
+        <button type="button" class="btn btn-primary btn-sm" id="submitQuizBtn"><i class="fa-solid fa-paper-plane me-2"></i>Submit Quiz</button>
+    </div>
+</div>
+
+<form id="quizForm">
+    @foreach (var (question, index) in questions.Select((q, i) => (q, i)))
+    {
+        <div class="card mb-3 question-card" data-question-id="@question.Id" data-question-type="@question.QuestionType">
+            <div class="card-body">
+                <div class="d-flex align-items-start gap-2 mb-3">
+                    <span class="badge badge-soft-primary flex-shrink-0" style="font-size:.8rem">Q@(index + 1)</span>
+                    <div class="flex-grow-1">
+                        <p class="fw-medium mb-1" style="font-size:.97rem">@question.QuestionText</p>
+                        <span class="text-muted" style="font-size:.78rem">
+                            @question.Marks mark@(question.Marks == 1 ? "" : "s")
+                            @if (!string.IsNullOrEmpty(question.Difficulty))
+                            {
+                                <span> · @question.Difficulty</span>
+                            }
+                        </span>
+                    </div>
+                </div>
+
+                @if (question.QuestionType == "Coding")
+                {
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge badge-soft-warning"><i class="fa-solid fa-code me-1"></i>@(question.ProgrammingLanguage ?? "python")</span>
+                            <span class="text-muted" style="font-size:.8rem">Expected output: <code>@question.ExpectedOutput</code></span>
+                        </div>
+                        <textarea class="form-control code-editor code-input mb-2" rows="8" spellcheck="false">@question.CodeTemplate</textarea>
+                        <div class="d-flex gap-2 align-items-center mb-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary run-code-btn" data-language="@(question.ProgrammingLanguage ?? "python")">
+                                <i class="fa-solid fa-play me-1"></i>Run Code
+                            </button>
+                            <span class="run-status text-muted" style="font-size:.82rem"></span>
+                        </div>
+                        <div class="code-output" style="display:none"></div>
+                    </div>
+                }
+                else if (question.QuestionType == "TrueFalse")
+                {
+                    <label class="quiz-option">
+                        <input type="radio" name="q_@question.Id" value="True" />
+                        <span>True</span>
+                    </label>
+                    <label class="quiz-option">
+                        <input type="radio" name="q_@question.Id" value="False" />
+                        <span>False</span>
+                    </label>
+                }
+                else
+                {
+                    @foreach (var (optionText, letter) in new[] { (question.OptionA, "A"), (question.OptionB, "B"), (question.OptionC, "C"), (question.OptionD, "D") })
+                    {
+                        @if (!string.IsNullOrEmpty(optionText))
+                        {
+                            <label class="quiz-option">
+                                <input type="radio" name="q_@question.Id" value="@letter" />
+                                <span><strong class="me-1">@letter.</strong> @optionText</span>
+                            </label>
+                        }
+                    }
+                }
+            </div>
+        </div>
+    }
+</form>
+
+<div class="d-flex justify-content-end mb-5">
+    <button type="button" class="btn btn-primary btn-lg" id="submitQuizBtnBottom"><i class="fa-solid fa-paper-plane me-2"></i>Submit Quiz</button>
+</div>
+
 @section Scripts {
     <script>
-        // Run code for coding questions
-        async function runCode(questionId, language) {
-            const codeInput = document.getElementById(`code_${questionId}`);
-            const code = codeInput.value;
-            
-            if (!code.trim()) {
-                alert('Please write some code first!');
-                return;
-            }
+        (function () {
+            const totalQuestions = @questions.Count;
+            const durationSeconds = @Model.DurationInMinutes * 60;
+            const startTime = Date.now();
+            let secondsLeft = durationSeconds;
+            let submitted = false;
+            const codingOutputs = {};   // questionId -> last run output
 
-            try {
-                const response = await fetch('/Student/ExecuteCode', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
-                    },
-                    body: JSON.stringify({
-                        code: code,
-                        language: language
-                    })
+            /* ---------- Timer ---------- */
+            const timerEl = document.getElementById('quizTimer');
+            const timer = setInterval(function () {
+                secondsLeft--;
+                const m = Math.floor(secondsLeft / 60), s = secondsLeft % 60;
+                timerEl.textContent = m + ':' + String(s).padStart(2, '0');
+                if (secondsLeft <= 60) timerEl.classList.add('warning');
+                if (secondsLeft <= 0) {
+                    clearInterval(timer);
+                    App.toast('Time is up — submitting your answers.', 'info');
+                    submitQuiz(true);
+                }
+            }, 1000);
+
+            /* ---------- Answer tracking ---------- */
+            function answeredCount() {
+                let count = 0;
+                document.querySelectorAll('.question-card').forEach(function (card) {
+                    const id = card.dataset.questionId;
+                    if (card.dataset.questionType === 'Coding') {
+                        if (codingOutputs[id] !== undefined) count++;
+                    } else if (card.querySelector('input:checked')) {
+                        count++;
+                    }
                 });
-
-                const data = await response.json();
-                const outputDiv = document.getElementById(`output_${questionId}`);
-                const resultDiv = document.getElementById(`result_${questionId}`);
-                
-                if (data.success) {
-                    resultDiv.textContent = data.output || '(No output)';
-                    resultDiv.style.color = '#00ff00';
-                } else {
-                    resultDiv.textContent = 'Error: ' + (data.error || 'Unknown error');
-                    resultDiv.style.color = '#ff6b6b';
-                }
-                outputDiv.style.display = 'block';
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error executing code: ' + error.message);
-            }
-        }
-
-        // Timer countdown
-        let timeLeft = @(Model.DurationInMinutes * 60);
-        function updateTimer() {
-            let minutes = Math.floor(timeLeft / 60);
-            let seconds = timeLeft % 60;
-            document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
-            document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
-            timeLeft--;
-
-            if (timeLeft < 0) {
-                clearInterval(timerInterval);
-                document.getElementById('submitBtn').click();
-            }
-        }
-        let timerInterval = setInterval(updateTimer, 1000);
-
-        // Form submission
-        document.getElementById('submitBtn').addEventListener('click', function() {
-            const formData = new FormData(document.getElementById('quizForm'));
-            const quizId = formData.get('quizId');
-            const answers = {};
-            
-            for (let [key, value] of formData.entries()) {
-                if (key !== 'quizId') {
-                    answers[key] = value;
-                }
+                return count;
             }
 
-            fetch(`/Student/SubmitQuiz?quizId=${quizId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
-                },
-                body: JSON.stringify(answers)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = data.redirectUrl;
-                } else {
-                    alert('Error submitting quiz: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error submitting quiz');
+            function refreshProgress() {
+                const count = answeredCount();
+                document.getElementById('answeredCount').textContent = count;
+                document.getElementById('answerProgress').style.width = (totalQuestions ? (count / totalQuestions * 100) : 0) + '%';
+            }
+
+            document.querySelectorAll('.quiz-option input').forEach(function (input) {
+                input.addEventListener('change', function () {
+                    input.closest('.card-body').querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+                    input.closest('.quiz-option').classList.add('selected');
+                    refreshProgress();
+                });
             });
-        });
+
+            /* ---------- Coding questions ---------- */
+            document.querySelectorAll('.run-code-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const card = btn.closest('.question-card');
+                    const code = card.querySelector('.code-input').value;
+                    const outputEl = card.querySelector('.code-output');
+                    const statusEl = card.querySelector('.run-status');
+                    btn.disabled = true;
+                    statusEl.textContent = 'Running…';
+                    App.postJson('@Url.Action("ExecuteCode")', { code: code, language: btn.dataset.language })
+                        .then(function (data) {
+                            outputEl.style.display = '';
+                            if (data.success) {
+                                outputEl.textContent = data.output || '(no output)';
+                                codingOutputs[card.dataset.questionId] = (data.output || '').trim();
+                                statusEl.textContent = 'Output captured — it will be graded on submit.';
+                            } else {
+                                outputEl.textContent = data.error || 'Execution failed';
+                                statusEl.textContent = 'Fix the error and run again.';
+                            }
+                            refreshProgress();
+                        })
+                        .catch(function () {
+                            statusEl.textContent = 'Could not run the code — please try again.';
+                        })
+                        .finally(function () { btn.disabled = false; });
+                });
+            });
+
+            /* ---------- Submit ---------- */
+            function collectAnswers() {
+                const answers = {};
+                document.querySelectorAll('.question-card').forEach(function (card) {
+                    const id = card.dataset.questionId;
+                    if (card.dataset.questionType === 'Coding') {
+                        if (codingOutputs[id] !== undefined) answers['question_' + id] = codingOutputs[id];
+                    } else {
+                        const checked = card.querySelector('input:checked');
+                        if (checked) answers['question_' + id] = checked.value;
+                    }
+                });
+                answers['_durationSeconds'] = String(Math.round((Date.now() - startTime) / 1000));
+                return answers;
+            }
+
+            function submitQuiz(auto) {
+                if (submitted) return;
+                const unanswered = totalQuestions - answeredCount();
+                const doSubmit = function () {
+                    submitted = true;
+                    clearInterval(timer);
+                    document.querySelectorAll('#submitQuizBtn, #submitQuizBtnBottom').forEach(function (b) {
+                        b.disabled = true;
+                        b.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting…';
+                    });
+                    fetch('@Url.Action("SubmitQuiz")?quizId=@Model.Id', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': App.token() },
+                        body: JSON.stringify(collectAnswers())
+                    })
+                    .then(r => r.json())
+                    .then(function (data) {
+                        if (data.success) {
+                            App.toast('Quiz submitted — score ' + data.percentageScore + '%', data.isPassed ? 'success' : 'info');
+                            window.location.href = data.redirectUrl;
+                        } else {
+                            throw new Error(data.error || 'Submission failed');
+                        }
+                    })
+                    .catch(function (err) {
+                        submitted = false;
+                        App.toast(err.message || 'Submission failed — please try again.', 'error');
+                        document.querySelectorAll('#submitQuizBtn, #submitQuizBtnBottom').forEach(function (b) {
+                            b.disabled = false;
+                            b.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i>Submit Quiz';
+                        });
+                    });
+                };
+
+                if (!auto && unanswered > 0) {
+                    App.confirm('You have ' + unanswered + ' unanswered question' + (unanswered === 1 ? '' : 's') + '. Submit anyway?', doSubmit);
+                } else {
+                    doSubmit();
+                }
+            }
+
+            document.getElementById('submitQuizBtn').addEventListener('click', function () { submitQuiz(false); });
+            document.getElementById('submitQuizBtnBottom').addEventListener('click', function () { submitQuiz(false); });
+            refreshProgress();
+        })();
     </script>
 }
-

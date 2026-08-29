@@ -68,3 +68,14 @@ wwwroot/uploads/*
 ## Database files
 *.mdf
 *.ldf
+
+## Local archive of superseded files (kept out of version control)
+_archive/
+
+## Build logs
+build.log
+iis-setup.log
+
+## Publish output and local runtime data
+publish/
+App_Data/

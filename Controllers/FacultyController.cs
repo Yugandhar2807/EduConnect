@@ -11,61 +11,106 @@ namespace EduConnect.Controllers
     [Authorize(Roles = "Faculty,Admin")]
     public class FacultyController : Controller
     {
+        private static readonly string[] AllowedUploadExtensions =
+        {
+            ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".txt", ".md",
+            ".zip", ".png", ".jpg", ".jpeg", ".gif", ".mp4", ".webm", ".mov",
+        };
+
         private readonly ApplicationDbContext _context;
         private readonly IAIService _aiService;
-        private readonly PdfGenerationService _pdfService;
+        private readonly IWebHostEnvironment _env;
         private readonly ILogger<FacultyController> _logger;
 
-        public FacultyController(ApplicationDbContext context, IAIService aiService, PdfGenerationService pdfService, ILogger<FacultyController> logger)
+        public FacultyController(ApplicationDbContext context, IAIService aiService, IWebHostEnvironment env, ILogger<FacultyController> logger)
         {
             _context = context;
             _aiService = aiService;
-            _pdfService = pdfService;
+            _env = env;
             _logger = logger;
         }
 
+        private string? CurrentUserId => User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        // ==================== DASHBOARD ====================
+
+        /// <summary>Shortcut so /Faculty lands on the dashboard.</summary>
+        public IActionResult Index() => RedirectToAction(nameof(Dashboard));
+
         public async Task<IActionResult> Dashboard()
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var courses = await _context.Courses
+            var userId = CurrentUserId;
+
+            var courses = await _context.Courses.AsNoTracking()
                 .Where(c => c.FacultyId == userId)
-                .Include(c => c.Enrollments)
+                .Select(c => new FacultyCourseItem
+                {
+                    Course = c,
+                    EnrollmentCount = c.Enrollments!.Count,
+                    TopicCount = c.Topics!.Count,
+                    MaterialCount = c.Materials!.Count,
+                    QuizCount = c.Quizzes!.Count,
+                    AverageProgress = c.Enrollments!.Any() ? Math.Round(c.Enrollments!.Average(e => (double)e.ProgressPercentage), 1) : 0,
+                })
                 .ToListAsync();
 
-            var totalStudents = await _context.Enrollments
-                .Where(e => e.Course != null && e.Course.FacultyId == userId)
-                .CountAsync();
+            var model = new FacultyDashboardViewModel
+            {
+                TotalCourses = courses.Count,
+                TotalStudents = courses.Sum(c => c.EnrollmentCount),
+                TotalQuizzes = courses.Sum(c => c.QuizCount),
+                TotalAnnouncements = await _context.Announcements.CountAsync(a => a.FacultyId == userId),
+                Courses = courses.OrderByDescending(c => c.Course.CreatedAt).ToList(),
+                EnrollmentsPerCourse = courses
+                    .OrderByDescending(c => c.EnrollmentCount)
+                    .Select(c => new ChartPoint(c.Course.Title ?? "Untitled", c.EnrollmentCount))
+                    .ToList(),
+            };
 
-            var announcements = await _context.Announcements
-                .Where(a => a.FacultyId == userId)
-                .OrderByDescending(a => a.CreatedAt)
+            model.RecentQuizAttempts = await _context.QuizResults.AsNoTracking()
+                .Where(r => r.Quiz!.Course!.FacultyId == userId)
+                .Include(r => r.Student)
+                .Include(r => r.Quiz)
+                .OrderByDescending(r => r.AttemptedAt)
+                .Take(8)
+                .Select(r => new RecentActivityItem
+                {
+                    StudentName = r.Student!.FullName ?? r.Student.Email,
+                    Target = r.Quiz!.Title,
+                    Detail = r.PercentageScore.ToString("0") + "%",
+                    OccurredAt = r.AttemptedAt,
+                    Success = r.IsPassed,
+                })
                 .ToListAsync();
 
-            ViewBag.TotalCourses = courses.Count;
-            ViewBag.TotalStudents = totalStudents;
-            ViewBag.TotalAnnouncements = announcements.Count;
-
-            return View(courses);
+            return View(model);
         }
+
+        // ==================== COURSES ====================
 
         [HttpGet]
-        public IActionResult CreateCourse()
-        {
-            return View();
-        }
+        public IActionResult CreateCourse() => View(new CourseFormViewModel());
 
         [HttpPost]
-        public async Task<IActionResult> CreateCourse(Course course)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateCourse(CourseFormViewModel model)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid) return View(model);
+
+            var course = new Course
             {
-                course.FacultyId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                course.CreatedAt = DateTime.UtcNow;
-                _context.Add(course);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Dashboard));
-            }
-            return View(course);
+                Title = model.Title,
+                Description = model.Description,
+                Category = model.Category,
+                IsActive = model.IsActive,
+                FacultyId = CurrentUserId,
+                CreatedAt = DateTime.UtcNow,
+            };
+            _context.Add(course);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"Course '{course.Title}' created. Now add topics, materials and quizzes.";
+            return RedirectToAction(nameof(CourseDetails), new { id = course.Id });
         }
 
         [HttpGet]
@@ -75,47 +120,52 @@ namespace EduConnect.Controllers
 
             var course = await _context.Courses.FindAsync(id);
             if (course == null) return NotFound();
+            if (course.FacultyId != CurrentUserId) return Forbid();
 
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (course.FacultyId != userId) return Forbid();
-
-            return View(course);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> EditCourse(int id, Course course)
-        {
-            if (id != course.Id) return NotFound();
-
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var existingCourse = await _context.Courses.FindAsync(id);
-
-            if (existingCourse == null || existingCourse.FacultyId != userId) return Forbid();
-
-            if (ModelState.IsValid)
+            return View(new CourseFormViewModel
             {
-                existingCourse.Title = course.Title;
-                existingCourse.Description = course.Description;
-                existingCourse.Category = course.Category;
-                existingCourse.UpdatedAt = DateTime.UtcNow;
-                existingCourse.IsActive = course.IsActive;
-
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Dashboard));
-            }
-            return View(course);
+                Id = course.Id,
+                Title = course.Title,
+                Description = course.Description,
+                Category = course.Category,
+                IsActive = course.IsActive,
+            });
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditCourse(int id, CourseFormViewModel model)
+        {
+            if (id != model.Id) return NotFound();
+
+            var course = await _context.Courses.FindAsync(id);
+            if (course == null) return NotFound();
+            if (course.FacultyId != CurrentUserId) return Forbid();
+
+            if (!ModelState.IsValid) return View(model);
+
+            course.Title = model.Title;
+            course.Description = model.Description;
+            course.Category = model.Category;
+            course.IsActive = model.IsActive;
+            course.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Course updated successfully.";
+            return RedirectToAction(nameof(CourseDetails), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteCourse(int id)
         {
             var course = await _context.Courses.FindAsync(id);
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (course == null || course.FacultyId != userId) return Forbid();
+            if (course == null || course.FacultyId != CurrentUserId) return Forbid();
 
             _context.Courses.Remove(course);
             await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"Course '{course.Title}' and all of its content were deleted.";
             return RedirectToAction(nameof(Dashboard));
         }
 
@@ -127,18 +177,69 @@ namespace EduConnect.Controllers
                 .Include(c => c.Topics)
                 .Include(c => c.Materials)
                 .Include(c => c.Enrollments)
-                .Include(c => c.Quizzes)
+                .Include(c => c.Quizzes!)
+                    .ThenInclude(q => q.Questions)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (course == null) return NotFound();
-
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (course.FacultyId != userId) return Forbid();
+            if (course.FacultyId != CurrentUserId) return Forbid();
 
             return View(course);
         }
 
-        [HttpGet]
+        public async Task<IActionResult> CourseStudents(int? id)
+        {
+            if (id == null) return NotFound();
+
+            var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
+            if (course == null) return NotFound();
+            if (course.FacultyId != CurrentUserId) return Forbid();
+
+            var quizIds = await _context.Quizzes.Where(q => q.CourseId == id).Select(q => q.Id).ToListAsync();
+
+            var quizStats = await _context.QuizResults.AsNoTracking()
+                .Where(r => quizIds.Contains(r.QuizId))
+                .GroupBy(r => r.StudentId)
+                .Select(g => new
+                {
+                    StudentId = g.Key,
+                    Taken = g.Select(r => r.QuizId).Distinct().Count(),
+                    Avg = g.Average(r => r.PercentageScore),
+                    Last = g.Max(r => r.AttemptedAt),
+                })
+                .ToDictionaryAsync(x => x.StudentId!, x => x);
+
+            var students = await _context.Enrollments.AsNoTracking()
+                .Where(e => e.CourseId == id)
+                .Include(e => e.Student)
+                .OrderBy(e => e.Student!.FullName)
+                .Select(e => new CourseStudentItem
+                {
+                    StudentId = e.StudentId!,
+                    Name = e.Student!.FullName ?? e.Student.Email,
+                    Email = e.Student.Email,
+                    EnrolledAt = e.EnrolledAt,
+                    ProgressPercentage = e.ProgressPercentage,
+                    IsCompleted = e.IsCompleted,
+                })
+                .ToListAsync();
+
+            foreach (var s in students)
+            {
+                if (quizStats.TryGetValue(s.StudentId, out var stat))
+                {
+                    s.QuizzesTaken = stat.Taken;
+                    s.AverageQuizScore = Math.Round(stat.Avg, 1);
+                    s.LastQuizAttempt = stat.Last;
+                }
+            }
+
+            return View(new CourseStudentsViewModel { Course = course, Students = students });
+        }
+
+        // ==================== MATERIALS ====================
+
         [HttpGet]
         public async Task<IActionResult> UploadMaterial(int? courseId)
         {
@@ -146,106 +247,199 @@ namespace EduConnect.Controllers
 
             var course = await _context.Courses.FindAsync(courseId);
             if (course == null) return NotFound();
+            if (course.FacultyId != CurrentUserId) return Forbid();
 
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (course.FacultyId != userId) return Forbid();
-
-            var material = new Material { CourseId = courseId.Value };
-            return View(material);
+            ViewBag.CourseTitle = course.Title;
+            return View(new MaterialUploadViewModel { CourseId = courseId.Value });
         }
 
         [HttpPost]
-        public async Task<IActionResult> UploadMaterial(int courseId, string title, string description, string fileType, IFormFile file)
+        [ValidateAntiForgeryToken]
+        [RequestSizeLimit(209_715_200)] // 200 MB
+        [RequestFormLimits(MultipartBodyLengthLimit = 209_715_200)]
+        public async Task<IActionResult> UploadMaterial(MaterialUploadViewModel model, IFormFile? file)
         {
-            var course = await _context.Courses.FindAsync(courseId);
+            var course = await _context.Courses.FindAsync(model.CourseId);
             if (course == null) return NotFound();
+            if (course.FacultyId != CurrentUserId) return Forbid();
 
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (course.FacultyId != userId) return Forbid();
+            ViewBag.CourseTitle = course.Title;
 
-            if (file == null || file.Length == 0)
-            {
+            var isTextMaterial = string.Equals(model.FileType, "Text", StringComparison.OrdinalIgnoreCase);
+            if (!isTextMaterial && (file == null || file.Length == 0))
                 ModelState.AddModelError("file", "Please select a file to upload.");
-                ViewBag.CourseId = courseId;
-                return View();
+            if (isTextMaterial && string.IsNullOrWhiteSpace(model.Description))
+                ModelState.AddModelError(nameof(model.Description), "Text materials need their content in the description field.");
+
+            string? storedPath = null;
+            long fileSize = 0;
+
+            if (file != null && file.Length > 0)
+            {
+                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                if (!AllowedUploadExtensions.Contains(extension))
+                    ModelState.AddModelError("file", $"File type '{extension}' is not allowed.");
             }
+
+            if (!ModelState.IsValid) return View(model);
 
             try
             {
-                // Create uploads directory if it doesn't exist
-                var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "materials");
-                if (!Directory.Exists(uploadsPath))
+                if (file != null && file.Length > 0)
                 {
+                    var uploadsPath = Path.Combine(_env.WebRootPath, "uploads", "materials");
                     Directory.CreateDirectory(uploadsPath);
+
+                    var safeName = Path.GetFileName(file.FileName);
+                    var fileName = $"{Guid.NewGuid()}_{safeName}";
+                    var filePath = Path.Combine(uploadsPath, fileName);
+
+                    await using (var stream = new FileStream(filePath, FileMode.Create))
+                        await file.CopyToAsync(stream);
+
+                    storedPath = $"/uploads/materials/{fileName}";
+                    fileSize = file.Length;
                 }
 
-                // Generate unique filename
-                var fileName = $"{Guid.NewGuid()}_{file.FileName}";
-                var filePath = Path.Combine(uploadsPath, fileName);
-
-                // Save file
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                _context.Add(new Material
                 {
-                    await file.CopyToAsync(stream);
-                }
-
-                // Create Material record
-                var material = new Material
-                {
-                    Title = title,
-                    Description = description,
-                    FileType = fileType,
-                    FilePath = $"/uploads/materials/{fileName}",
-                    CourseId = courseId,
+                    Title = model.Title,
+                    Description = model.Description,
+                    FileType = model.FileType,
+                    FilePath = storedPath ?? string.Empty,
+                    CourseId = model.CourseId,
                     UploadedAt = DateTime.UtcNow,
-                    FileSize = file.Length
-                };
-
-                _context.Add(material);
+                    FileSize = fileSize,
+                });
                 await _context.SaveChangesAsync();
 
-                TempData["Success"] = "Material uploaded successfully!";
-                return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+                TempData["Success"] = "Material added successfully.";
+                return RedirectToAction(nameof(CourseDetails), new { id = model.CourseId });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error uploading material for course {CourseId}", model.CourseId);
                 ModelState.AddModelError("file", $"Error uploading file: {ex.Message}");
-                ViewBag.CourseId = courseId;
-                return View();
+                return View(model);
             }
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteMaterial(int materialId, int courseId)
         {
             var material = await _context.Materials.FindAsync(materialId);
             if (material == null) return NotFound();
 
             var course = await _context.Courses.FindAsync(courseId);
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (course?.FacultyId != userId) return Forbid();
+            if (course?.FacultyId != CurrentUserId) return Forbid();
 
             try
             {
-                // Delete file from disk
                 if (!string.IsNullOrEmpty(material.FilePath))
                 {
-                    var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", material.FilePath.TrimStart('/'));
+                    var filePath = Path.Combine(_env.WebRootPath, material.FilePath.TrimStart('/'));
                     if (System.IO.File.Exists(filePath))
-                    {
                         System.IO.File.Delete(filePath);
-                    }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not remove material file {Path}", material.FilePath);
+            }
 
             _context.Materials.Remove(material);
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Material deleted successfully!";
+            TempData["Success"] = "Material deleted.";
             return RedirectToAction(nameof(CourseDetails), new { id = courseId });
         }
+
+        // ==================== TOPICS ====================
+
+        [HttpGet]
+        public async Task<IActionResult> AddTopic(int courseId)
+        {
+            var course = await _context.Courses.FindAsync(courseId);
+            if (course == null) return NotFound();
+            if (course.FacultyId != CurrentUserId) return Forbid();
+
+            ViewBag.CourseName = course.Title;
+            return View(new TopicFormViewModel { CourseId = courseId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequestSizeLimit(52_428_800)] // 50 MB
+        [RequestFormLimits(MultipartBodyLengthLimit = 52_428_800)]
+        public async Task<IActionResult> AddTopic(TopicFormViewModel model, IFormFile? pdfFile)
+        {
+            var course = await _context.Courses.FindAsync(model.CourseId);
+            if (course == null) return NotFound();
+            if (course.FacultyId != CurrentUserId) return Forbid();
+
+            ViewBag.CourseName = course.Title;
+
+            if (pdfFile is { Length: > 0 } && !string.Equals(Path.GetExtension(pdfFile.FileName), ".pdf", StringComparison.OrdinalIgnoreCase))
+                ModelState.AddModelError("pdfFile", "Only PDF files are allowed for topic documents.");
+
+            if (!ModelState.IsValid) return View(model);
+
+            var topic = new Topic
+            {
+                CourseId = model.CourseId,
+                Name = model.Name!,
+                Description = model.Description!,
+                PdfFilePath = string.Empty,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            };
+
+            if (pdfFile is { Length: > 0 })
+            {
+                var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads", "topics");
+                Directory.CreateDirectory(uploadsFolder);
+
+                var fileName = Guid.NewGuid() + ".pdf";
+                var filePath = Path.Combine(uploadsFolder, fileName);
+                await using (var stream = new FileStream(filePath, FileMode.Create))
+                    await pdfFile.CopyToAsync(stream);
+
+                topic.PdfFilePath = "/uploads/topics/" + fileName;
+            }
+
+            _context.Topics.Add(topic);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Topic added successfully.";
+            return RedirectToAction(nameof(CourseDetails), new { id = model.CourseId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteTopic(int topicId, int courseId)
+        {
+            var topic = await _context.Topics.FindAsync(topicId);
+            if (topic == null) return NotFound();
+
+            var course = await _context.Courses.FindAsync(courseId);
+            if (course?.FacultyId != CurrentUserId) return Forbid();
+
+            if (!string.IsNullOrEmpty(topic.PdfFilePath))
+            {
+                var filePath = Path.Combine(_env.WebRootPath, topic.PdfFilePath.TrimStart('/'));
+                if (System.IO.File.Exists(filePath))
+                    System.IO.File.Delete(filePath);
+            }
+
+            _context.Topics.Remove(topic);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Topic deleted.";
+            return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+        }
+
+        // ==================== QUIZZES ====================
 
         [HttpGet]
         public async Task<IActionResult> CreateQuiz(int? courseId)
@@ -254,48 +448,84 @@ namespace EduConnect.Controllers
 
             var course = await _context.Courses.FindAsync(courseId);
             if (course == null) return NotFound();
+            if (course.FacultyId != CurrentUserId) return Forbid();
 
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (course.FacultyId != userId) return Forbid();
-
-            ViewBag.CourseId = courseId;
             ViewBag.CourseTitle = course.Title;
-            return View();
+            return View(new QuizFormViewModel { CourseId = courseId.Value });
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateQuiz(int courseId, string title, string description, int passingMarks, int durationInMinutes)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateQuiz(QuizFormViewModel model)
         {
-            var course = await _context.Courses.FindAsync(courseId);
+            var course = await _context.Courses.FindAsync(model.CourseId);
             if (course == null) return NotFound();
+            if (course.FacultyId != CurrentUserId) return Forbid();
 
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (course.FacultyId != userId) return Forbid();
-
-            if (string.IsNullOrEmpty(title) || passingMarks <= 0 || durationInMinutes <= 0)
-            {
-                ModelState.AddModelError("", "Please fill in all fields properly.");
-                ViewBag.CourseId = courseId;
-                ViewBag.CourseTitle = course.Title;
-                return View();
-            }
+            ViewBag.CourseTitle = course.Title;
+            if (!ModelState.IsValid) return View(model);
 
             var quiz = new Quiz
             {
-                CourseId = courseId,
-                Title = title,
-                Description = description,
-                PassingMarks = passingMarks,
-                DurationInMinutes = durationInMinutes,
+                CourseId = model.CourseId,
+                Title = model.Title,
+                Description = model.Description,
+                PassingMarks = model.PassingMarks,
+                DurationInMinutes = model.DurationInMinutes,
                 TotalQuestions = 0,
-                TotalMarks = 0
+                TotalMarks = 0,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true,
             };
-
             _context.Add(quiz);
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Quiz created successfully! Now add questions to it.";
+            TempData["Success"] = "Quiz created — now add questions.";
             return RedirectToAction(nameof(AddQuizQuestion), new { quizId = quiz.Id });
+        }
+
+        public async Task<IActionResult> QuizDetails(int? id)
+        {
+            if (id == null) return NotFound();
+
+            var quiz = await _context.Quizzes
+                .Include(q => q.Course)
+                .Include(q => q.Questions)
+                .FirstOrDefaultAsync(q => q.Id == id);
+
+            if (quiz == null) return NotFound();
+            if (quiz.Course?.FacultyId != CurrentUserId) return Forbid();
+
+            var results = await _context.QuizResults.AsNoTracking()
+                .Where(r => r.QuizId == id)
+                .Include(r => r.Student)
+                .OrderByDescending(r => r.AttemptedAt)
+                .ToListAsync();
+
+            var model = new QuizDetailsViewModel
+            {
+                Quiz = quiz,
+                AttemptCount = results.Count,
+                AverageScore = results.Count > 0 ? Math.Round(results.Average(r => r.PercentageScore), 1) : 0,
+                PassRate = results.Count > 0 ? Math.Round(results.Count(r => r.IsPassed) * 100.0 / results.Count, 1) : 0,
+                RecentResults = results.Take(15).ToList(),
+            };
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleQuizActive(int quizId)
+        {
+            var quiz = await _context.Quizzes.Include(q => q.Course).FirstOrDefaultAsync(q => q.Id == quizId);
+            if (quiz == null) return NotFound();
+            if (quiz.Course?.FacultyId != CurrentUserId) return Forbid();
+
+            quiz.IsActive = !quiz.IsActive;
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = quiz.IsActive ? "Quiz is now visible to students." : "Quiz hidden from students.";
+            return RedirectToAction(nameof(QuizDetails), new { id = quizId });
         }
 
         [HttpGet]
@@ -303,589 +533,316 @@ namespace EduConnect.Controllers
         {
             if (quizId == null) return NotFound();
 
-            var quiz = await _context.Quizzes.Include(q => q.Course).FirstOrDefaultAsync(q => q.Id == quizId);
+            var quiz = await _context.Quizzes.Include(q => q.Course).Include(q => q.Questions).FirstOrDefaultAsync(q => q.Id == quizId);
             if (quiz == null) return NotFound();
+            if (quiz.Course?.FacultyId != CurrentUserId) return Forbid();
 
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (quiz.Course?.FacultyId != userId) return Forbid();
-
-            ViewBag.QuizId = quizId;
-            ViewBag.QuizTitle = quiz.Title;
-            ViewBag.CourseId = quiz.CourseId;
-            return View();
+            ViewBag.Quiz = quiz;
+            return View(new QuestionFormViewModel { QuizId = quizId.Value });
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddQuizQuestion(int quizId, QuizQuestion model)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddQuizQuestion(QuestionFormViewModel model, string? addAnother)
         {
-            var quiz = await _context.Quizzes.Include(q => q.Course).FirstOrDefaultAsync(q => q.Id == quizId);
+            var quiz = await _context.Quizzes.Include(q => q.Course).Include(q => q.Questions).FirstOrDefaultAsync(q => q.Id == model.QuizId);
             if (quiz == null) return NotFound();
+            if (quiz.Course?.FacultyId != CurrentUserId) return Forbid();
 
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (quiz.Course?.FacultyId != userId) return Forbid();
+            ViewBag.Quiz = quiz;
 
-            var questionType = model.QuestionType?.Trim();
-            var resolvedQuestionType = questionType?.ToLowerInvariant() switch
+            var type = model.QuestionType?.Trim().ToLowerInvariant() switch
             {
                 "coding" => QuestionType.Coding,
                 "truefalse" => QuestionType.TrueFalse,
-                _ => QuestionType.MultipleChoice
+                _ => QuestionType.MultipleChoice,
             };
 
-            // Validate based on question type
-            if (resolvedQuestionType == QuestionType.Coding)
+            // Type-specific validation
+            if (type == QuestionType.Coding)
             {
-                if (string.IsNullOrWhiteSpace(model.QuestionText) ||
-                    string.IsNullOrWhiteSpace(model.CodeTemplate) ||
-                    string.IsNullOrWhiteSpace(model.ExpectedOutput) ||
-                    model.Marks <= 0)
-                {
-                    ModelState.AddModelError("", "Please fill in all coding question fields.");
-                    ViewBag.QuizId = quizId;
-                    ViewBag.QuizTitle = quiz.Title;
-                    ViewBag.CourseId = quiz.CourseId;
-                    return View(model);
-                }
+                if (string.IsNullOrWhiteSpace(model.CodeTemplate))
+                    ModelState.AddModelError(nameof(model.CodeTemplate), "A code template is required for coding questions.");
+                if (string.IsNullOrWhiteSpace(model.ExpectedOutput))
+                    ModelState.AddModelError(nameof(model.ExpectedOutput), "Expected output is required for coding questions.");
             }
-            else if (resolvedQuestionType == QuestionType.TrueFalse)
+            else if (type == QuestionType.TrueFalse)
             {
-                if (string.IsNullOrWhiteSpace(model.QuestionText) ||
-                    model.Marks <= 0 ||
-                    (model.CorrectOption != "True" && model.CorrectOption != "False"))
-                {
-                    ModelState.AddModelError("", "Please provide question text, marks, and a valid True/False answer.");
-                    ViewBag.QuizId = quizId;
-                    ViewBag.QuizTitle = quiz.Title;
-                    ViewBag.CourseId = quiz.CourseId;
-                    return View(model);
-                }
+                if (model.CorrectOption != "True" && model.CorrectOption != "False")
+                    ModelState.AddModelError(nameof(model.CorrectOption), "Choose True or False as the correct answer.");
             }
             else
             {
-                if (string.IsNullOrWhiteSpace(model.QuestionText) ||
-                    string.IsNullOrWhiteSpace(model.OptionA) ||
-                    string.IsNullOrWhiteSpace(model.OptionB) ||
-                    string.IsNullOrWhiteSpace(model.OptionC) ||
-                    string.IsNullOrWhiteSpace(model.OptionD) ||
-                    model.Marks <= 0)
+                foreach (var (value, name) in new[] { (model.OptionA, nameof(model.OptionA)), (model.OptionB, nameof(model.OptionB)), (model.OptionC, nameof(model.OptionC)), (model.OptionD, nameof(model.OptionD)) })
                 {
-                    ModelState.AddModelError("", "Please fill in all MCQ fields properly.");
-                    ViewBag.QuizId = quizId;
-                    ViewBag.QuizTitle = quiz.Title;
-                    ViewBag.CourseId = quiz.CourseId;
-                    return View(model);
+                    if (string.IsNullOrWhiteSpace(value))
+                        ModelState.AddModelError(name, "All four options are required.");
                 }
+                if (string.IsNullOrWhiteSpace(model.CorrectOption) || !new[] { "A", "B", "C", "D" }.Contains(model.CorrectOption))
+                    ModelState.AddModelError(nameof(model.CorrectOption), "Choose the correct option (A–D).");
             }
+
+            if (!ModelState.IsValid) return View(model);
 
             var question = new QuizQuestion
             {
-                QuizId = quizId,
+                QuizId = model.QuizId,
                 QuestionText = model.QuestionText,
-                QuestionType = resolvedQuestionType switch
+                QuestionType = type switch
                 {
                     QuestionType.Coding => "Coding",
                     QuestionType.TrueFalse => "TrueFalse",
-                    _ => "MCQ"
+                    _ => "MCQ",
                 },
-                QuestionTypeEnum = resolvedQuestionType,
-                OptionA = resolvedQuestionType == QuestionType.TrueFalse ? "True" : model.OptionA,
-                OptionB = resolvedQuestionType == QuestionType.TrueFalse ? "False" : model.OptionB,
-                OptionC = resolvedQuestionType == QuestionType.MultipleChoice ? model.OptionC : null,
-                OptionD = resolvedQuestionType == QuestionType.MultipleChoice ? model.OptionD : null,
-                CorrectOption = model.CorrectOption?.ToString() ?? (resolvedQuestionType == QuestionType.TrueFalse ? "True" : "A"),
+                QuestionTypeEnum = type,
+                OptionA = type == QuestionType.TrueFalse ? "True" : model.OptionA,
+                OptionB = type == QuestionType.TrueFalse ? "False" : model.OptionB,
+                OptionC = type == QuestionType.MultipleChoice ? model.OptionC : null,
+                OptionD = type == QuestionType.MultipleChoice ? model.OptionD : null,
+                CorrectOption = model.CorrectOption ?? (type == QuestionType.TrueFalse ? "True" : "A"),
                 Marks = model.Marks,
-                CodeTemplate = resolvedQuestionType == QuestionType.Coding ? model.CodeTemplate : null,
-                ExpectedOutput = resolvedQuestionType == QuestionType.Coding ? model.ExpectedOutput : null,
-                ProgrammingLanguage = resolvedQuestionType == QuestionType.Coding ? (model.ProgrammingLanguage ?? "csharp") : null
+                Difficulty = model.Difficulty ?? "Medium",
+                Order = (quiz.Questions?.Count ?? 0) + 1,
+                CodeTemplate = type == QuestionType.Coding ? model.CodeTemplate : null,
+                ExpectedOutput = type == QuestionType.Coding ? model.ExpectedOutput : null,
+                ProgrammingLanguage = type == QuestionType.Coding ? (model.ProgrammingLanguage ?? "python") : null,
             };
 
             _context.Add(question);
-
-            // Update quiz TotalQuestions and TotalMarks
             quiz.TotalQuestions += 1;
             quiz.TotalMarks += model.Marks;
-            _context.Update(quiz);
-
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Question added successfully!";
-            return RedirectToAction(nameof(CourseDetails), new { id = quiz.CourseId });
+            TempData["Success"] = "Question added.";
+            return addAnother == "true"
+                ? RedirectToAction(nameof(AddQuizQuestion), new { quizId = model.QuizId })
+                : RedirectToAction(nameof(QuizDetails), new { id = model.QuizId });
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteQuiz(int quizId, int courseId)
         {
-            var quiz = await _context.Quizzes
-                .Include(q => q.Questions)
-                .FirstOrDefaultAsync(q => q.Id == quizId);
-            
+            var quiz = await _context.Quizzes.Include(q => q.Course).FirstOrDefaultAsync(q => q.Id == quizId);
             if (quiz == null) return NotFound();
+            if (quiz.Course?.FacultyId != CurrentUserId) return Forbid();
 
-            var course = await _context.Courses.FindAsync(courseId);
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            _context.Quizzes.Remove(quiz);
+            await _context.SaveChangesAsync();
 
-            if (course?.FacultyId != userId) return Forbid();
-
-            try
-            {
-                // Delete the quiz - cascade will handle QuizResults and QuizQuestions
-                _context.Quizzes.Remove(quiz);
-                await _context.SaveChangesAsync();
-
-                TempData["Success"] = "Quiz deleted successfully!";
-            }
-            catch (Exception ex)
-            {
-                TempData["Error"] = $"Error deleting quiz: {ex.Message}";
-            }
-
+            TempData["Success"] = "Quiz deleted.";
             return RedirectToAction(nameof(CourseDetails), new { id = courseId });
         }
 
         [HttpPost]
-        public async Task<IActionResult> DeleteQuestion(int questionId, int courseId)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteQuestion(int questionId, int? courseId)
         {
-            var question = await _context.QuizQuestions.Include(q => q.Quiz).FirstOrDefaultAsync(q => q.Id == questionId);
+            var question = await _context.QuizQuestions
+                .Include(q => q.Quiz!)
+                    .ThenInclude(quiz => quiz.Course)
+                .FirstOrDefaultAsync(q => q.Id == questionId);
             if (question == null) return NotFound();
+            if (question.Quiz?.Course?.FacultyId != CurrentUserId) return Forbid();
 
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (question.Quiz?.Course?.FacultyId != userId) return Forbid();
-
-            var quiz = question.Quiz;
-            if (quiz != null)
-            {
-                quiz.TotalQuestions -= 1;
-                quiz.TotalMarks -= question.Marks;
-                _context.Update(quiz);
-            }
+            var quiz = question.Quiz!;
+            quiz.TotalQuestions = Math.Max(0, quiz.TotalQuestions - 1);
+            quiz.TotalMarks = Math.Max(0, quiz.TotalMarks - question.Marks);
 
             _context.QuizQuestions.Remove(question);
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Question deleted successfully!";
-            return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+            TempData["Success"] = "Question deleted.";
+            return RedirectToAction(nameof(QuizDetails), new { id = quiz.Id });
         }
 
-        // Topic Management
+        // ==================== ANNOUNCEMENTS ====================
+
+        public async Task<IActionResult> Announcements()
+        {
+            var userId = CurrentUserId;
+            var announcements = await _context.Announcements.AsNoTracking()
+                .Where(a => a.FacultyId == userId)
+                .Include(a => a.Course)
+                .OrderByDescending(a => a.CreatedAt)
+                .ToListAsync();
+            return View(announcements);
+        }
+
         [HttpGet]
-        public async Task<IActionResult> AddTopic(int courseId)
+        public async Task<IActionResult> CreateAnnouncement()
         {
-            var course = await _context.Courses.FindAsync(courseId);
-            if (course == null) return NotFound();
-
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (course.FacultyId != userId) return Forbid();
-
-            ViewBag.CourseId = courseId;
-            ViewBag.CourseName = course.Title;
-            return View(new Topic { CourseId = courseId });
+            await LoadCourseOptions();
+            return View(new AnnouncementFormViewModel());
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddTopic(int courseId, string name, string description, IFormFile pdfFile)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateAnnouncement(AnnouncementFormViewModel model)
         {
-            var course = await _context.Courses.FindAsync(courseId);
-            if (course == null) return NotFound();
-
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (course.FacultyId != userId) return Forbid();
-
-            var topic = new Topic
+            if (!ModelState.IsValid)
             {
-                CourseId = courseId,
-                Name = name,
-                Description = description,
-                CreatedAt = DateTime.UtcNow
-            };
+                await LoadCourseOptions();
+                return View(model);
+            }
 
-            // Handle PDF upload
-            if (pdfFile != null && pdfFile.Length > 0)
+            if (model.CourseId.HasValue)
             {
-                try
+                var course = await _context.Courses.FindAsync(model.CourseId.Value);
+                if (course == null || course.FacultyId != CurrentUserId)
                 {
-                    var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "topics");
-                    Directory.CreateDirectory(uploadsFolder);
-
-                    var fileName = Guid.NewGuid().ToString() + Path.GetExtension(pdfFile.FileName);
-                    var filePath = Path.Combine(uploadsFolder, fileName);
-
-                    using (var stream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await pdfFile.CopyToAsync(stream);
-                    }
-
-                    topic.PdfFilePath = "/uploads/topics/" + fileName;
-                }
-                catch (Exception ex)
-                {
-                    TempData["Error"] = "Error uploading PDF: " + ex.Message;
-                    return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+                    ModelState.AddModelError(nameof(model.CourseId), "Please pick one of your own courses.");
+                    await LoadCourseOptions();
+                    return View(model);
                 }
             }
 
-            _context.Topics.Add(topic);
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = "Topic added successfully!";
-            return RedirectToAction(nameof(CourseDetails), new { id = courseId });
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> DeleteTopic(int topicId, int courseId)
-        {
-            var topic = await _context.Topics.FindAsync(topicId);
-            if (topic == null) return NotFound();
-
-            var course = await _context.Courses.FindAsync(courseId);
-            if (course == null) return NotFound();
-
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (course.FacultyId != userId) return Forbid();
-
-            // Delete PDF file if it exists
-            if (!string.IsNullOrEmpty(topic.PdfFilePath))
+            _context.Announcements.Add(new Announcement
             {
-                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", topic.PdfFilePath.TrimStart('/'));
-                if (System.IO.File.Exists(filePath))
-                {
-                    System.IO.File.Delete(filePath);
-                }
-            }
-
-            _context.Topics.Remove(topic);
+                Title = model.Title,
+                Content = model.Content,
+                CourseId = model.CourseId,
+                FacultyId = CurrentUserId,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true,
+            });
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Topic deleted successfully!";
-            return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+            TempData["Success"] = "Announcement published.";
+            return RedirectToAction(nameof(Announcements));
         }
 
-        /// <summary>
-        /// Generate topics using AI for a course
-        /// </summary>
         [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleAnnouncement(int id)
+        {
+            var announcement = await _context.Announcements.FirstOrDefaultAsync(a => a.Id == id && a.FacultyId == CurrentUserId);
+            if (announcement == null) return NotFound();
+
+            announcement.IsActive = !announcement.IsActive;
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = announcement.IsActive ? "Announcement is now visible." : "Announcement hidden.";
+            return RedirectToAction(nameof(Announcements));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteAnnouncement(int id)
+        {
+            var announcement = await _context.Announcements.FirstOrDefaultAsync(a => a.Id == id && a.FacultyId == CurrentUserId);
+            if (announcement == null) return NotFound();
+
+            _context.Announcements.Remove(announcement);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Announcement deleted.";
+            return RedirectToAction(nameof(Announcements));
+        }
+
+        // ==================== AI ASSISTANCE ====================
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> GenerateTopicsWithAI(int courseId)
         {
             var course = await _context.Courses.FirstOrDefaultAsync(c => c.Id == courseId);
             if (course == null) return NotFound();
-
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (course.FacultyId != userId) return Forbid();
+            if (course.FacultyId != CurrentUserId) return Forbid();
 
             try
             {
-                // Get AI Service from DI
-                var aiService = HttpContext.RequestServices.GetRequiredService<IAIService>();
-                
-                // Generate topics
-                var topics = await aiService.GenerateTopicsAsync(course.Title, course.Description ?? "");
-                
+                var topics = await _aiService.GenerateTopicsAsync(course.Title ?? "", course.Description ?? "");
                 if (topics.Count == 0)
                 {
                     TempData["Error"] = "Could not generate topics. Please try again.";
                     return RedirectToAction(nameof(CourseDetails), new { id = courseId });
                 }
 
-                // Create Topic entities
                 foreach (var topicName in topics)
                 {
-                    var topic = new Topic
+                    _context.Topics.Add(new Topic
                     {
                         CourseId = courseId,
                         Name = topicName,
                         Description = $"Auto-generated topic: {topicName}",
-                        PdfFilePath = "",
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    _context.Topics.Add(topic);
+                        PdfFilePath = string.Empty,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                    });
                 }
-
                 await _context.SaveChangesAsync();
-                TempData["Success"] = $"Successfully generated {topics.Count} topics with AI!";
-                return RedirectToAction(nameof(CourseDetails), new { id = courseId });
+
+                TempData["Success"] = $"Generated {topics.Count} topics with AI.";
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error generating topics for course {CourseId}", courseId);
                 TempData["Error"] = $"Error generating topics: {ex.Message}";
-                return RedirectToAction(nameof(CourseDetails), new { id = courseId });
             }
+            return RedirectToAction(nameof(CourseDetails), new { id = courseId });
         }
 
-        /// <summary>
-        /// Generate material content using AI for a topic
-        /// </summary>
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> GenerateMaterialWithAI(int topicId)
         {
             var topic = await _context.Topics.Include(t => t.Course).FirstOrDefaultAsync(t => t.Id == topicId);
             if (topic?.Course == null) return NotFound();
-
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (topic.Course.FacultyId != userId) return Forbid();
+            if (topic.Course.FacultyId != CurrentUserId) return Forbid();
 
             try
             {
-                var aiService = HttpContext.RequestServices.GetRequiredService<IAIService>();
-                
-                // Generate material content
-                var content = await aiService.GenerateMaterialContentAsync(topic.Course.Title, topic.Name);
-                
+                var content = await _aiService.GenerateMaterialContentAsync(topic.Course.Title ?? "", topic.Name);
                 if (string.IsNullOrEmpty(content))
                 {
                     TempData["Error"] = "Could not generate material content. Please try again.";
                     return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
                 }
 
-                // Create Material entity
-                var material = new Material
+                _context.Materials.Add(new Material
                 {
                     TopicId = topicId,
                     CourseId = topic.CourseId,
-                    Title = $"{topic.Name} - Learning Material",
+                    Title = $"{topic.Name} — Learning Material",
                     Description = content,
                     FileType = "Text",
-                    FilePath = "",
-                    UploadedAt = DateTime.UtcNow
-                };
-
-                _context.Materials.Add(material);
-                await _context.SaveChangesAsync();
-                
-                TempData["Success"] = "Material generated and added successfully!";
-                return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
-            }
-            catch (Exception ex)
-            {
-                TempData["Error"] = $"Error generating material: {ex.Message}";
-                return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
-            }
-        }
-
-        /// <summary>
-        /// Generate topics using AI from the create course form
-        /// </summary>
-        [HttpPost]
-        public async Task<IActionResult> GenerateTopicsAI([FromBody] GenerateTopicsRequest request)
-        {
-            try
-            {
-                if (request == null || string.IsNullOrEmpty(request.CourseTitle) || string.IsNullOrEmpty(request.CourseDescription))
-                {
-                    return Json(new { success = false, message = "Course title and description are required" });
-                }
-
-                _logger.LogInformation("Generating topics for course: {CourseTitle}", request.CourseTitle);
-
-                // Generate topics using AI
-                var topics = await _aiService.GenerateTopicsAsync(request.CourseTitle, request.CourseDescription);
-
-                if (topics == null || topics.Count == 0)
-                {
-                    _logger.LogWarning("Failed to generate topics for course: {CourseTitle}", request.CourseTitle);
-                    return Json(new { success = false, message = "Failed to generate topics. Please try again. Check server logs for details." });
-                }
-
-                _logger.LogInformation("Successfully generated {TopicCount} topics for course: {CourseTitle}", topics.Count, request.CourseTitle);
-                return Json(new { success = true, topics = topics });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error generating topics");
-                return Json(new { success = false, message = $"Error: {ex.GetBaseException().Message}" });
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> SaveGeneratedTopics([FromBody] SaveGeneratedTopicsRequest request)
-        {
-            try
-            {
-                if (request == null || request.CourseId <= 0 || request.Topics == null || request.Topics.Count == 0)
-                {
-                    return Json(new { success = false, message = "Course ID and topics are required" });
-                }
-
-                var course = await _context.Courses.FindAsync(request.CourseId);
-                if (course == null)
-                {
-                    return Json(new { success = false, message = "Course not found" });
-                }
-
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (course.FacultyId != userId)
-                {
-                    return Json(new { success = false, message = "Unauthorized" });
-                }
-
-                // Initialize upload path
-                var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-
-                // Create Topic entities and generate PDFs (include AI material + sample quiz in PDF)
-                var topicEntities = new List<Topic>();
-                var topicQuestionsList = new List<List<QuizQuestionData>>();
-                foreach (var topicName in request.Topics)
-                {
-                    // Generate material content for the topic
-                    string material = string.Empty;
-                    try
-                    {
-                        material = await _aiService.GenerateMaterialContentAsync(course.Title, topicName);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to generate material for topic {TopicName}", topicName);
-                    }
-
-                    // Generate mixed quiz questions for embedding in PDF
-                    var questions = new List<QuizQuestionData>();
-                    try
-                    {
-                        var mc = await _aiService.GenerateMultipleChoiceQuestionsAsync(course.Title, topicName, 3);
-                        questions.AddRange(mc);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to generate MCQ for topic {TopicName}", topicName);
-                    }
-
-                    try
-                    {
-                        var tf = await _aiService.GenerateTrueFalseQuestionsAsync(course.Title, topicName, 2);
-                        questions.AddRange(tf);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to generate True/False for topic {TopicName}", topicName);
-                    }
-
-                    try
-                    {
-                        var coding = await _aiService.GenerateCodingQuestionsAsync(course.Title, topicName, 1);
-                        questions.AddRange(coding);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to generate Coding question for topic {TopicName}", topicName);
-                    }
-
-                    // Generate PDF with material and sample quiz
-                    var pdfPath = await _pdfService.GenerateTopicPdfAsync(course.Title, topicName, uploadPath, material, questions);
-
-                    var topic = new Topic
-                    {
-                        Name = topicName,
-                        Description = $"AI-generated topic for {course.Title}",
-                        PdfFilePath = pdfPath ?? string.Empty, // store empty string when PDF generation failed
-                        CourseId = request.CourseId,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    };
-                    topicEntities.Add(topic);
-                    topicQuestionsList.Add(questions);
-                }
-
-                _context.Topics.AddRange(topicEntities);
-                await _context.SaveChangesAsync();
-
-                // Create quiz entities from questions generated earlier per topic
-                var quizzes = new List<Quiz>();
-                for (int i = 0; i < topicEntities.Count; i++)
-                {
-                    var topic = topicEntities[i];
-                    var questions = topicQuestionsList.Count > i ? topicQuestionsList[i] : new List<QuizQuestionData>();
-                    if (questions == null || questions.Count == 0) continue;
-
-                    _logger.LogInformation("Creating quiz entity for topic: {TopicName} with {QuestionCount} questions", topic.Name, questions.Count);
-
-                    var quiz = new Quiz
-                    {
-                        Title = $"{topic.Name} - Auto-Generated Quiz",
-                        Description = $"Comprehensive quiz for {topic.Name} with multiple question types",
-                        CourseId = course.Id,
-                        TopicId = topic.Id,
-                        CreatedAt = DateTime.UtcNow,
-                        Questions = new List<QuizQuestion>()
-                    };
-
-                    int questionIndex = 1;
-                    foreach (var questionData in questions)
-                    {
-                        var quizQuestion = new QuizQuestion
-                        {
-                            Quiz = quiz,
-                            QuestionText = questionData.Question,
-                            OptionA = questionData.OptionA,
-                            OptionB = questionData.OptionB,
-                            OptionC = questionData.OptionC ?? string.Empty,
-                            OptionD = questionData.OptionD ?? string.Empty,
-                            CorrectOption = questionData.CorrectOption,
-                            Marks = questionData.Marks,
-                            QuestionType = questionData.QuestionType,
-                            Difficulty = questionData.Difficulty,
-                            Order = questionIndex++
-                        };
-                        quiz.Questions.Add(quizQuestion);
-                    }
-
-                    quizzes.Add(quiz);
-                    _logger.LogInformation("Created auto-generated quiz for topic {TopicName} with {QuestionCount} questions", topic.Name, questions.Count);
-                }
-
-                // Save all auto-generated quizzes
-                if (quizzes.Count > 0)
-                {
-                    _context.Quizzes.AddRange(quizzes);
-                    await _context.SaveChangesAsync();
-                    _logger.LogInformation("Saved {QuizCount} auto-generated quizzes", quizzes.Count);
-                }
-
-                _logger.LogInformation("Saved {TopicCount} AI-generated topics with PDFs and auto-generated quizzes for course {CourseId}", 
-                    topicEntities.Count, request.CourseId);
-                return Json(new { 
-                    success = true, 
-                    message = $"{topicEntities.Count} topics saved successfully with PDF materials and {quizzes.Count} auto-generated quizzes!" 
+                    FilePath = string.Empty,
+                    UploadedAt = DateTime.UtcNow,
                 });
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Material generated and added.";
             }
             catch (Exception ex)
             {
-                var inner = ex.GetBaseException()?.Message ?? ex.Message;
-                _logger.LogError(ex, "Error saving generated topics: {Inner}", inner);
-                // Return inner exception message temporarily to aid debugging (remove in production)
-                return Json(new { success = false, message = "Error: " + inner });
+                _logger.LogError(ex, "Error generating material for topic {TopicId}", topicId);
+                TempData["Error"] = $"Error generating material: {ex.Message}";
             }
+            return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
         }
 
-        /// <summary>
-        /// Generate questions for an existing quiz using AI based on requested counts per type.
-        /// </summary>
+        /// <summary>Generates questions for an existing quiz using AI, by requested counts per type.</summary>
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> GenerateQuestionsFromPrompt([FromBody] GenerateQuestionsRequest model)
         {
             if (model == null || model.QuizId <= 0) return Json(new { success = false, message = "QuizId is required" });
 
             var quiz = await _context.Quizzes.Include(q => q.Course).Include(q => q.Topic).FirstOrDefaultAsync(q => q.Id == model.QuizId);
             if (quiz == null) return Json(new { success = false, message = "Quiz not found" });
-
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (quiz.Course?.FacultyId != userId) return Json(new { success = false, message = "Unauthorized" });
+            if (quiz.Course?.FacultyId != CurrentUserId) return Json(new { success = false, message = "Unauthorized" });
 
             var allQuestions = new List<QuizQuestionData>();
             try
             {
+                var subject = quiz.Topic?.Name ?? quiz.Title ?? "";
                 if (model.MCCount > 0)
-                {
-                    var mc = await _aiService.GenerateMultipleChoiceQuestionsAsync(quiz.Course.Title, quiz.Topic?.Name ?? quiz.Title, model.MCCount);
-                    allQuestions.AddRange(mc);
-                }
+                    allQuestions.AddRange(await _aiService.GenerateMultipleChoiceQuestionsAsync(quiz.Course.Title ?? "", subject, model.MCCount));
                 if (model.TFCount > 0)
-                {
-                    var tf = await _aiService.GenerateTrueFalseQuestionsAsync(quiz.Course.Title, quiz.Topic?.Name ?? quiz.Title, model.TFCount);
-                    allQuestions.AddRange(tf);
-                }
+                    allQuestions.AddRange(await _aiService.GenerateTrueFalseQuestionsAsync(quiz.Course.Title ?? "", subject, model.TFCount));
                 if (model.CodingCount > 0)
-                {
-                    var coding = await _aiService.GenerateCodingQuestionsAsync(quiz.Course.Title, quiz.Topic?.Name ?? quiz.Title, model.CodingCount);
-                    allQuestions.AddRange(coding);
-                }
+                    allQuestions.AddRange(await _aiService.GenerateCodingQuestionsAsync(quiz.Course.Title ?? "", subject, model.CodingCount));
             }
             catch (Exception ex)
             {
@@ -895,12 +852,11 @@ namespace EduConnect.Controllers
 
             if (allQuestions.Count == 0) return Json(new { success = false, message = "No questions generated" });
 
-            // Create and add QuizQuestion entities
-            int nextOrder = (await _context.QuizQuestions.Where(q => q.QuizId == quiz.Id).MaxAsync(q => (int?)q.Order) ) ?? 0;
+            var nextOrder = await _context.QuizQuestions.Where(q => q.QuizId == quiz.Id).MaxAsync(q => (int?)q.Order) ?? 0;
             foreach (var qd in allQuestions)
             {
                 nextOrder++;
-                var qq = new QuizQuestion
+                _context.QuizQuestions.Add(new QuizQuestion
                 {
                     QuizId = quiz.Id,
                     QuestionText = qd.Question,
@@ -912,148 +868,138 @@ namespace EduConnect.Controllers
                     Marks = qd.Marks,
                     QuestionType = qd.QuestionType,
                     Difficulty = qd.Difficulty,
-                    Order = nextOrder
-                };
-                _context.QuizQuestions.Add(qq);
+                    Order = nextOrder,
+                });
             }
 
+            quiz.TotalQuestions += allQuestions.Count;
+            quiz.TotalMarks += allQuestions.Sum(q => q.Marks);
             await _context.SaveChangesAsync();
-            return Json(new { success = true, message = $"Added {allQuestions.Count} questions to quiz." });
+
+            return Json(new { success = true, message = $"Added {allQuestions.Count} questions to the quiz." });
         }
 
-        /// <summary>
-        /// Download a generated PDF for a topic
-        /// </summary>
+        /// <summary>Serves a generated topic PDF. Access limited to signed-in users; path traversal blocked.</summary>
         [HttpGet]
-        [AllowAnonymous]
         public IActionResult DownloadTopicPdf(string fileName)
         {
             if (string.IsNullOrEmpty(fileName)) return NotFound();
 
-            try
-            {
-                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "topics", fileName);
-                if (!System.IO.File.Exists(filePath)) return NotFound();
+            var safeName = Path.GetFileName(fileName);
+            var filePath = Path.Combine(_env.WebRootPath, "uploads", "topics", safeName);
+            if (!System.IO.File.Exists(filePath)) return NotFound();
 
-                var bytes = System.IO.File.ReadAllBytes(filePath);
-                return File(bytes, "application/pdf", fileName);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error downloading PDF {FileName}", fileName);
-                return NotFound();
-            }
+            return PhysicalFile(filePath, "application/pdf", safeName);
         }
 
-        // ==================== ATTENDANCE MANAGEMENT ====================
+        // ==================== ATTENDANCE ====================
 
         [HttpGet]
-        [HttpGet]
-        public async Task<IActionResult> ManageAttendance()
+        public async Task<IActionResult> ManageAttendance(DateTime? date)
         {
-            var attendanceDate = DateTime.UtcNow.Date;
+            var attendanceDate = (date ?? DateTime.UtcNow).Date;
 
-            // Get ONLY students (from UserManager with Student role)
-            var allUsers = await _context.Users.ToListAsync();
-            var allStudents = new List<ApplicationUser>();
+            var students = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles on user.Id equals userRole.UserId
+                join role in _context.Roles on userRole.RoleId equals role.Id
+                where role.Name == "Student" && user.IsActive
+                orderby user.FullName
+                select user).AsNoTracking().ToListAsync();
 
-            foreach (var user in allUsers)
-            {
-                var roles = await _context.UserRoles
-                    .Where(ur => ur.UserId == user.Id)
-                    .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
-                    .ToListAsync();
-
-                if (roles.Contains("Student"))
-                {
-                    allStudents.Add(user);
-                }
-            }
-
-            allStudents = allStudents.OrderBy(u => u.FullName ?? u.UserName).ToList();
-
-            // Get today's attendance records
-            var todayAttendance = await _context.Attendances
+            var dayAttendance = await _context.Attendances.AsNoTracking()
                 .Where(a => a.AttendanceDate.Date == attendanceDate)
-                .ToDictionaryAsync(a => a.StudentId, a => a.Status);
+                .ToListAsync();
 
             ViewBag.AttendanceDate = attendanceDate;
-            ViewBag.TodayAttendance = todayAttendance;
-            return View(allStudents);
+            ViewBag.TodayAttendance = dayAttendance
+                .GroupBy(a => a.StudentId)
+                .ToDictionary(g => g.Key, g => g.First().Status);
+            ViewBag.TodayRemarks = dayAttendance
+                .GroupBy(a => a.StudentId)
+                .ToDictionary(g => g.Key, g => g.First().Remarks);
+            return View(students);
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> ManageAttendance(IFormCollection form)
         {
             try
             {
-                var attendanceDate = DateTime.UtcNow.Date;
+                var attendanceDate = DateTime.TryParse(form["attendanceDate"], out var parsed)
+                    ? parsed.Date
+                    : DateTime.UtcNow.Date;
+
                 var studentIds = form["studentIds"].ToList();
+                var existing = await _context.Attendances
+                    .Where(a => a.AttendanceDate.Date == attendanceDate)
+                    .ToDictionaryAsync(a => a.StudentId!, a => a);
 
                 foreach (var studentId in studentIds)
                 {
-                    var status = form[$"status_{studentId}"];
-                    var remarks = form[$"remarks_{studentId}"];
+                    if (string.IsNullOrEmpty(studentId)) continue;
 
-                    // Skip if no status selected
-                    if (string.IsNullOrEmpty(status))
-                        continue;
+                    var status = form[$"status_{studentId}"].ToString();
+                    var remarks = form[$"remarks_{studentId}"].ToString();
+                    if (string.IsNullOrEmpty(status)) continue;
 
-                    // Check if student exists
-                    var studentExists = await _context.Users.AnyAsync(u => u.Id == studentId);
-                    if (!studentExists)
-                        continue;
-
-                    // Check if attendance already exists for today
-                    var existingAttendance = await _context.Attendances
-                        .FirstOrDefaultAsync(a => a.StudentId == studentId && 
-                                                  a.AttendanceDate.Date == attendanceDate);
-
-                    if (existingAttendance != null)
+                    if (existing.TryGetValue(studentId, out var record))
                     {
-                        existingAttendance.Status = status;
-                        existingAttendance.Remarks = remarks;
-                        _context.Attendances.Update(existingAttendance);
+                        record.Status = status;
+                        record.Remarks = remarks;
                     }
                     else
                     {
-                        var attendance = new Attendance
+                        _context.Attendances.Add(new Attendance
                         {
                             StudentId = studentId,
                             CourseId = null,
                             AttendanceDate = attendanceDate,
                             Status = status,
                             Remarks = remarks,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        _context.Attendances.Add(attendance);
+                            CreatedAt = DateTime.UtcNow,
+                        });
                     }
                 }
 
                 await _context.SaveChangesAsync();
-                TempData["Success"] = "Attendance saved successfully!";
-                return RedirectToAction("ManageAttendance");
+                TempData["Success"] = $"Attendance for {attendanceDate:dd MMM yyyy} saved.";
+                return RedirectToAction(nameof(ManageAttendance), new { date = attendanceDate.ToString("yyyy-MM-dd") });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error marking attendance");
-                TempData["Error"] = "Error: " + ex.Message;
-                return RedirectToAction("ManageAttendance");
+                _logger.LogError(ex, "Error saving attendance");
+                TempData["Error"] = "Error saving attendance: " + ex.Message;
+                return RedirectToAction(nameof(ManageAttendance));
             }
         }
 
         [HttpGet]
-        public async Task<IActionResult> AttendanceList()
+        public async Task<IActionResult> AttendanceList(DateTime? from, DateTime? to)
         {
-            var attendance = await _context.Attendances
+            var fromDate = (from ?? DateTime.UtcNow.AddDays(-30)).Date;
+            var toDate = (to ?? DateTime.UtcNow).Date;
+
+            var records = await _context.Attendances.AsNoTracking()
                 .Include(a => a.Student)
+                .Where(a => a.AttendanceDate.Date >= fromDate && a.AttendanceDate.Date <= toDate)
                 .OrderByDescending(a => a.AttendanceDate)
-                .Take(100)
+                .ThenBy(a => a.Student!.FullName)
                 .ToListAsync();
 
-            return View(attendance);
+            ViewBag.From = fromDate;
+            ViewBag.To = toDate;
+            return View(records);
         }
 
-
+        private async Task LoadCourseOptions()
+        {
+            var userId = CurrentUserId;
+            ViewBag.Courses = await _context.Courses.AsNoTracking()
+                .Where(c => c.FacultyId == userId)
+                .OrderBy(c => c.Title)
+                .ToListAsync();
+        }
     }
 }

@@ -1,15 +1,16 @@
 @{
-    ViewData["Title"] = "Error";
+    ViewData["Title"] = ViewBag.StatusCode == 404 ? "Page Not Found" : "Something went wrong";
 }
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
-
-@if (Model?.ShowRequestId ?? false)
-{
-    <p>
-        <strong>Request ID:</strong> <code>@Model?.RequestId</code>
-    </p>
-}
-
-<p>Development mode shows detailed error information. Switch to <strong>Production</strong> mode to display custom error pages.</p>
+<div class="d-flex align-items-center justify-content-center" style="min-height: 60vh">
+    <div class="empty-state">
+        <div class="empty-icon" style="width:80px;height:80px;font-size:2rem">
+            <i class="fa-solid @(ViewBag.StatusCode == 404 ? "fa-map-signs" : "fa-triangle-exclamation")"></i>
+        </div>
+        <h2 class="mb-2">@(ViewBag.StatusCode != null ? $"Error {ViewBag.StatusCode}" : "Something went wrong")</h2>
+        <p>@ViewBag.Message</p>
+        <a class="btn btn-primary" asp-controller="Home" asp-action="Index">
+            <i class="fa-solid fa-house me-2"></i>Back to Home
+        </a>
+    </div>
+</div>

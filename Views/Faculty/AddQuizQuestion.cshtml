@@ -1,246 +1,221 @@
-@model QuizQuestion
-
+@model QuestionFormViewModel
 @{
-    ViewData["Title"] = "Add Quiz Question";
+    var quiz = (Quiz)ViewBag.Quiz;
+    ViewData["Title"] = "Add Question";
+    var existingCount = quiz.Questions?.Count ?? 0;
 }
 
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>Add Question to Quiz</h2>
-                <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#generateQuestionsModal">
-                    🤖 Generate with AI
+<div class="page-header">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="Dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item"><a asp-action="CourseDetails" asp-route-id="@quiz.CourseId">@quiz.Course?.Title</a></li>
+                <li class="breadcrumb-item"><a asp-action="QuizDetails" asp-route-id="@quiz.Id">@quiz.Title</a></li>
+                <li class="breadcrumb-item active">Add Question</li>
+            </ol>
+        </nav>
+        <h1>Add Question</h1>
+        <p class="page-subtitle">“@quiz.Title” currently has @existingCount question@(existingCount == 1 ? "" : "s") worth @quiz.TotalMarks marks</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-outline-secondary" asp-action="QuizDetails" asp-route-id="@quiz.Id"><i class="fa-solid fa-list me-2"></i>View Quiz</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 col-xl-7">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="AddQuizQuestion" method="post" novalidate id="questionForm">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
+                    <input type="hidden" asp-for="QuizId" />
+
+                    <div class="mb-3">
+                        <label asp-for="QuestionType" class="form-label"></label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="QuestionType" id="typeMcq" value="MCQ" checked="@(Model.QuestionType != "TrueFalse" && Model.QuestionType != "Coding")" />
+                            <label class="btn btn-outline-primary" for="typeMcq"><i class="fa-solid fa-list-ul me-1"></i>Multiple Choice</label>
+
+                            <input type="radio" class="btn-check" name="QuestionType" id="typeTf" value="TrueFalse" checked="@(Model.QuestionType == "TrueFalse")" />
+                            <label class="btn btn-outline-primary" for="typeTf"><i class="fa-solid fa-toggle-on me-1"></i>True / False</label>
+
+                            <input type="radio" class="btn-check" name="QuestionType" id="typeCoding" value="Coding" checked="@(Model.QuestionType == "Coding")" />
+                            <label class="btn btn-outline-primary" for="typeCoding"><i class="fa-solid fa-code me-1"></i>Coding</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="QuestionText" class="form-label"></label>
+                        <textarea asp-for="QuestionText" class="form-control" rows="3" placeholder="Type the question…"></textarea>
+                        <span asp-validation-for="QuestionText"></span>
+                    </div>
+
+                    <!-- MCQ options -->
+                    <div id="mcqFields">
+                        <div class="row g-3 mb-3">
+                            <div class="col-sm-6">
+                                <label asp-for="OptionA" class="form-label">Option A</label>
+                                <input asp-for="OptionA" class="form-control" />
+                                <span asp-validation-for="OptionA"></span>
+                            </div>
+                            <div class="col-sm-6">
+                                <label asp-for="OptionB" class="form-label">Option B</label>
+                                <input asp-for="OptionB" class="form-control" />
+                                <span asp-validation-for="OptionB"></span>
+                            </div>
+                            <div class="col-sm-6">
+                                <label asp-for="OptionC" class="form-label">Option C</label>
+                                <input asp-for="OptionC" class="form-control" />
+                                <span asp-validation-for="OptionC"></span>
+                            </div>
+                            <div class="col-sm-6">
+                                <label asp-for="OptionD" class="form-label">Option D</label>
+                                <input asp-for="OptionD" class="form-control" />
+                                <span asp-validation-for="OptionD"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Coding fields -->
+                    <div id="codingFields" style="display:none">
+                        <div class="mb-3">
+                            <label asp-for="ProgrammingLanguage" class="form-label"></label>
+                            <select asp-for="ProgrammingLanguage" class="form-select" style="max-width:220px">
+                                <option value="python">Python</option>
+                                <option value="javascript">JavaScript</option>
+                                <option value="csharp">C#</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="CodeTemplate" class="form-label"></label>
+                            <textarea asp-for="CodeTemplate" class="form-control code-editor" rows="6" placeholder="# Starter code shown to the student"></textarea>
+                            <span asp-validation-for="CodeTemplate"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="ExpectedOutput" class="form-label"></label>
+                            <textarea asp-for="ExpectedOutput" class="form-control" rows="2" placeholder="Exact output expected from the program"></textarea>
+                            <span asp-validation-for="ExpectedOutput"></span>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-4" id="correctGroup">
+                            <label asp-for="CorrectOption" class="form-label"></label>
+                            <select asp-for="CorrectOption" class="form-select" id="correctSelect"></select>
+                            <span asp-validation-for="CorrectOption"></span>
+                        </div>
+                        <div class="col-sm-4">
+                            <label asp-for="Marks" class="form-label"></label>
+                            <input asp-for="Marks" class="form-control" type="number" min="1" max="100" />
+                            <span asp-validation-for="Marks"></span>
+                        </div>
+                        <div class="col-sm-4">
+                            <label asp-for="Difficulty" class="form-label"></label>
+                            <select asp-for="Difficulty" class="form-select">
+                                <option>Easy</option>
+                                <option>Medium</option>
+                                <option>Hard</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" name="addAnother" value="true" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>Save &amp; Add Another</button>
+                        <button type="submit" name="addAnother" value="false" class="btn btn-outline-primary"><i class="fa-solid fa-check me-2"></i>Save &amp; Finish</button>
+                        <a class="btn btn-outline-secondary" asp-action="QuizDetails" asp-route-id="@quiz.Id">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-xl-5">
+        <div class="card" style="background:var(--primary-soft); border-color:#c7d2fe">
+            <div class="card-body">
+                <h6><i class="fa-solid fa-wand-magic-sparkles me-2 text-primary"></i>Generate questions with AI</h6>
+                <p class="text-muted mb-3" style="font-size:.85rem">Let AI draft questions for this quiz based on its course and topic.</p>
+                <div class="row g-2 mb-3">
+                    <div class="col-4">
+                        <label class="form-label" style="font-size:.8rem">MCQ</label>
+                        <input type="number" id="aiMc" class="form-control form-control-sm" value="3" min="0" max="10" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label" style="font-size:.8rem">True/False</label>
+                        <input type="number" id="aiTf" class="form-control form-control-sm" value="2" min="0" max="10" />
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label" style="font-size:.8rem">Coding</label>
+                        <input type="number" id="aiCoding" class="form-control form-control-sm" value="0" min="0" max="5" />
+                    </div>
+                </div>
+                <button type="button" id="aiGenerateBtn" class="btn btn-sm btn-primary w-100">
+                    <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Generate Questions
                 </button>
             </div>
-            <hr />
-            
-            <form asp-action="AddQuizQuestion" method="post">
-                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-                <!-- Question Type Selection -->
-                <div class="mb-3">
-                    <label asp-for="QuestionType" class="form-label">Question Type</label>
-                    <select asp-for="QuestionType" class="form-control" id="questionType" onchange="toggleQuestionType()">
-                        <option value="MCQ">Multiple Choice</option>
-                        <option value="TrueFalse">True/False</option>
-                        <option value="Coding">Coding</option>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label asp-for="QuestionText" class="form-label">Question</label>
-                    <textarea asp-for="QuestionText" class="form-control" rows="3" placeholder="Enter the question"></textarea>
-                    <span asp-validation-for="QuestionText" class="text-danger"></span>
-                </div>
-
-                <!-- Multiple Choice Options -->
-                <div id="multipleChoiceSection" class="card mb-3">
-                    <div class="card-header">Answer Options</div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label asp-for="OptionA" class="form-label">Option A</label>
-                            <input asp-for="OptionA" class="form-control" placeholder="Option A" />
-                            <span asp-validation-for="OptionA" class="text-danger"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="OptionB" class="form-label">Option B</label>
-                            <input asp-for="OptionB" class="form-control" placeholder="Option B" />
-                            <span asp-validation-for="OptionB" class="text-danger"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="OptionC" class="form-label">Option C</label>
-                            <input asp-for="OptionC" class="form-control" placeholder="Option C" />
-                            <span asp-validation-for="OptionC" class="text-danger"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="OptionD" class="form-label">Option D</label>
-                            <input asp-for="OptionD" class="form-control" placeholder="Option D" />
-                            <span asp-validation-for="OptionD" class="text-danger"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="correctAnswerSection" class="mb-3">
-                    <label asp-for="CorrectOption" class="form-label">Correct Answer</label>
-                    <select asp-for="CorrectOption" class="form-control" id="correctOptionSelect">
-                        <option value="">-- Select Correct Option --</option>
-                        <option value="A">Option A</option>
-                        <option value="B">Option B</option>
-                        <option value="C">Option C</option>
-                        <option value="D">Option D</option>
-                    </select>
-                    <span asp-validation-for="CorrectOption" class="text-danger"></span>
-                </div>
-
-                <!-- Coding Question Fields -->
-                <div id="codingSection" style="display: none;">
-                    <div class="mb-3">
-                        <label asp-for="ProgrammingLanguage" class="form-label">Programming Language</label>
-                        <select asp-for="ProgrammingLanguage" class="form-control">
-                            <option value="csharp">C#</option>
-                            <option value="python">Python</option>
-                            <option value="javascript">JavaScript</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label asp-for="CodeTemplate" class="form-label">Code Template (for students to complete)</label>
-                        <textarea asp-for="CodeTemplate" class="form-control" rows="6" placeholder="Provide starting code template for students" style="font-family: monospace;"></textarea>
-                        <small class="form-text text-muted">e.g., function sum(a, b) { // TODO: implement }</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label asp-for="ExpectedOutput" class="form-label">Expected Output</label>
-                        <textarea asp-for="ExpectedOutput" class="form-control" rows="3" placeholder="Expected program output when correct code is submitted" style="font-family: monospace;"></textarea>
-                        <small class="form-text text-muted">e.g., 10 (if sum(5, 5) should output 10)</small>
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label asp-for="Marks" class="form-label">Marks/Points</label>
-                    <input asp-for="Marks" type="number" class="form-control" min="1" placeholder="e.g., 1" />
-                    <span asp-validation-for="Marks" class="text-danger"></span>
-                </div>
-
-                <div class="mb-3">
-                    <input asp-for="QuizId" type="hidden" />
-                    <button type="submit" class="btn btn-primary">Add Question</button>
-                    <a asp-action="CourseDetails" asp-route-id="@ViewBag.CourseId" class="btn btn-secondary">Cancel</a>
-                </div>
-            </form>
         </div>
     </div>
 </div>
-
-<script>
-    function setCorrectOptions(options) {
-        const select = document.getElementById('correctOptionSelect');
-        select.innerHTML = '';
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.text = '-- Select Correct Option --';
-        select.appendChild(placeholder);
-        options.forEach(opt => {
-            const o = document.createElement('option');
-            o.value = opt.value;
-            o.text = opt.label;
-            select.appendChild(o);
-        });
-    }
-
-    function toggleQuestionType() {
-        const typeSelect = document.getElementById('questionType');
-        const mcSection = document.getElementById('multipleChoiceSection');
-        const correctSection = document.getElementById('correctAnswerSection');
-        const codingSection = document.getElementById('codingSection');
-        
-        const selectedType = typeSelect.value;
-        
-        if (selectedType === 'Coding') {
-            mcSection.style.display = 'none';
-            correctSection.style.display = 'none';
-            codingSection.style.display = 'block';
-        } else if (selectedType === 'TrueFalse') {
-            mcSection.style.display = 'none';
-            codingSection.style.display = 'none';
-            correctSection.style.display = 'block';
-            setCorrectOptions([
-                { value: 'True', label: 'True' },
-                { value: 'False', label: 'False' }
-            ]);
-        } else { // MCQ
-            mcSection.style.display = 'block';
-            correctSection.style.display = 'block';
-            codingSection.style.display = 'none';
-            setCorrectOptions([
-                { value: 'A', label: 'Option A' },
-                { value: 'B', label: 'Option B' },
-                { value: 'C', label: 'Option C' },
-                { value: 'D', label: 'Option D' }
-            ]);
-        }
-    }
-    
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', toggleQuestionType);
-</script>
 
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
-    
+    <partial name="_ValidationScriptsPartial" />
     <script>
-        function generateQuestionsFromPrompt() {
-            console.log('Generate clicked');
-            const mcCount = parseInt(document.getElementById('mcCount').value) || 0;
-            const tfCount = parseInt(document.getElementById('tfCount').value) || 0;
-            const codingCount = parseInt(document.getElementById('codingCount').value) || 0;
-            const quizId = document.getElementById('quizIdHidden').value;
+        const mcqFields = document.getElementById('mcqFields');
+        const codingFields = document.getElementById('codingFields');
+        const correctGroup = document.getElementById('correctGroup');
+        const correctSelect = document.getElementById('correctSelect');
 
-            if (mcCount === 0 && tfCount === 0 && codingCount === 0) {
-                alert('Please enter at least one count');
+        function setCorrectOptions(options, selected) {
+            correctSelect.innerHTML = '';
+            options.forEach(function (opt) {
+                const el = document.createElement('option');
+                el.value = opt; el.textContent = opt;
+                if (opt === selected) el.selected = true;
+                correctSelect.appendChild(el);
+            });
+        }
+
+        function syncType() {
+            const type = document.querySelector('input[name="QuestionType"]:checked').value;
+            mcqFields.style.display = type === 'MCQ' ? '' : 'none';
+            codingFields.style.display = type === 'Coding' ? '' : 'none';
+            correctGroup.style.display = type === 'Coding' ? 'none' : '';
+            if (type === 'MCQ') setCorrectOptions(['A', 'B', 'C', 'D'], '@(Model.CorrectOption ?? "A")');
+            else if (type === 'TrueFalse') setCorrectOptions(['True', 'False'], '@(Model.CorrectOption ?? "True")');
+        }
+        document.querySelectorAll('input[name="QuestionType"]').forEach(r => r.addEventListener('change', syncType));
+        syncType();
+
+        document.getElementById('aiGenerateBtn').addEventListener('click', function () {
+            const btn = this;
+            const body = {
+                quizId: @quiz.Id,
+                mcCount: parseInt(document.getElementById('aiMc').value) || 0,
+                tfCount: parseInt(document.getElementById('aiTf').value) || 0,
+                codingCount: parseInt(document.getElementById('aiCoding').value) || 0
+            };
+            if (body.mcCount + body.tfCount + body.codingCount === 0) {
+                App.toast('Choose at least one question to generate.', 'info');
                 return;
             }
-
-            console.log(`Sending: MCQ=${mcCount}, TF=${tfCount}, Coding=${codingCount}, QuizId=${quizId}`);
-            
-            fetch('/Faculty/GenerateQuestionsFromPrompt', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ quizId: parseInt(quizId), mcCount, tfCount, codingCount })
-            })
-            .then(r => r.json())
-            .then(data => {
-                console.log('Response:', data);
-                alert(data.message);
-                if (data.success) {
-                    location.reload();
-                }
-            })
-            .catch(e => alert('Error: ' + e));
-        }
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating…';
+            App.postJson('@Url.Action("GenerateQuestionsFromPrompt")', body)
+                .then(function (data) {
+                    if (data.success) {
+                        App.toast(data.message, 'success');
+                        setTimeout(() => location.href = '@Url.Action("QuizDetails", new { id = quiz.Id })', 800);
+                    } else {
+                        App.toast(data.message || 'Generation failed', 'error');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles me-2"></i>Generate Questions';
+                    }
+                })
+                .catch(function () {
+                    App.toast('Generation failed — please try again.', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles me-2"></i>Generate Questions';
+                });
+        });
     </script>
 }
-
-<!-- AI Question Generation Modal -->
-<style>
-    #generateQuestionsModal { z-index: 9999 !important; }
-    #generateQuestionsModal .modal-backdrop { z-index: 9998 !important; }
-</style>
-
-<div class="modal fade" id="generateQuestionsModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">🤖 Generate Questions with AI</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>How many questions of each type would you like to generate?</p>
-                <input type="hidden" id="quizIdHidden" value="@ViewBag.QuizId" />
-                
-                <div class="mb-3">
-                    <label for="mcCount" class="form-label fw-bold">Multiple Choice Questions</label>
-                    <input type="number" class="form-control" id="mcCount" min="0" max="20" value="0" />
-                </div>
-                
-                <div class="mb-3">
-                    <label for="tfCount" class="form-label fw-bold">True/False Questions</label>
-                    <input type="number" class="form-control" id="tfCount" min="0" max="20" value="0" />
-                </div>
-                
-                <div class="mb-3">
-                    <label for="codingCount" class="form-label fw-bold">Coding Questions</label>
-                    <input type="number" class="form-control" id="codingCount" min="0" max="10" value="0" />
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary btn-lg" onclick="generateQuestionsFromPrompt()">Generate</button>
-            </div>
-        </div>
-    </div>
-</div>

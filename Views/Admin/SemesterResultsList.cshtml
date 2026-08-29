@@ -1,135 +1,119 @@
-@model IEnumerable<EduConnect.Models.SemesterResult>
-
+@model List<SemesterResult>
 @{
-    ViewData["Title"] = "Semester Results List";
+    ViewData["Title"] = "Semester Results";
+    var students = (IList<ApplicationUser>)ViewBag.Students;
+    var semesters = (string[])ViewBag.Semesters;
+    string? selectedStudent = ViewBag.StudentId;
+    string? selectedSemester = ViewBag.Semester;
 }
 
-<div class="container mt-4">
-    <h1 class="mb-3">
-        <i class="fas fa-list me-2"></i>Semester Results
-    </h1>
-
-    <div class="mb-3">
-        <a href="@Url.Action("CreateSemesterResult")" class="btn btn-primary">
-            <i class="fas fa-plus me-2"></i>Add New Result
-        </a>
-        <a href="@Url.Action("ManageSemesterResults")" class="btn btn-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Back
-        </a>
+<div class="page-header">
+    <div>
+        <h1>Semester Results</h1>
+        <p class="page-subtitle">Record and manage official semester grades</p>
     </div>
+    <div class="page-actions">
+        <a class="btn btn-primary" asp-action="CreateSemesterResult"><i class="fa-solid fa-plus me-2"></i>Add Result</a>
+    </div>
+</div>
 
-    @if (TempData["Success"] != null)
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <form method="get" asp-action="SemesterResultsList" class="row g-2 align-items-end">
+            <div class="col-sm-4 col-lg-3">
+                <label class="form-label">Student</label>
+                <select name="studentId" class="form-select form-select-sm">
+                    <option value="">All students</option>
+                    @foreach (var s in students.OrderBy(s => s.FullName))
+                    {
+                        <option value="@s.Id" selected="@(s.Id == selectedStudent)">@(s.FullName ?? s.Email)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-3 col-lg-2">
+                <label class="form-label">Semester</label>
+                <select name="semester" class="form-select form-select-sm">
+                    <option value="">All semesters</option>
+                    @foreach (var sem in semesters)
+                    {
+                        <option value="@sem" selected="@(sem == selectedSemester)">@sem</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-primary"><i class="fa-solid fa-filter me-1"></i>Filter</button>
+                <a class="btn btn-sm btn-outline-secondary" asp-action="SemesterResultsList">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card" data-table>
+    <div class="card-header">
+        <h6 class="card-title">@Model.Count result@(Model.Count == 1 ? "" : "s")</h6>
+        <div class="table-search">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="search" class="form-control form-control-sm" placeholder="Search results…" data-table-search />
+        </div>
+    </div>
+    @if (Model.Count == 0)
     {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            @TempData["Success"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fa-solid fa-award"></i></div>
+            <h5>No results found</h5>
+            <p>No semester results match the current filters. Add one to get started.</p>
+            <a class="btn btn-primary" asp-action="CreateSemesterResult"><i class="fa-solid fa-plus me-2"></i>Add Result</a>
         </div>
     }
-
-    @if (TempData["Error"] != null)
+    else
     {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            @TempData["Error"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-
-    <div class="card">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-dark">
+            <table class="table app-table" data-page-size="12">
+                <thead>
                     <tr>
-                        <th>Student Name</th>
-                        <th>Semester</th>
-                        <th>Course Name</th>
-                        <th>Marks</th>
-                        <th>Grade</th>
-                        <th>GPA</th>
+                        <th data-sort="text">Student</th>
+                        <th data-sort="text">Semester</th>
+                        <th data-sort="text">Course</th>
+                        <th data-sort="num">Marks</th>
+                        <th data-sort="text">Grade</th>
+                        <th data-sort="num">GPA</th>
                         <th>Remarks</th>
-                        <th>Actions</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @if (Model.Any())
+                    @foreach (var result in Model)
                     {
-                        @foreach (var result in Model)
+                        var gradeBadge = result.Grade switch
                         {
-                            <tr>
-                                <td>
-                                    <strong>@result.Student?.FullName</strong>
-                                    <br />
-                                    <small class="text-muted">@result.Student?.Email</small>
-                                </td>
-                                <td>@result.Semester</td>
-                                <td>@result.CourseName</td>
-                                <td>
-                                    <strong>@result.MarksObtained</strong>/100
-                                </td>
-                                <td>
-                                    <span class="badge bg-info">@result.Grade</span>
-                                </td>
-                                <td>
-                                    @{
-                                        decimal gpaValue = result.GPA;
-                                    }
-                                    @if (gpaValue >= 3.8m)
-                                    {
-                                        <span class="badge bg-success">@result.GPA</span>
-                                    }
-                                    else if (gpaValue >= 3.0m)
-                                    {
-                                        <span class="badge bg-info">@result.GPA</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-warning">@result.GPA</span>
-                                    }
-                                </td>
-                                <td>@(string.IsNullOrEmpty(result.Remarks) ? "-" : result.Remarks)</td>
-                                <td>
-                                    <a href="@Url.Action("EditSemesterResult", new { id = result.Id })" class="btn btn-sm btn-info">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal_@result.Id">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-
-                            <!-- Delete Modal -->
-                            <div class="modal fade" id="deleteModal_@result.Id" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">Delete Semester Result</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            Are you sure you want to delete this semester result for <strong>@result.Student?.FullName</strong>?
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                            <form action="@Url.Action("DeleteSemesterResult")" method="post" style="display:inline;">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="id" value="@result.Id" />
-                                                <button type="submit" class="btn btn-danger">Delete</button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    }
-                    else
-                    {
+                            "A" => "badge-soft-success",
+                            "B" => "badge-soft-primary",
+                            "C" => "badge-soft-info",
+                            "D" => "badge-soft-warning",
+                            _ => "badge-soft-danger",
+                        };
                         <tr>
-                            <td colspan="8" class="text-center py-4 text-muted">
-                                <i class="fas fa-info-circle me-2"></i>No semester results found
+                            <td class="fw-medium">@(result.Student?.FullName ?? result.Student?.Email ?? "Unknown")</td>
+                            <td class="text-muted">@result.Semester</td>
+                            <td>@result.CourseName</td>
+                            <td>@result.MarksObtained.ToString("0.#")</td>
+                            <td><span class="badge @gradeBadge">@result.Grade</span></td>
+                            <td>@result.GPA.ToString("0.0")</td>
+                            <td class="text-muted">@(string.IsNullOrEmpty(result.Remarks) ? "—" : result.Remarks)</td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <a class="btn btn-outline-secondary" asp-action="EditSemesterResult" asp-route-id="@result.Id" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                                    <form asp-action="DeleteSemesterResult" asp-route-id="@result.Id" method="post" class="d-inline"
+                                          data-confirm="Delete this semester result for @(result.Student?.FullName ?? "this student")?">
+                                        <button type="submit" class="btn btn-outline-danger" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
-    </div>
+        <div class="card-footer table-pagination" data-table-pagination></div>
+    }
 </div>

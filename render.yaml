@@ -11,3 +11,7 @@ services:
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
+      - key: ConnectionStrings__DefaultConnection
+        value: Data Source=/var/data/educonnect.db
+      - key: Security__EnforceHttps
+        value: "true"

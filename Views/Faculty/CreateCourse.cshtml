@@ -1,51 +1,80 @@
-@model EduConnect.Models.Course
-
+@model CourseFormViewModel
 @{
     ViewData["Title"] = "Create Course";
 }
 
+<div class="page-header">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="Dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item active">Create Course</li>
+            </ol>
+        </nav>
+        <h1>Create Course</h1>
+        <p class="page-subtitle">Set up a new course — you can add topics, materials and quizzes right after</p>
+    </div>
+</div>
+
 <div class="row">
-    <div class="col-md-8 offset-md-2">
-        <h1>Create New Course</h1>
+    <div class="col-lg-7 col-xl-6">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="CreateCourse" method="post" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
 
-        <form asp-action="CreateCourse" method="post">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <div class="mb-3">
+                        <label asp-for="Title" class="form-label">Course Title</label>
+                        <input asp-for="Title" class="form-control" placeholder="e.g. Python for Data Analysis" autofocus />
+                        <span asp-validation-for="Title"></span>
+                    </div>
 
-            <div class="mb-3">
-                <label asp-for="Title" class="form-label">Course Title</label>
-                <input asp-for="Title" class="form-control" />
-                <span asp-validation-for="Title" class="text-danger"></span>
+                    <div class="mb-3">
+                        <label asp-for="Category" class="form-label"></label>
+                        <input asp-for="Category" class="form-control" list="categoryOptions" placeholder="e.g. Programming" />
+                        <datalist id="categoryOptions">
+                            <option value="Programming"></option>
+                            <option value="Web Development"></option>
+                            <option value="Data Science"></option>
+                            <option value="Databases"></option>
+                            <option value="Software Engineering"></option>
+                            <option value="Mathematics"></option>
+                        </datalist>
+                        <span asp-validation-for="Category"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label"></label>
+                        <textarea asp-for="Description" class="form-control" rows="5" placeholder="What will students learn in this course?"></textarea>
+                        <span asp-validation-for="Description"></span>
+                    </div>
+
+                    <div class="form-check form-switch mb-4">
+                        <input asp-for="IsActive" class="form-check-input" role="switch" />
+                        <label asp-for="IsActive" class="form-check-label"></label>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i>Create Course</button>
+                        <a class="btn btn-outline-secondary" asp-action="Dashboard">Cancel</a>
+                    </div>
+                </form>
             </div>
-
-            <div class="mb-3">
-                <label asp-for="Description" class="form-label">Description</label>
-                <textarea asp-for="Description" class="form-control" rows="4"></textarea>
-                <span asp-validation-for="Description" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="col-lg-5 col-xl-4">
+        <div class="card" style="background:var(--primary-soft); border-color:#c7d2fe">
+            <div class="card-body">
+                <h6><i class="fa-solid fa-wand-magic-sparkles me-2 text-primary"></i>AI assistance</h6>
+                <p class="text-muted mb-0" style="font-size:.87rem">
+                    After creating the course, use <strong>Generate Topics with AI</strong> on the course page to
+                    scaffold a complete syllabus automatically, then generate learning material per topic.
+                </p>
             </div>
-
-            <div class="mb-3">
-                <label asp-for="Category" class="form-label">Category</label>
-                <input asp-for="Category" class="form-control" placeholder="e.g., Programming, Mathematics, Science" />
-                <span asp-validation-for="Category" class="text-danger"></span>
-            </div>
-
-            <div class="form-check mb-3">
-                <input asp-for="IsActive" type="checkbox" class="form-check-input" />
-                <label asp-for="IsActive" class="form-check-label">Active</label>
-            </div>
-
-            <div class="mb-3">
-                <button type="submit" class="btn btn-primary">Create Course</button>
-                <a class="btn btn-secondary" asp-action="Dashboard">Cancel</a>
-            </div>
-
-            <div class="alert alert-info mt-3" role="alert">
-                <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> After creating the course, go to Course Details and click the "AI Generate" button to automatically generate topics with AI!
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <partial name="_ValidationScriptsPartial" />
 }

@@ -5,360 +5,374 @@ using Microsoft.EntityFrameworkCore;
 using EduConnect.Data;
 using EduConnect.Models;
 using EduConnect.Services;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace EduConnect.Controllers
 {
     [Authorize(Roles = "Admin")]
     public class AdminController : Controller
     {
+        private static readonly string[] Semesters = { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
+        private static readonly string[] Grades = { "A", "B", "C", "D", "F" };
+
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IExcelExportService _excelExportService;
 
-        public AdminController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IExcelExportService excelExportService)
+        public AdminController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IExcelExportService excelExportService)
         {
             _context = context;
             _userManager = userManager;
-            _roleManager = roleManager;
             _excelExportService = excelExportService;
         }
 
-        // Admin Dashboard - Analytics Overview
+        // ==================== DASHBOARD ====================
+
+        /// <summary>Shortcut so /Admin lands on the dashboard.</summary>
+        public IActionResult Index() => RedirectToAction(nameof(Dashboard));
+
         public async Task<IActionResult> Dashboard()
         {
-            var totalStudents = await _userManager.GetUsersInRoleAsync("Student");
-            var totalFaculty = await _userManager.GetUsersInRoleAsync("Faculty");
+            var students = await _userManager.GetUsersInRoleAsync("Student");
+            var facultyMembers = await _userManager.GetUsersInRoleAsync("Faculty");
 
-            var viewModel = new
+            var enrollments = await _context.Enrollments.AsNoTracking().ToListAsync();
+            var quizResults = await _context.QuizResults.AsNoTracking().ToListAsync();
+
+            var model = new AdminDashboardViewModel
             {
-                TotalStudents = totalStudents.Count,
-                TotalFaculty = totalFaculty.Count,
+                TotalStudents = students.Count,
+                TotalFaculty = facultyMembers.Count,
                 TotalCourses = await _context.Courses.CountAsync(),
-                TotalEnrollments = await _context.Enrollments.CountAsync(),
-                ActiveCourses = await _context.Courses.Where(c => c.IsActive).CountAsync(),
-                AverageStudentProgress = await CalculateAverageStudentProgress()
+                ActiveCourses = await _context.Courses.CountAsync(c => c.IsActive),
+                TotalEnrollments = enrollments.Count,
+                TotalQuizAttempts = quizResults.Count,
+                AverageStudentProgress = enrollments.Count > 0 ? Math.Round(enrollments.Average(e => e.ProgressPercentage), 1) : 0,
+                QuizPassRate = quizResults.Count > 0 ? Math.Round(quizResults.Count(r => r.IsPassed) * 100.0 / quizResults.Count, 1) : 0,
             };
 
-            return View(viewModel);
+            // Enrollment trend over the last 6 months
+            var start = DateTime.UtcNow.Date.AddMonths(-5);
+            start = new DateTime(start.Year, start.Month, 1);
+            for (var month = start; month <= DateTime.UtcNow.Date; month = month.AddMonths(1))
+            {
+                var next = month.AddMonths(1);
+                model.EnrollmentsByMonth.Add(new ChartPoint(
+                    month.ToString("MMM yyyy"),
+                    enrollments.Count(e => e.EnrolledAt >= month && e.EnrolledAt < next)));
+            }
+
+            model.UsersByRole.Add(new ChartPoint("Students", students.Count));
+            model.UsersByRole.Add(new ChartPoint("Faculty", facultyMembers.Count));
+
+            model.TopCoursesByEnrollment = await _context.Courses.AsNoTracking()
+                .Select(c => new { c.Title, Count = c.Enrollments!.Count })
+                .OrderByDescending(c => c.Count)
+                .Take(6)
+                .Select(c => new ChartPoint(c.Title ?? "Untitled", c.Count))
+                .ToListAsync();
+
+            model.RecentEnrollments = await _context.Enrollments.AsNoTracking()
+                .Include(e => e.Student)
+                .Include(e => e.Course)
+                .OrderByDescending(e => e.EnrolledAt)
+                .Take(6)
+                .Select(e => new RecentActivityItem
+                {
+                    StudentName = e.Student!.FullName ?? e.Student.Email,
+                    Target = e.Course!.Title,
+                    Detail = "Enrolled",
+                    OccurredAt = e.EnrolledAt,
+                })
+                .ToListAsync();
+
+            model.RecentQuizAttempts = await _context.QuizResults.AsNoTracking()
+                .Include(r => r.Student)
+                .Include(r => r.Quiz)
+                .OrderByDescending(r => r.AttemptedAt)
+                .Take(6)
+                .Select(r => new RecentActivityItem
+                {
+                    StudentName = r.Student!.FullName ?? r.Student.Email,
+                    Target = r.Quiz!.Title,
+                    Detail = r.PercentageScore.ToString("0") + "%",
+                    OccurredAt = r.AttemptedAt,
+                    Success = r.IsPassed,
+                })
+                .ToListAsync();
+
+            return View(model);
         }
 
-        // Analytics Page - Detailed Statistics
+        // ==================== ANALYTICS ====================
+
         public async Task<IActionResult> Analytics()
         {
             var students = await _userManager.GetUsersInRoleAsync("Student");
-            var faculty = await _userManager.GetUsersInRoleAsync("Faculty");
+            var facultyMembers = await _userManager.GetUsersInRoleAsync("Faculty");
 
-            var courseStats = await _context.Courses
-                .Include(c => c.Enrollments)
-                .Include(c => c.Faculty)
-                .Select(c => new
-                {
-                    c.Id,
-                    c.Title,
-                    FacultyName = c.Faculty.FullName,
-                    EnrollmentCount = c.Enrollments.Count,
-                    AverageProgress = c.Enrollments.Any() ? c.Enrollments.Average(e => e.ProgressPercentage) : 0
-                })
-                .ToListAsync();
-
-            var facultyCourses = await _context.Courses
-                .Include(c => c.Faculty)
-                .Include(c => c.Enrollments)
-                .GroupBy(c => c.FacultyId)
-                .Select(g => new
-                {
-                    FacultyId = g.Key,
-                    FacultyName = g.First().Faculty.FullName,
-                    CourseCount = g.Count(),
-                    StudentCount = g.SelectMany(c => c.Enrollments).Select(e => e.StudentId).Distinct().Count(),
-                    Courses = g.Select(c => c.Title).ToList()
-                })
-                .ToListAsync();
-
-            var analytics = new
+            var model = new AdminAnalyticsViewModel
             {
                 TotalStudents = students.Count,
-                TotalFaculty = faculty.Count,
+                TotalFaculty = facultyMembers.Count,
                 TotalCourses = await _context.Courses.CountAsync(),
                 TotalEnrollments = await _context.Enrollments.CountAsync(),
-                ActiveStudents = students.Where(s => s.IsActive).Count(),
-                ActiveCourses = await _context.Courses.Where(c => c.IsActive).CountAsync(),
-                CourseStats = courseStats,
-                FacultyStats = facultyCourses,
-                TopPerformingCourses = courseStats.OrderByDescending(c => c.AverageProgress).Take(5).ToList()
+                ActiveStudents = students.Count(s => s.IsActive),
             };
 
-            return View(analytics);
+            model.CourseStats = await _context.Courses.AsNoTracking()
+                .Select(c => new CourseStatItem
+                {
+                    Id = c.Id,
+                    Title = c.Title,
+                    Category = c.Category,
+                    FacultyName = c.Faculty!.FullName ?? c.Faculty.Email,
+                    EnrollmentCount = c.Enrollments!.Count,
+                    AverageProgress = c.Enrollments!.Any() ? Math.Round(c.Enrollments!.Average(e => (double)e.ProgressPercentage), 1) : 0,
+                    QuizCount = c.Quizzes!.Count,
+                    IsActive = c.IsActive,
+                })
+                .OrderByDescending(c => c.EnrollmentCount)
+                .ToListAsync();
+
+            var avgScoreByCourse = await _context.QuizResults.AsNoTracking()
+                .GroupBy(r => r.Quiz!.CourseId)
+                .Select(g => new { CourseId = g.Key, Avg = g.Average(r => r.PercentageScore) })
+                .ToDictionaryAsync(x => x.CourseId, x => Math.Round(x.Avg, 1));
+            foreach (var stat in model.CourseStats)
+                stat.AverageQuizScore = avgScoreByCourse.GetValueOrDefault(stat.Id);
+
+            model.FacultyStats = await _context.Courses.AsNoTracking()
+                .GroupBy(c => c.FacultyId)
+                .Select(g => new FacultyStatItem
+                {
+                    FacultyName = g.First().Faculty!.FullName ?? g.First().Faculty!.Email,
+                    Department = g.First().Faculty!.Department,
+                    CourseCount = g.Count(),
+                    StudentCount = g.SelectMany(c => c.Enrollments!).Select(e => e.StudentId).Distinct().Count(),
+                })
+                .ToListAsync();
+
+            var semesterResults = await _context.SemesterResults.AsNoTracking().ToListAsync();
+            model.AverageGpa = semesterResults.Count > 0 ? Math.Round((double)semesterResults.Average(r => r.GPA), 2) : 0;
+            model.GradeDistribution = Grades
+                .Select(g => new ChartPoint(g, semesterResults.Count(r => r.Grade == g)))
+                .ToList();
+
+            var attendance = await _context.Attendances.AsNoTracking()
+                .Where(a => a.AttendanceDate >= DateTime.UtcNow.AddDays(-90))
+                .ToListAsync();
+            model.OverallAttendanceRate = attendance.Count > 0
+                ? Math.Round(attendance.Count(a => a.Status == "Present") * 100.0 / attendance.Count, 1)
+                : 0;
+            model.AttendanceByMonth = attendance
+                .GroupBy(a => new DateTime(a.AttendanceDate.Year, a.AttendanceDate.Month, 1))
+                .OrderBy(g => g.Key)
+                .Select(g => new ChartPoint(
+                    g.Key.ToString("MMM yyyy"),
+                    Math.Round(g.Count(a => a.Status == "Present") * 100.0 / g.Count(), 1)))
+                .ToList();
+
+            return View(model);
         }
 
-        // Students Management - List all students
+        // ==================== STUDENT MANAGEMENT ====================
+
         public async Task<IActionResult> ManageStudents()
         {
             var students = await _userManager.GetUsersInRoleAsync("Student");
-            var studentList = new List<dynamic>();
+            var studentIds = students.Select(s => s.Id).ToHashSet();
 
-            foreach (var student in students)
-            {
-                var enrollmentCount = await _context.Enrollments.Where(e => e.StudentId == student.Id).CountAsync();
-                var avgProgress = await _context.Enrollments
-                    .Where(e => e.StudentId == student.Id)
-                    .AverageAsync(e => (double?)e.ProgressPercentage) ?? 0;
+            var enrollmentStats = await _context.Enrollments.AsNoTracking()
+                .GroupBy(e => e.StudentId)
+                .Select(g => new { StudentId = g.Key, Count = g.Count(), AvgProgress = g.Average(e => (double)e.ProgressPercentage) })
+                .ToDictionaryAsync(x => x.StudentId!, x => x);
 
-                studentList.Add(new
+            var list = students
+                .Select(s => new StudentListItemViewModel
                 {
-                    student.Id,
-                    student.FullName,
-                    student.Email,
-                    student.PhoneNumber,
-                    student.IsActive,
-                    EnrollmentCount = enrollmentCount,
-                    AverageProgress = Math.Round(avgProgress, 2),
-                    RegisteredDate = student.CreatedAt
-                });
-            }
+                    Id = s.Id,
+                    FullName = s.FullName ?? $"{s.FirstName} {s.LastName}".Trim(),
+                    Email = s.Email,
+                    PhoneNumber = s.PhoneNumber,
+                    IsActive = s.IsActive,
+                    EnrollmentCount = enrollmentStats.TryGetValue(s.Id, out var stat) ? stat.Count : 0,
+                    AverageProgress = enrollmentStats.TryGetValue(s.Id, out var st) ? Math.Round(st.AvgProgress, 1) : 0,
+                    RegisteredDate = s.CreatedAt,
+                })
+                .OrderByDescending(s => s.RegisteredDate)
+                .ToList();
 
-            return View(studentList.OrderByDescending(s => s.RegisteredDate).ToList());
+            return View(list);
         }
 
-        // Faculty Management - List all faculty
         public async Task<IActionResult> ManageFaculty()
         {
-            var faculty = await _userManager.GetUsersInRoleAsync("Faculty");
-            var facultyList = new List<dynamic>();
+            var facultyMembers = await _userManager.GetUsersInRoleAsync("Faculty");
 
-            foreach (var f in faculty)
-            {
-                var courseCount = await _context.Courses.Where(c => c.FacultyId == f.Id).CountAsync();
-                var totalStudentsEnrolled = await _context.Enrollments
-                    .Include(e => e.Course)
-                    .Where(e => e.Course.FacultyId == f.Id)
-                    .CountAsync();
+            var courseStats = await _context.Courses.AsNoTracking()
+                .GroupBy(c => c.FacultyId)
+                .Select(g => new { FacultyId = g.Key, CourseCount = g.Count(), StudentCount = g.SelectMany(c => c.Enrollments!).Count() })
+                .ToDictionaryAsync(x => x.FacultyId!, x => x);
 
-                facultyList.Add(new
+            var list = facultyMembers
+                .Select(f => new FacultyListItemViewModel
                 {
-                    f.Id,
-                    f.FullName,
-                    f.Email,
-                    f.PhoneNumber,
-                    f.Department,
-                    f.IsActive,
-                    CourseCount = courseCount,
-                    StudentCount = totalStudentsEnrolled,
-                    RegisteredDate = f.CreatedAt
-                });
-            }
+                    Id = f.Id,
+                    FullName = f.FullName ?? $"{f.FirstName} {f.LastName}".Trim(),
+                    Email = f.Email,
+                    PhoneNumber = f.PhoneNumber,
+                    Department = f.Department,
+                    IsActive = f.IsActive,
+                    CourseCount = courseStats.TryGetValue(f.Id, out var stat) ? stat.CourseCount : 0,
+                    StudentCount = courseStats.TryGetValue(f.Id, out var st) ? st.StudentCount : 0,
+                    RegisteredDate = f.CreatedAt,
+                })
+                .OrderByDescending(f => f.RegisteredDate)
+                .ToList();
 
-            return View(facultyList.OrderByDescending(f => f.RegisteredDate).ToList());
+            return View(list);
         }
 
-        // Add Student - GET
-        public IActionResult AddStudent()
-        {
-            return View();
-        }
+        public IActionResult AddStudent() => View();
 
-        // Add Student - POST
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddStudent(AddUserViewModel model)
         {
-            if (!ModelState.IsValid)
-                return View(model);
+            if (!ModelState.IsValid) return View(model);
 
             if (await _userManager.FindByEmailAsync(model.Email) != null)
             {
-                ModelState.AddModelError("Email", "Email already exists.");
+                ModelState.AddModelError(nameof(model.Email), "An account with this email already exists.");
                 return View(model);
             }
 
-            // Split FullName into FirstName and LastName
-            var nameParts = model.FullName.Split(' ', 2);
-            var firstName = nameParts.Length > 0 ? nameParts[0] : model.FullName;
-            var lastName = nameParts.Length > 1 ? nameParts[1] : "";
-
-            var user = new ApplicationUser
-            {
-                UserName = model.Email,
-                Email = model.Email,
-                FullName = model.FullName,
-                FirstName = firstName,
-                LastName = lastName,
-                PhoneNumber = model.PhoneNumber,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-
+            var user = BuildUser(model.FullName, model.Email, model.PhoneNumber, null);
             var result = await _userManager.CreateAsync(user, model.Password);
             if (result.Succeeded)
             {
                 await _userManager.AddToRoleAsync(user, "Student");
-                TempData["Success"] = $"Student '{model.FullName}' added successfully!";
-                return RedirectToAction("ManageStudents");
+                TempData["Success"] = $"Student '{model.FullName}' added successfully.";
+                return RedirectToAction(nameof(ManageStudents));
             }
 
             foreach (var error in result.Errors)
-                ModelState.AddModelError("", error.Description);
-
+                ModelState.AddModelError(string.Empty, error.Description);
             return View(model);
         }
 
-        // Add Faculty - GET
-        public IActionResult AddFaculty()
-        {
-            return View();
-        }
+        public IActionResult AddFaculty() => View();
 
-        // Add Faculty - POST
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddFaculty(AddFacultyViewModel model)
         {
-            if (!ModelState.IsValid)
-                return View(model);
+            if (!ModelState.IsValid) return View(model);
 
             if (await _userManager.FindByEmailAsync(model.Email) != null)
             {
-                ModelState.AddModelError("Email", "Email already exists.");
+                ModelState.AddModelError(nameof(model.Email), "An account with this email already exists.");
                 return View(model);
             }
 
-            // Split FullName into FirstName and LastName
-            var nameParts = model.FullName.Split(' ', 2);
-            var firstName = nameParts.Length > 0 ? nameParts[0] : model.FullName;
-            var lastName = nameParts.Length > 1 ? nameParts[1] : "";
-
-            var user = new ApplicationUser
-            {
-                UserName = model.Email,
-                Email = model.Email,
-                FullName = model.FullName,
-                FirstName = firstName,
-                LastName = lastName,
-                PhoneNumber = model.PhoneNumber,
-                Department = model.Department,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-
+            var user = BuildUser(model.FullName, model.Email, model.PhoneNumber, model.Department);
             var result = await _userManager.CreateAsync(user, model.Password);
             if (result.Succeeded)
             {
                 await _userManager.AddToRoleAsync(user, "Faculty");
-                TempData["Success"] = $"Faculty '{model.FullName}' added successfully!";
-                return RedirectToAction("ManageFaculty");
+                TempData["Success"] = $"Faculty member '{model.FullName}' added successfully.";
+                return RedirectToAction(nameof(ManageFaculty));
             }
 
             foreach (var error in result.Errors)
-                ModelState.AddModelError("", error.Description);
-
+                ModelState.AddModelError(string.Empty, error.Description);
             return View(model);
         }
 
-        // Edit Student - GET
         public async Task<IActionResult> EditStudent(string id)
         {
             var student = await _userManager.FindByIdAsync(id);
-            if (student == null)
-                return NotFound();
+            if (student == null) return NotFound();
 
-            var model = new EditUserViewModel
+            return View(new EditUserViewModel
             {
                 Id = student.Id,
-                FullName = student.FullName,
+                FullName = student.FullName ?? string.Empty,
                 Email = student.Email,
                 PhoneNumber = student.PhoneNumber,
-                IsActive = student.IsActive
-            };
-
-            return View(model);
+                IsActive = student.IsActive,
+            });
         }
 
-        // Edit Student - POST
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditStudent(string id, EditUserViewModel model)
         {
-            if (!ModelState.IsValid)
-                return View(model);
+            if (!ModelState.IsValid) return View(model);
 
             var student = await _userManager.FindByIdAsync(id);
-            if (student == null)
-                return NotFound();
+            if (student == null) return NotFound();
 
-            student.FullName = model.FullName;
+            ApplyName(student, model.FullName);
             student.PhoneNumber = model.PhoneNumber;
             student.IsActive = model.IsActive;
 
             var result = await _userManager.UpdateAsync(student);
             if (result.Succeeded)
             {
-                TempData["Success"] = "Student updated successfully!";
-                return RedirectToAction("ManageStudents");
+                TempData["Success"] = "Student updated successfully.";
+                return RedirectToAction(nameof(ManageStudents));
             }
 
             foreach (var error in result.Errors)
-                ModelState.AddModelError("", error.Description);
-
+                ModelState.AddModelError(string.Empty, error.Description);
             return View(model);
         }
 
-        // Edit Faculty - GET
         public async Task<IActionResult> EditFaculty(string id)
         {
-            var faculty = await _userManager.FindByIdAsync(id);
-            if (faculty == null)
-                return NotFound();
+            var facultyMember = await _userManager.FindByIdAsync(id);
+            if (facultyMember == null) return NotFound();
 
-            var model = new EditFacultyViewModel
+            return View(new EditFacultyViewModel
             {
-                Id = faculty.Id,
-                FullName = faculty.FullName,
-                Email = faculty.Email,
-                PhoneNumber = faculty.PhoneNumber,
-                Department = faculty.Department,
-                IsActive = faculty.IsActive
-            };
-
-            return View(model);
+                Id = facultyMember.Id,
+                FullName = facultyMember.FullName ?? string.Empty,
+                Email = facultyMember.Email,
+                PhoneNumber = facultyMember.PhoneNumber,
+                Department = facultyMember.Department ?? string.Empty,
+                IsActive = facultyMember.IsActive,
+            });
         }
 
-        // Edit Faculty - POST
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditFaculty(string id, EditFacultyViewModel model)
         {
-            if (!ModelState.IsValid)
-                return View(model);
+            if (!ModelState.IsValid) return View(model);
 
-            var faculty = await _userManager.FindByIdAsync(id);
-            if (faculty == null)
-                return NotFound();
+            var facultyMember = await _userManager.FindByIdAsync(id);
+            if (facultyMember == null) return NotFound();
 
-            faculty.FullName = model.FullName;
-            faculty.PhoneNumber = model.PhoneNumber;
-            faculty.Department = model.Department;
-            faculty.IsActive = model.IsActive;
+            ApplyName(facultyMember, model.FullName);
+            facultyMember.PhoneNumber = model.PhoneNumber;
+            facultyMember.Department = model.Department;
+            facultyMember.IsActive = model.IsActive;
 
-            var result = await _userManager.UpdateAsync(faculty);
+            var result = await _userManager.UpdateAsync(facultyMember);
             if (result.Succeeded)
             {
-                TempData["Success"] = "Faculty updated successfully!";
-                return RedirectToAction("ManageFaculty");
+                TempData["Success"] = "Faculty member updated successfully.";
+                return RedirectToAction(nameof(ManageFaculty));
             }
 
             foreach (var error in result.Errors)
-                ModelState.AddModelError("", error.Description);
-
+                ModelState.AddModelError(string.Empty, error.Description);
             return View(model);
         }
 
-        // Delete Student
         [HttpPost]
-        [IgnoreAntiforgeryToken]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteStudent(string id)
         {
             try
@@ -367,31 +381,19 @@ namespace EduConnect.Controllers
                 if (student == null)
                     return Json(new { success = false, message = "Student not found." });
 
-                // Delete all related data first (handle cascade manually)
-                // Delete TopicProgress for this student
-                var topicProgress = await _context.TopicProgress.Where(tp => tp.StudentId == id).ToListAsync();
-                if (topicProgress.Any())
-                    _context.TopicProgress.RemoveRange(topicProgress);
-
-                // Delete QuizResults for this student
-                var quizResults = await _context.QuizResults.Where(qr => qr.StudentId == id).ToListAsync();
-                if (quizResults.Any())
-                    _context.QuizResults.RemoveRange(quizResults);
-
-                // Delete Enrollments for this student
-                var enrollments = await _context.Enrollments.Where(e => e.StudentId == id).ToListAsync();
-                if (enrollments.Any())
-                    _context.Enrollments.RemoveRange(enrollments);
-
+                _context.TopicProgress.RemoveRange(_context.TopicProgress.Where(tp => tp.StudentId == id));
+                _context.QuizResults.RemoveRange(_context.QuizResults.Where(qr => qr.StudentId == id));
+                _context.Enrollments.RemoveRange(_context.Enrollments.Where(e => e.StudentId == id));
+                _context.Attendances.RemoveRange(_context.Attendances.Where(a => a.StudentId == id));
+                _context.SemesterResults.RemoveRange(_context.SemesterResults.Where(sr => sr.StudentId == id));
+                _context.StudentCourseProgresses.RemoveRange(_context.StudentCourseProgresses.Where(cp => cp.StudentId == id));
                 await _context.SaveChangesAsync();
 
-                // Now delete the user
                 var result = await _userManager.DeleteAsync(student);
                 if (result.Succeeded)
                     return Json(new { success = true, message = "Student deleted successfully." });
 
-                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                return Json(new { success = false, message = $"Error deleting student: {errors}" });
+                return Json(new { success = false, message = string.Join(", ", result.Errors.Select(e => e.Description)) });
             }
             catch (Exception ex)
             {
@@ -399,65 +401,35 @@ namespace EduConnect.Controllers
             }
         }
 
-        // Delete Faculty
         [HttpPost]
-        [IgnoreAntiforgeryToken]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteFaculty(string id)
         {
             try
             {
-                var faculty = await _userManager.FindByIdAsync(id);
-                if (faculty == null)
-                    return Json(new { success = false, message = "Faculty not found." });
+                var facultyMember = await _userManager.FindByIdAsync(id);
+                if (facultyMember == null)
+                    return Json(new { success = false, message = "Faculty member not found." });
 
-                // Get all courses created by this faculty
-                var courses = await _context.Courses.Where(c => c.FacultyId == id).ToListAsync();
+                var courseIds = await _context.Courses
+                    .Where(c => c.FacultyId == id)
+                    .Select(c => c.Id)
+                    .ToListAsync();
 
-                foreach (var course in courses)
-                {
-                    // Delete all enrollments for this course
-                    var enrollments = await _context.Enrollments.Where(e => e.CourseId == course.Id).ToListAsync();
-                    if (enrollments.Any())
-                        _context.Enrollments.RemoveRange(enrollments);
-
-                    // Delete all topics for this course
-                    var topics = await _context.Topics.Where(t => t.CourseId == course.Id).ToListAsync();
-                    if (topics.Any())
-                        _context.Topics.RemoveRange(topics);
-
-                    // Delete all materials for this course
-                    var materials = await _context.Materials.Where(m => m.CourseId == course.Id).ToListAsync();
-                    if (materials.Any())
-                        _context.Materials.RemoveRange(materials);
-
-                    // Delete all quizzes for this course
-                    var quizzes = await _context.Quizzes.Where(q => q.CourseId == course.Id).ToListAsync();
-                    if (quizzes.Any())
-                        _context.Quizzes.RemoveRange(quizzes);
-
-                    // Delete all announcements for this course
-                    var announcements = await _context.Announcements.Where(a => a.CourseId == course.Id).ToListAsync();
-                    if (announcements.Any())
-                        _context.Announcements.RemoveRange(announcements);
-
-                    // Delete the course
-                    _context.Courses.Remove(course);
-                }
-
-                // Delete announcements created by this faculty
-                var facultyAnnouncements = await _context.Announcements.Where(a => a.FacultyId == id).ToListAsync();
-                if (facultyAnnouncements.Any())
-                    _context.Announcements.RemoveRange(facultyAnnouncements);
-
+                _context.Enrollments.RemoveRange(_context.Enrollments.Where(e => courseIds.Contains(e.CourseId)));
+                _context.Topics.RemoveRange(_context.Topics.Where(t => courseIds.Contains(t.CourseId)));
+                _context.Materials.RemoveRange(_context.Materials.Where(m => courseIds.Contains(m.CourseId)));
+                _context.Quizzes.RemoveRange(_context.Quizzes.Where(q => courseIds.Contains(q.CourseId)));
+                _context.Announcements.RemoveRange(_context.Announcements.Where(a => (a.CourseId.HasValue && courseIds.Contains(a.CourseId.Value)) || a.FacultyId == id));
+                _context.StudentCourseProgresses.RemoveRange(_context.StudentCourseProgresses.Where(cp => courseIds.Contains(cp.CourseId)));
+                _context.Courses.RemoveRange(_context.Courses.Where(c => c.FacultyId == id));
                 await _context.SaveChangesAsync();
 
-                // Now delete the user
-                var result = await _userManager.DeleteAsync(faculty);
+                var result = await _userManager.DeleteAsync(facultyMember);
                 if (result.Succeeded)
-                    return Json(new { success = true, message = "Faculty deleted successfully." });
+                    return Json(new { success = true, message = "Faculty member deleted successfully." });
 
-                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                return Json(new { success = false, message = $"Error deleting faculty: {errors}" });
+                return Json(new { success = false, message = string.Join(", ", result.Errors.Select(e => e.Description)) });
             }
             catch (Exception ex)
             {
@@ -465,102 +437,64 @@ namespace EduConnect.Controllers
             }
         }
 
-        // Deactivate/Activate Student
         [HttpPost]
-        [IgnoreAntiforgeryToken]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> ToggleStudentStatus(string id)
         {
-            var student = await _userManager.FindByIdAsync(id);
-            if (student == null)
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null)
                 return Json(new { success = false });
 
-            student.IsActive = !student.IsActive;
-            await _userManager.UpdateAsync(student);
-
-            return Json(new { success = true, isActive = student.IsActive });
+            user.IsActive = !user.IsActive;
+            await _userManager.UpdateAsync(user);
+            return Json(new { success = true, isActive = user.IsActive });
         }
 
-        // Helper method to calculate average progress
-        private async Task<double> CalculateAverageStudentProgress()
-        {
-            var enrollments = await _context.Enrollments.ToListAsync();
-            if (!enrollments.Any())
-                return 0;
-
-            return Math.Round(enrollments.Average(e => e.ProgressPercentage), 2);
-        }
-
-        // ==================== SEMESTER RESULTS MANAGEMENT ====================
+        // ==================== SEMESTER RESULTS ====================
 
         [HttpGet]
-        public async Task<IActionResult> ManageSemesterResults()
+        public async Task<IActionResult> SemesterResultsList(string? studentId = null, string? semester = null)
         {
-            var students = await _userManager.GetUsersInRoleAsync("Student");
-            ViewBag.Students = students;
-            return View();
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> SemesterResultsList(string studentId = null, string semester = null)
-        {
-            var query = _context.SemesterResults.Include(sr => sr.Student).AsQueryable();
+            var query = _context.SemesterResults.AsNoTracking().Include(sr => sr.Student).AsQueryable();
 
             if (!string.IsNullOrEmpty(studentId))
                 query = query.Where(sr => sr.StudentId == studentId);
-
             if (!string.IsNullOrEmpty(semester))
                 query = query.Where(sr => sr.Semester == semester);
 
             var results = await query.OrderByDescending(sr => sr.CreatedAt).ToListAsync();
-            
+
+            ViewBag.Students = await _userManager.GetUsersInRoleAsync("Student");
             ViewBag.StudentId = studentId;
             ViewBag.Semester = semester;
-            ViewBag.CurrentSemesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
-            
+            ViewBag.Semesters = Semesters;
+
             return View(results);
         }
 
         [HttpGet]
         public async Task<IActionResult> CreateSemesterResult()
         {
-            var students = await _userManager.GetUsersInRoleAsync("Student");
-            ViewBag.Students = students;
-            ViewBag.Semesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
-            ViewBag.Grades = new[] { "A", "B", "C", "D", "F" };
-            
+            await LoadSemesterFormOptions();
             return View();
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateSemesterResult(SemesterResult model)
         {
             if (!ModelState.IsValid)
             {
-                var students = await _userManager.GetUsersInRoleAsync("Student");
-                ViewBag.Students = students;
-                ViewBag.Semesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
-                ViewBag.Grades = new[] { "A", "B", "C", "D", "F" };
+                await LoadSemesterFormOptions();
                 return View(model);
             }
 
-            try
-            {
-                model.CreatedAt = DateTime.UtcNow;
-                _context.SemesterResults.Add(model);
-                await _context.SaveChangesAsync();
+            model.CreatedAt = DateTime.UtcNow;
+            _context.SemesterResults.Add(model);
+            await _context.SaveChangesAsync();
 
-                TempData["Success"] = "Semester result created successfully!";
-                return RedirectToAction("SemesterResultsList", new { studentId = model.StudentId });
-            }
-            catch (Exception ex)
-            {
-                ModelState.AddModelError("", "Error creating semester result: " + ex.Message);
-                var students = await _userManager.GetUsersInRoleAsync("Student");
-                ViewBag.Students = students;
-                ViewBag.Semesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
-                ViewBag.Grades = new[] { "A", "B", "C", "D", "F" };
-                return View(model);
-            }
+            TempData["Success"] = "Semester result recorded successfully.";
+            return RedirectToAction(nameof(SemesterResultsList), new { studentId = model.StudentId });
         }
 
         [HttpGet]
@@ -569,94 +503,104 @@ namespace EduConnect.Controllers
             var result = await _context.SemesterResults
                 .Include(sr => sr.Student)
                 .FirstOrDefaultAsync(sr => sr.Id == id);
-
             if (result == null) return NotFound();
 
-            ViewBag.Semesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
-            ViewBag.Grades = new[] { "A", "B", "C", "D", "F" };
-            
+            await LoadSemesterFormOptions();
             return View(result);
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditSemesterResult(int id, SemesterResult model)
         {
             if (id != model.Id) return BadRequest();
 
             if (!ModelState.IsValid)
             {
-                ViewBag.Semesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
-                ViewBag.Grades = new[] { "A", "B", "C", "D", "F" };
+                await LoadSemesterFormOptions();
                 return View(model);
             }
 
-            try
-            {
-                var result = await _context.SemesterResults.FindAsync(id);
-                if (result == null) return NotFound();
+            var result = await _context.SemesterResults.FindAsync(id);
+            if (result == null) return NotFound();
 
-                result.Semester = model.Semester;
-                result.CourseName = model.CourseName;
-                result.MarksObtained = model.MarksObtained;
-                result.Grade = model.Grade;
-                result.GPA = model.GPA;
-                result.Remarks = model.Remarks;
-                result.UpdatedAt = DateTime.UtcNow;
+            result.Semester = model.Semester;
+            result.CourseName = model.CourseName;
+            result.MarksObtained = model.MarksObtained;
+            result.Grade = model.Grade;
+            result.GPA = model.GPA;
+            result.Remarks = model.Remarks;
+            result.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
 
-                _context.SemesterResults.Update(result);
-                await _context.SaveChangesAsync();
-
-                TempData["Success"] = "Semester result updated successfully!";
-                return RedirectToAction("SemesterResultsList", new { studentId = result.StudentId });
-            }
-            catch (Exception ex)
-            {
-                ModelState.AddModelError("", "Error updating semester result: " + ex.Message);
-                ViewBag.Semesters = new[] { "Fall 2025", "Spring 2026", "Summer 2026", "Fall 2026" };
-                ViewBag.Grades = new[] { "A", "B", "C", "D", "F" };
-                return View(model);
-            }
+            TempData["Success"] = "Semester result updated successfully.";
+            return RedirectToAction(nameof(SemesterResultsList), new { studentId = result.StudentId });
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteSemesterResult(int id)
         {
             var result = await _context.SemesterResults.FindAsync(id);
             if (result == null) return NotFound();
 
-            try
-            {
-                var studentId = result.StudentId;
-                _context.SemesterResults.Remove(result);
-                await _context.SaveChangesAsync();
+            var studentId = result.StudentId;
+            _context.SemesterResults.Remove(result);
+            await _context.SaveChangesAsync();
 
-                TempData["Success"] = "Semester result deleted successfully!";
-                return RedirectToAction("SemesterResultsList", new { studentId });
-            }
-            catch (Exception ex)
-            {
-                TempData["Error"] = "Error deleting semester result: " + ex.Message;
-                return RedirectToAction("SemesterResultsList", new { studentId = result.StudentId });
-            }
+            TempData["Success"] = "Semester result deleted.";
+            return RedirectToAction(nameof(SemesterResultsList), new { studentId });
         }
 
-        // Download Student Data as Excel
-        [Authorize(Roles = "Admin")]
+        // ==================== EXPORT ====================
+
         public async Task<IActionResult> DownloadStudentData()
         {
             try
             {
                 var excelData = await _excelExportService.ExportStudentDataAsync();
                 var fileName = $"StudentData_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-                
                 return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
             catch (Exception ex)
             {
                 TempData["Error"] = "Error generating Excel file: " + ex.Message;
-                return RedirectToAction("Dashboard");
+                return RedirectToAction(nameof(Dashboard));
             }
         }
-    }
 
+        // ==================== HELPERS ====================
+
+        private async Task LoadSemesterFormOptions()
+        {
+            ViewBag.Students = await _userManager.GetUsersInRoleAsync("Student");
+            ViewBag.Semesters = Semesters;
+            ViewBag.Grades = Grades;
+        }
+
+        private static ApplicationUser BuildUser(string fullName, string email, string? phone, string? department)
+        {
+            var nameParts = fullName.Split(' ', 2);
+            return new ApplicationUser
+            {
+                UserName = email,
+                Email = email,
+                FullName = fullName,
+                FirstName = nameParts.Length > 0 ? nameParts[0] : fullName,
+                LastName = nameParts.Length > 1 ? nameParts[1] : string.Empty,
+                PhoneNumber = phone,
+                Department = department,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+            };
+        }
+
+        private static void ApplyName(ApplicationUser user, string fullName)
+        {
+            user.FullName = fullName;
+            var nameParts = fullName.Split(' ', 2);
+            user.FirstName = nameParts.Length > 0 ? nameParts[0] : fullName;
+            user.LastName = nameParts.Length > 1 ? nameParts[1] : string.Empty;
+        }
+    }
 }

@@ -1,64 +1,90 @@
-@model Material
-
+@model MaterialUploadViewModel
 @{
-    ViewData["Title"] = "Upload Study Material";
+    ViewData["Title"] = "Add Material";
 }
 
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <h2>Upload Study Material</h2>
-            <hr />
-            
-            <form asp-action="UploadMaterial" asp-route-courseId="@Model.CourseId" method="post" enctype="multipart/form-data">
-                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="page-header">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="Dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item"><a asp-action="CourseDetails" asp-route-id="@Model.CourseId">@ViewBag.CourseTitle</a></li>
+                <li class="breadcrumb-item active">Add Material</li>
+            </ol>
+        </nav>
+        <h1>Add Study Material</h1>
+        <p class="page-subtitle">Upload a file or write text notes for “@ViewBag.CourseTitle”</p>
+    </div>
+</div>
 
-                <div class="mb-3">
-                    <label asp-for="Title" class="form-label">Material Title</label>
-                    <input asp-for="Title" class="form-control" placeholder="e.g., Chapter 1 Notes" />
-                    <span asp-validation-for="Title" class="text-danger"></span>
-                </div>
+<div class="row">
+    <div class="col-lg-7 col-xl-6">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="UploadMaterial" method="post" enctype="multipart/form-data" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
+                    <input type="hidden" asp-for="CourseId" />
 
-                <div class="mb-3">
-                    <label asp-for="Description" class="form-label">Description</label>
-                    <textarea asp-for="Description" class="form-control" rows="3" placeholder="Describe the material content"></textarea>
-                    <span asp-validation-for="Description" class="text-danger"></span>
-                </div>
+                    <div class="mb-3">
+                        <label asp-for="Title" class="form-label"></label>
+                        <input asp-for="Title" class="form-control" placeholder="e.g. Lecture 3 — Joins Illustrated" autofocus />
+                        <span asp-validation-for="Title"></span>
+                    </div>
 
-                <div class="mb-3">
-                    <label asp-for="FileType" class="form-label">File Type</label>
-                    <select asp-for="FileType" class="form-control">
-                        <option value="">-- Select File Type --</option>
-                        <option value="PDF">PDF</option>
-                        <option value="Video">Video</option>
-                        <option value="Document">Document</option>
-                        <option value="Image">Image</option>
-                        <option value="Other">Other</option>
-                    </select>
-                    <span asp-validation-for="FileType" class="text-danger"></span>
-                </div>
+                    <div class="mb-3">
+                        <label asp-for="FileType" class="form-label"></label>
+                        <select asp-for="FileType" class="form-select" id="materialType">
+                            <option value="">Select type…</option>
+                            <option value="PDF">PDF Document</option>
+                            <option value="Video">Video</option>
+                            <option value="Document">Document (Word / PowerPoint)</option>
+                            <option value="Image">Image</option>
+                            <option value="Text">Text Notes (no file)</option>
+                        </select>
+                        <span asp-validation-for="FileType"></span>
+                    </div>
 
-                <div class="mb-3">
-                    <label for="file" class="form-label">Select File</label>
-                    <input type="file" id="file" name="file" class="form-control" accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.png,.mp4,.avi" />
-                    <small class="form-text text-muted">Supported: PDF, Documents, Images, Videos</small>
-                </div>
+                    <div class="mb-3" id="fileGroup">
+                        <label class="form-label">File</label>
+                        <input type="file" name="file" class="form-control" />
+                        @Html.ValidationMessage("file", new { @class = "field-validation-error" })
+                        <div class="form-text">Allowed: PDF, Office documents, images, videos, ZIP — up to 200&nbsp;MB.</div>
+                    </div>
 
-                <div class="mb-3">
-                    <label asp-for="CourseId" class="form-label">Course</label>
-                    <input type="hidden" name="courseId" value="@Model.CourseId" />
-                    <input type="text" class="form-control" disabled value="Course ID: @Model.CourseId" />
-                </div>
+                    <div class="mb-4">
+                        <label asp-for="Description" class="form-label" id="descLabel">Description (optional)</label>
+                        <textarea asp-for="Description" class="form-control" rows="6" placeholder="Short description of this material…"></textarea>
+                        <span asp-validation-for="Description"></span>
+                    </div>
 
-                <div class="mb-3">
-                    <button type="submit" class="btn btn-primary">Upload Material</button>
-                    <a asp-action="CourseDetails" asp-route-id="@Model.CourseId" class="btn btn-secondary">Cancel</a>
-                </div>
-            </form>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" id="uploadBtn"><i class="fa-solid fa-upload me-2"></i>Add Material</button>
+                        <a class="btn btn-outline-secondary" asp-action="CourseDetails" asp-route-id="@Model.CourseId">Cancel</a>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const typeSelect = document.getElementById('materialType');
+        const fileGroup = document.getElementById('fileGroup');
+        const descLabel = document.getElementById('descLabel');
+        function syncType() {
+            const isText = typeSelect.value === 'Text';
+            fileGroup.style.display = isText ? 'none' : '';
+            descLabel.textContent = isText ? 'Content (shown to students)' : 'Description (optional)';
+        }
+        typeSelect.addEventListener('change', syncType);
+        syncType();
+
+        document.querySelector('form').addEventListener('submit', function () {
+            const btn = document.getElementById('uploadBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading…';
+        });
+    </script>
 }

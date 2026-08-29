@@ -1,238 +1,190 @@
-@using EduConnect.Models
 @model StudentProgressViewModel
-
 @{
-    ViewData["Title"] = "My Academic Dashboard";
-    Layout = "_Layout";
+    ViewData["Title"] = "My Progress";
 }
 
-<div class="container-fluid mt-5 mb-5">
-    <!-- Student Header Card -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card border-0 shadow-sm bg-gradient">
-                <div class="card-body" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem;">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h2 class="mb-1">📊 Your Academic Dashboard</h2>
-                            <p class="mb-0" style="font-size: 1.1rem;">
-                                <strong>Student:</strong> @Model.StudentName
-                            </p>
-                            <p class="mb-0" style="font-size: 0.95rem; opacity: 0.9;">
-                                <strong>Email:</strong> @Model.Email
-                            </p>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <div class="display-4" style="opacity: 0.2;">📈</div>
-                        </div>
-                    </div>
-                </div>
+<div class="page-header">
+    <div>
+        <h1>My Progress</h1>
+        <p class="page-subtitle">Attendance, course completion and academic results in one place</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon success"><i class="fa-solid fa-calendar-check"></i></span>
+            <div>
+                <div class="stat-value">@Model.AttendancePercentage%</div>
+                <div class="stat-label">Attendance</div>
             </div>
         </div>
     </div>
-
-    <!-- Quick Stats Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-center h-100">
-                <div class="card-body">
-                    <div class="h5 text-muted mb-2">Current GPA</div>
-                    <div class="h2 text-info">@Model.AverageGPA</div>
-                    <small class="text-muted">@Model.TotalSemesters semester(s)</small>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-center h-100">
-                <div class="card-body">
-                    <div class="h5 text-muted mb-2">Attendance Rate</div>
-                    <div class="h2 text-success">@Model.AttendancePercentage%</div>
-                    <small class="text-muted">@Model.TotalPresent present days</small>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-center h-100">
-                <div class="card-body">
-                    <div class="h5 text-muted mb-2">Course Progress</div>
-                    <div class="h2 text-primary">@Model.AverageCourseProgress%</div>
-                    <small class="text-muted">@Model.CompletedCourses completed</small>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-center h-100">
-                <div class="card-body">
-                    <div class="h5 text-muted mb-2">Total Courses</div>
-                    <div class="h2 text-warning">@Model.CourseProgressDetails.Count</div>
-                    <small class="text-muted">@Model.ActiveCourses active</small>
-                </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon primary"><i class="fa-solid fa-bars-progress"></i></span>
+            <div>
+                <div class="stat-value">@Model.AverageCourseProgress%</div>
+                <div class="stat-label">Avg. Course Progress</div>
             </div>
         </div>
     </div>
-
-    <!-- Power BI Dashboard Embed -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">� Interactive Power BI Dashboard</h5>
-                    <small class="text-muted">Your complete academic performance report</small>
-                </div>
-                <div class="card-body p-0">
-                    <!-- Power BI Embedded Report with autoAuth -->
-                    <iframe 
-                        title="students report" 
-                        width="100%" 
-                        height="800" 
-                        src="https://app.powerbi.com/reportEmbed?reportId=88d2ed15-ca2b-47ab-ace0-70abefe191cf&autoAuth=true&ctid=f212ef6f-3732-419b-9ad2-2df500873478&actionBarEnabled=true&reportCopilotInEmbed=true" 
-                        frameborder="0" 
-                        allowFullScreen="true"
-                        style="display: block;">
-                    </iframe>
-                </div>
-                <div class="card-footer bg-light text-muted" style="font-size: 0.85rem;">
-                    <i class="fas fa-lock"></i> Read-only view • Your data only • Last updated: <span id="lastUpdated">@DateTime.Now.ToString("MMM dd, yyyy HH:mm")</span>
-                </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon warning"><i class="fa-solid fa-book-open"></i></span>
+            <div>
+                <div class="stat-value">@Model.ActiveCourses <small class="text-muted fw-normal" style="font-size:.85rem">active</small></div>
+                <div class="stat-label">@Model.CompletedCourses completed</div>
             </div>
         </div>
     </div>
-
-    <!-- Summary Tables Section -->
-    <div class="row mt-5">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">📚 Course-wise Progress</h5>
-                </div>
-                <div class="card-body p-0">
-                    @if (Model.CourseProgressDetails.Any())
-                    {
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Course</th>
-                                        <th class="text-center">Progress</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var course in Model.CourseProgressDetails.OrderByDescending(c => c.CompletionPercentage).Take(5))
-                                    {
-                                        <tr>
-                                            <td>@course.CourseName</td>
-                                            <td>
-                                                <div class="progress" style="height: 20px;">
-                                                    @{
-                                                        var progressColor = course.CompletionPercentage >= 100 ? "bg-success" :
-                                                                           course.CompletionPercentage >= 75 ? "bg-info" :
-                                                                           course.CompletionPercentage >= 50 ? "bg-warning" : "bg-danger";
-                                                    }
-                                                    <div class="progress-bar @progressColor text-dark fw-bold" role="progressbar" style="width: @course.CompletionPercentage%">
-                                                        @course.CompletionPercentage%
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">🎓 Recent Semester Results</h5>
-                </div>
-                <div class="card-body p-0">
-                    @if (Model.SemesterResultDetails.Any())
-                    {
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Semester</th>
-                                        <th class="text-center">GPA</th>
-                                        <th class="text-center">Grade</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var result in Model.SemesterResultDetails.OrderByDescending(sr => sr.Semester).Take(5))
-                                    {
-                                        <tr>
-                                            <td>@result.Semester</td>
-                                            <td class="text-center">
-                                                <span class="badge bg-primary">@result.GPA.ToString("F2")</span>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="badge bg-success">@result.Grade</span>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon info"><i class="fa-solid fa-award"></i></span>
+            <div>
+                <div class="stat-value">@Model.AverageGPA</div>
+                <div class="stat-label">Average GPA (@Model.TotalSemesters semesters)</div>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-    .bg-gradient {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="card-title">Monthly Attendance</h6></div>
+            <div class="card-body">
+                <div class="chart-container" style="height:250px"><canvas id="attendanceChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="card-title">Attendance Split</h6></div>
+            <div class="card-body">
+                <div class="chart-container" style="height:250px"><canvas id="attendancePie"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
 
-    .card {
-        transition: transform 0.2s, box-shadow 0.2s;
+<div class="card mb-4">
+    <div class="card-header"><h6 class="card-title">Course Progress</h6></div>
+    @if (Model.CourseProgressDetails.Count == 0)
+    {
+        <div class="empty-state py-4"><p class="mb-0">No course activity yet — enroll in a course to start tracking progress.</p></div>
     }
-
-    .card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    else
+    {
+        <div class="table-responsive">
+            <table class="table app-table">
+                <thead>
+                    <tr><th>Course</th><th>Completion</th><th>Topics</th><th>Quizzes Taken</th><th>Avg. Score</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var course in Model.CourseProgressDetails)
+                    {
+                        var statusBadge = course.ProgressStatus switch
+                        {
+                            "Completed" => "badge-soft-success",
+                            "In Progress" => "badge-soft-info",
+                            _ => "badge-soft-muted",
+                        };
+                        <tr>
+                            <td class="fw-medium">@course.CourseName</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2" style="min-width:140px">
+                                    <div class="progress flex-grow-1"><div class="progress-bar @(course.CompletionPercentage >= 100 ? "bg-success" : "")" style="width:@(course.CompletionPercentage)%"></div></div>
+                                    <span style="font-size:.82rem">@course.CompletionPercentage%</span>
+                                </div>
+                            </td>
+                            <td>@course.TopicsCompleted / @course.TotalTopics</td>
+                            <td>@course.QuizzesTaken</td>
+                            <td>@(course.QuizzesTaken > 0 ? $"{course.AverageScore}%" : "—")</td>
+                            <td><span class="badge @statusBadge">@course.ProgressStatus</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     }
+</div>
 
-    .table-hover tbody tr:hover {
-        background-color: #f8f9fa;
-        cursor: pointer;
+<div class="card">
+    <div class="card-header"><h6 class="card-title">Semester Results</h6></div>
+    @if (Model.SemesterResultDetails.Count == 0)
+    {
+        <div class="empty-state py-4"><p class="mb-0">No semester results recorded yet.</p></div>
     }
-
-    /* Disable text selection to make it read-only */
-    .card, .table {
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
+    else
+    {
+        <div class="table-responsive">
+            <table class="table app-table">
+                <thead>
+                    <tr><th>Semester</th><th>Course</th><th>Marks</th><th>Grade</th><th>GPA</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var result in Model.SemesterResultDetails)
+                    {
+                        var gradeBadge = result.Grade switch
+                        {
+                            "A" => "badge-soft-success",
+                            "B" => "badge-soft-primary",
+                            "C" => "badge-soft-info",
+                            "D" => "badge-soft-warning",
+                            _ => "badge-soft-danger",
+                        };
+                        <tr>
+                            <td class="text-muted">@result.Semester</td>
+                            <td class="fw-medium">@result.CourseName</td>
+                            <td>@result.MarksObtained.ToString("0.#")</td>
+                            <td><span class="badge @gradeBadge">@result.Grade</span></td>
+                            <td>@result.GPA.ToString("0.0")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     }
+</div>
 
-    /* Style progress bars */
-    .progress {
-        background-color: #e9ecef;
-        border-radius: 5px;
-    }
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script>
+        Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+        Chart.defaults.color = '#64748b';
 
-    .progress-bar {
-        transition: width 0.6s ease;
-    }
+        const breakdown = @Html.Raw(Json.Serialize(Model.AttendanceBreakdown));
+        new Chart(document.getElementById('attendanceChart'), {
+            type: 'bar',
+            data: {
+                labels: breakdown.map(b => b.month),
+                datasets: [
+                    { label: 'Present', data: breakdown.map(b => b.present), backgroundColor: '#16a34a', borderRadius: 4, maxBarThickness: 28 },
+                    { label: 'Absent', data: breakdown.map(b => b.absent), backgroundColor: '#dc2626', borderRadius: 4, maxBarThickness: 28 },
+                    { label: 'Leave', data: breakdown.map(b => b.leave), backgroundColor: '#d97706', borderRadius: 4, maxBarThickness: 28 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } },
+                scales: {
+                    x: { stacked: true, grid: { display: false } },
+                    y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f1f5f9' } }
+                }
+            }
+        });
 
-    /* Badge styling */
-    .badge {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.85rem;
-    }
-</style>
-
-<script src="https://cdn.jsdelivr.net/npm/powerbi-client@latest/dist/powerbi.min.js"></script>
-<script>
-    // Power BI dashboard loads automatically via iframe with autoAuth=true
-    // No additional token generation needed
-    console.log('Power BI dashboard loaded');
-</script>
+        new Chart(document.getElementById('attendancePie'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Present', 'Absent', 'Leave'],
+                datasets: [{ data: [@Model.TotalPresent, @Model.TotalAbsent, @Model.TotalLeave], backgroundColor: ['#16a34a', '#dc2626', '#d97706'], borderWidth: 0 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '65%',
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } }
+            }
+        });
+    </script>
+}

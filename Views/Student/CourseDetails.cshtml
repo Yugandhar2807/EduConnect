@@ -1,496 +1,246 @@
-@model EduConnect.Models.Course
-
+@model StudentCourseViewModel
 @{
-    ViewData["Title"] = @Model.Title;
+    var course = Model.Course;
+    ViewData["Title"] = course.Title;
+    var topics = course.Topics?.OrderBy(t => t.CreatedAt).ToList() ?? new List<Topic>();
+    var materials = course.Materials?.OrderBy(m => m.UploadedAt).ToList() ?? new List<Material>();
+    var quizzes = course.Quizzes?.Where(q => q.IsActive).OrderBy(q => q.CreatedAt).ToList() ?? new List<Quiz>();
 }
 
-<!-- Include CSRF Token -->
-@Html.AntiForgeryToken()
-
-<style>
-    .course-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 30px;
-        border-radius: 10px;
-        margin-bottom: 30px;
-    }
-
-    .course-description-btn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        padding: 12px 20px;
-        border-radius: 8px;
-        width: 100%;
-        text-align: left;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .course-description-btn:hover {
-        background: linear-gradient(135deg, #5568d3 0%, #6a3f92 100%);
-        transform: translateX(5px);
-    }
-
-    .course-description-content {
-        display: none;
-        padding: 20px;
-        background: #f8f9fa;
-        border-radius: 0 0 8px 8px;
-        border-top: 2px solid #667eea;
-    }
-
-    .course-description-content.show {
-        display: block;
-    }
-
-    .slideDown {
-        animation: slideDown 0.3s ease-out;
-    }
-
-    @* Keyframes animation *@
-    /* Animation in CSS */
-
-    .topic-card {
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        margin-bottom: 15px;
-        background: white;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        transition: all 0.3s ease;
-    }
-
-    .topic-card:hover {
-        box-shadow: 0 5px 15px rgba(102,126,234,0.2);
-        border-color: #667eea;
-    }
-
-    .topic-header {
-        padding: 15px;
-        background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-        border-bottom: 2px solid #e0e0e0;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: all 0.2s ease;
-    }
-
-    .topic-header:hover {
-        background: linear-gradient(135deg, #667eea25 0%, #764ba225 100%);
-    }
-
-    .topic-header h6 {
-        margin: 0;
-        color: #333;
-        font-weight: 600;
-        flex: 1;
-    }
-
-    .topic-icon {
-        font-size: 1.2em;
-        margin-right: 10px;
-        color: #667eea;
-    }
-
-    .toggle-icon {
-        color: #667eea;
-        transition: transform 0.3s ease;
-        font-size: 1.2em;
-    }
-
-    .toggle-icon.open {
-        transform: rotate(180deg);
-    }
-
-    .topic-content {
-        display: none;
-        padding: 20px;
-        background: white;
-    }
-
-    .topic-content.show {
-        display: block;
-    }
-
-    .pdf-link {
-        display: inline-block;
-        padding: 10px 15px;
-        background: #667eea;
-        color: white;
-        text-decoration: none;
-        border-radius: 5px;
-        margin: 10px 0;
-        transition: all 0.3s ease;
-        font-weight: 600;
-    }
-
-    .pdf-link:hover {
-        background: #764ba2;
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(102,126,234,0.3);
-    }
-
-    .materials-section, .quiz-section {
-        margin-top: 15px;
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 5px;
-    }
-
-    .materials-section h6, .quiz-section h6 {
-        color: #333;
-        margin-bottom: 10px;
-        font-weight: 600;
-    }
-
-    .material-item, .quiz-item {
-        padding: 10px;
-        background: white;
-        margin-bottom: 10px;
-        border-radius: 5px;
-        border-left: 3px solid #667eea;
-    }
-
-    .quiz-attempt-btn {
-        background: #28a745;
-        color: white;
-        padding: 6px 12px;
-        text-decoration: none;
-        border-radius: 4px;
-        font-size: 0.9em;
-        transition: all 0.2s ease;
-        display: inline-block;
-    }
-
-    .quiz-attempt-btn:hover {
-        background: #218838;
-        transform: translateY(-2px);
-    }
-
-    .card {
-        border: none;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        border-radius: 10px;
-    }
-
-    .card-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 10px 10px 0 0;
-        padding: 15px;
-    }
-</style>
-
-<div class="course-header">
-    <h1 style="margin-bottom: 10px;">@Model.Title</h1>
-    <p style="margin: 0; opacity: 0.9;">@Model.Category</p>
-</div>
-
-<div class="row">
-    <div class="col-md-8">
-        <!-- Course Description as Expandable Button -->
-        <div class="card mb-4">
-            <button class="course-description-btn" onclick="toggleDescription()">
-                <span><i class="fas fa-book-open"></i> Course Description</span>
-                <span class="toggle-icon" id="descToggle">▼</span>
-            </button>
-            <div class="course-description-content" id="descriptionContent">
-                <p>@Model.Description</p>
-            </div>
-        </div>
-
-        <!-- Topics Section -->
-        <div class="card">
-            <div class="card-header">
-                <h5 style="margin: 0;"><i class="fas fa-list"></i> Course Topics (@(Model.Topics?.Count() ?? 0))</h5>
-            </div>
-            <div class="card-body">
-                @if (Model.Topics?.Any() ?? false)
-                {
-                    @foreach (var topic in Model.Topics.OrderBy(t => t.CreatedAt))
-                    {
-                        <div class="topic-card">
-                            <div class="topic-header" onclick="toggleTopic(this)">
-                                <div style="display: flex; align-items: center; flex: 1;">
-                                    <span class="topic-icon"><i class="fas fa-bookmark"></i></span>
-                                    <h6 style="margin: 0;">@topic.Name</h6>
-                                </div>
-                                <span class="toggle-icon">▼</span>
-                            </div>
-                            <div class="topic-content">
-                                @if (!string.IsNullOrEmpty(topic.Description))
-                                {
-                                    <p style="color: #666; margin-bottom: 15px;">@topic.Description</p>
-                                }
-
-                                <!-- Mark as Complete Button -->
-                                <div style="margin-bottom: 15px;">
-                                    <button class="btn btn-success btn-sm" onclick="markTopicComplete(@topic.Id, '@topic.Name')">
-                                        <i class="fas fa-check-circle"></i> Mark as Complete
-                                    </button>
-                                </div>
-
-                                <!-- PDF Link -->
-                                @if (!string.IsNullOrEmpty(topic.PdfFilePath))
-                                {
-                                    <div style="margin-bottom: 15px;">
-                                        <a href="@topic.PdfFilePath" target="_blank" class="pdf-link">
-                                            <i class="fas fa-file-pdf"></i> Download Topic PDF
-                                        </a>
-                                    </div>
-                                }
-
-                                <!-- Materials for this topic -->
-                                @if (Model.Materials?.Where(m => m.TopicId == topic.Id).Any() ?? false)
-                                {
-                                    <div class="materials-section">
-                                        <h6><i class="fas fa-video"></i> Additional Materials</h6>
-                                        @foreach (var material in Model.Materials.Where(m => m.TopicId == topic.Id))
-                                        {
-                                            <div class="material-item">
-                                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                                    <div style="flex: 1;">
-                                                        <strong>@material.Title</strong>
-                                                        <br />
-                                                        <small style="color: #999;">@material.FileType - @(material.FileSize / 1024)KB</small>
-                                                    </div>
-                                                    <div style="display: flex; gap: 5px;">
-                                                        <a href="@material.FilePath" class="btn btn-sm btn-outline-primary" download>
-                                                            <i class="fas fa-download"></i>
-                                                        </a>
-                                                        <button class="btn btn-sm btn-success" onclick="markMaterialComplete(@material.Id, '@material.Title')">
-                                                            <i class="fas fa-check-circle"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        }
-                                    </div>
-                                }
-
-                                <!-- Quizzes for this topic -->
-                                @if (Model.Quizzes?.Where(q => q.TopicId == topic.Id && q.IsActive).Any() ?? false)
-                                {
-                                    <div class="quiz-section">
-                                        <h6><i class="fas fa-pencil-alt"></i> Quizzes</h6>
-                                        @foreach (var quiz in Model.Quizzes.Where(q => q.TopicId == topic.Id && q.IsActive))
-                                        {
-                                            <div class="quiz-item">
-                                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                                    <div>
-                                                        <strong>@quiz.Title</strong>
-                                                        <br />
-                                                        <small style="color: #999;">@quiz.TotalQuestions Q - @quiz.TotalMarks Marks - @quiz.DurationInMinutes min</small>
-                                                    </div>
-                                                    <a asp-action="TakeQuiz" asp-route-quizId="@quiz.Id" class="quiz-attempt-btn">
-                                                        <i class="fas fa-play"></i> Attempt
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
-                }
-                else
-                {
-                    <p class="text-muted"><i class="fas fa-info-circle"></i> No topics available yet. Check back soon!</p>
-                }
-            </div>
-        </div>
-
-        <!-- Materials Section (Unlinked Materials) -->
-        @if (Model.Materials?.Where(m => m.TopicId == null).Any() ?? false)
-        {
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h5 style="margin: 0;"><i class="fas fa-video"></i> Course Materials</h5>
-                </div>
-                <div class="card-body">
-                    @foreach (var material in Model.Materials.Where(m => m.TopicId == null))
-                    {
-                        <div class="material-item">
-                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                                <div style="flex: 1; min-width: 0;">
-                                    <strong>@material.Title</strong>
-                                    <br />
-                                    <small style="color: #999;">@material.FileType - @(material.FileSize / 1024)KB</small>
-                                </div>
-                                <div style="display: flex; gap: 5px; flex-shrink: 0;">
-                                    <a href="@material.FilePath" class="btn btn-sm btn-outline-primary" download style="white-space: nowrap;">
-                                        <i class="fas fa-download"></i> Download
-                                    </a>
-                                    <button class="btn btn-sm btn-success" onclick="markMaterialComplete(@material.Id, '@material.Title')" style="white-space: nowrap;">
-                                        <i class="fas fa-check-circle"></i> Complete
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    }
-                </div>
-            </div>
-        }
-
-        <!-- Quizzes Section (Unlinked Quizzes) -->
-        @if (Model.Quizzes?.Where(q => q.TopicId == null && q.IsActive).Any() ?? false)
-        {
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h5 style="margin: 0;"><i class="fas fa-pencil-alt"></i> Course Quizzes</h5>
-                </div>
-                <div class="card-body">
-                    @foreach (var quiz in Model.Quizzes.Where(q => q.TopicId == null && q.IsActive))
-                    {
-                        <div class="quiz-item">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <strong>@quiz.Title</strong>
-                                    <br />
-                                    <small style="color: #999;">@quiz.TotalQuestions Questions - @quiz.TotalMarks Marks - @quiz.DurationInMinutes min</small>
-                                </div>
-                                <a asp-action="TakeQuiz" asp-route-quizId="@quiz.Id" class="quiz-attempt-btn">
-                                    <i class="fas fa-play"></i> Attempt
-                                </a>
-                            </div>
-                        </div>
-                    }
-                </div>
-            </div>
-        }
-    </div>
-
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 style="margin: 0;">📋 Course Information</h5>
-            </div>
-            <div class="card-body">
-                <p><strong><i class="fas fa-user"></i> Instructor:</strong> <br />@Model.Faculty?.FirstName @Model.Faculty?.LastName</p>
-                <p><strong><i class="fas fa-tag"></i> Category:</strong> <br />@Model.Category</p>
-                <p><strong><i class="fas fa-users"></i> Enrolled Students:</strong> <br />@(Model.Enrollments?.Count() ?? 0)</p>
-                <a class="btn btn-primary w-100" asp-action="Dashboard">
-                    <i class="fas fa-arrow-left"></i> Back to Dashboard
-                </a>
-            </div>
-        </div>
+<div class="page-header">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="Dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item active">@course.Title</li>
+            </ol>
+        </nav>
+        <h1>@course.Title</h1>
+        <p class="page-subtitle">
+            <span class="badge badge-soft-muted me-2">@course.Category</span>
+            <i class="fa-solid fa-chalkboard-user me-1"></i>@(course.Faculty?.FullName ?? "Faculty")
+        </p>
     </div>
 </div>
 
-<script>
-    // Get course ID from URL
-    const courseId = @Model.Id;
-
-    function toggleDescription() {
-        const content = document.getElementById('descriptionContent');
-        const toggle = document.getElementById('descToggle');
-        content.classList.toggle('show');
-        toggle.classList.toggle('open');
-    }
-
-    function toggleTopic(headerElement) {
-        const content = headerElement.nextElementSibling;
-        const toggle = headerElement.querySelector('.toggle-icon');
-        
-        // Close other topics
-        document.querySelectorAll('.topic-content.show').forEach(el => {
-            if (el !== content) {
-                el.classList.remove('show');
-                el.previousElementSibling.querySelector('.toggle-icon').classList.remove('open');
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3 flex-wrap mb-3">
+            <div class="flex-grow-1">
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="fw-semibold" style="font-size:.9rem">Course progress</span>
+                    <span class="fw-semibold" id="progressLabel" style="font-size:.9rem">@Model.ProgressPercentage.ToString("0")%</span>
+                </div>
+                <div class="progress" style="height:10px">
+                    <div class="progress-bar @(Model.ProgressPercentage >= 100 ? "bg-success" : "")" id="progressBar" style="width:@(Model.ProgressPercentage)%"></div>
+                </div>
+            </div>
+            @if (Model.Enrollment.IsCompleted)
+            {
+                <span class="badge badge-soft-success" style="font-size:.85rem"><i class="fa-solid fa-trophy me-1"></i>Completed</span>
             }
+        </div>
+        <p class="text-muted mb-0" style="font-size:.92rem">@course.Description</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <!-- Topics -->
+        <div class="card mb-4">
+            <div class="card-header"><h6 class="card-title"><i class="fa-solid fa-list me-2 text-primary"></i>Topics</h6></div>
+            @if (topics.Count == 0)
+            {
+                <div class="empty-state py-4"><p class="mb-0">No topics have been added yet.</p></div>
+            }
+            else
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var (topic, index) in topics.Select((t, i) => (t, i)))
+                    {
+                        var isDone = Model.CompletedTopicIds.Contains(topic.Id);
+                        <li class="list-group-item d-flex align-items-center gap-3 py-3" style="border-color:#f1f5f9">
+                            <span class="avatar" style="width:32px;height:32px;font-size:.8rem; @(isDone ? "background:var(--success-soft);color:var(--success)" : "")">
+                                @if (isDone)
+                                {
+                                    <i class="fa-solid fa-check"></i>
+                                }
+                                else
+                                {
+                                    @(index + 1)
+                                }
+                            </span>
+                            <div class="flex-grow-1" style="min-width:0">
+                                <div class="fw-medium">@topic.Name</div>
+                                <div class="text-muted" style="font-size:.83rem">@topic.Description</div>
+                            </div>
+                            @if (!string.IsNullOrEmpty(topic.PdfFilePath))
+                            {
+                                <a class="btn btn-sm btn-outline-secondary" href="@topic.PdfFilePath" target="_blank" title="Open PDF"><i class="fa-solid fa-file-pdf"></i></a>
+                            }
+                            @if (!isDone)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-success mark-complete-btn" data-topic-id="@topic.Id" title="Mark as complete">
+                                    <i class="fa-solid fa-check me-1"></i>Done
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="badge badge-soft-success">Completed</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+
+        <!-- Materials -->
+        <div class="card mb-4">
+            <div class="card-header"><h6 class="card-title"><i class="fa-solid fa-file-lines me-2 text-info"></i>Study Materials</h6></div>
+            @if (materials.Count == 0)
+            {
+                <div class="empty-state py-4"><p class="mb-0">No materials have been shared yet.</p></div>
+            }
+            else
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var material in materials)
+                    {
+                        var isDone = Model.CompletedMaterialIds.Contains(material.Id);
+                        var icon = material.FileType switch
+                        {
+                            "PDF" => "fa-file-pdf text-danger",
+                            "Video" => "fa-file-video text-primary",
+                            "Image" => "fa-file-image text-success",
+                            "Text" => "fa-file-pen text-info",
+                            _ => "fa-file text-secondary",
+                        };
+                        <li class="list-group-item d-flex align-items-center gap-3 py-3" style="border-color:#f1f5f9">
+                            <i class="fa-solid @icon fa-lg" style="width:24px;text-align:center"></i>
+                            <div class="flex-grow-1" style="min-width:0">
+                                <div class="fw-medium">@material.Title</div>
+                                <span class="text-muted" style="font-size:.8rem">@material.FileType · added @material.UploadedAt.ToString("dd MMM yyyy")</span>
+                            </div>
+                            @if (!string.IsNullOrEmpty(material.FilePath))
+                            {
+                                <a class="btn btn-sm btn-outline-secondary" href="@material.FilePath" target="_blank"><i class="fa-solid fa-up-right-from-square me-1"></i>Open</a>
+                            }
+                            else if (material.FileType == "Text")
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        data-bs-toggle="modal" data-bs-target="#materialModal"
+                                        data-title="@material.Title" data-content="@material.Description">
+                                    <i class="fa-solid fa-book-open me-1"></i>Read
+                                </button>
+                            }
+                            @if (!isDone)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-success mark-complete-btn" data-material-id="@material.Id" title="Mark as complete">
+                                    <i class="fa-solid fa-check me-1"></i>Done
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="badge badge-soft-success">Completed</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Quizzes -->
+        <div class="card">
+            <div class="card-header"><h6 class="card-title"><i class="fa-solid fa-list-check me-2 text-warning"></i>Quizzes</h6></div>
+            @if (quizzes.Count == 0)
+            {
+                <div class="empty-state py-4"><p class="mb-0">No quizzes are available yet.</p></div>
+            }
+            else
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var quiz in quizzes)
+                    {
+                        var best = Model.BestQuizResults.GetValueOrDefault(quiz.Id);
+                        var attempts = Model.QuizAttemptCounts.GetValueOrDefault(quiz.Id);
+                        <li class="list-group-item py-3" style="border-color:#f1f5f9">
+                            <div class="fw-medium mb-1">@quiz.Title</div>
+                            <div class="text-muted mb-2" style="font-size:.8rem">
+                                @(quiz.Questions?.Count ?? 0) questions · @quiz.TotalMarks marks · @quiz.DurationInMinutes min · pass @quiz.PassingMarks%
+                            </div>
+                            @if (best != null)
+                            {
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <span class="badge @(best.IsPassed ? "badge-soft-success" : "badge-soft-danger")">
+                                        Best: @best.PercentageScore.ToString("0")% @(best.IsPassed ? "· Passed" : "· Failed")
+                                    </span>
+                                    <span class="text-muted" style="font-size:.78rem">@attempts attempt@(attempts == 1 ? "" : "s")</span>
+                                </div>
+                            }
+                            <a class="btn btn-sm @(best == null ? "btn-primary" : "btn-outline-primary") w-100" asp-action="TakeQuiz" asp-route-quizId="@quiz.Id">
+                                <i class="fa-solid @(best == null ? "fa-play" : "fa-rotate-right") me-1"></i>@(best == null ? "Start Quiz" : "Retake Quiz")
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Text material reader modal -->
+<div class="modal fade" id="materialModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="materialModalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="materialModalBody" style="white-space:pre-wrap; font-size:.93rem"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const materialModal = document.getElementById('materialModal');
+        materialModal.addEventListener('show.bs.modal', function (event) {
+            const btn = event.relatedTarget;
+            materialModal.querySelector('#materialModalTitle').textContent = btn.dataset.title;
+            materialModal.querySelector('#materialModalBody').textContent = btn.dataset.content;
         });
 
-        content.classList.toggle('show');
-        toggle.classList.toggle('open');
-    }
-
-    /// Mark topic as complete
-    async function markTopicComplete(topicId, topicName) {
-        try {
-            const response = await fetch(`/Student/MarkComplete?topicId=${topicId}&courseId=${courseId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
-                }
+        document.querySelectorAll('.mark-complete-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                const params = btn.dataset.topicId
+                    ? 'topicId=' + btn.dataset.topicId
+                    : 'materialId=' + btn.dataset.materialId;
+                fetch('@Url.Action("MarkComplete")?' + params + '&courseId=@course.Id', {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': App.token() }
+                })
+                .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+                .then(function (data) {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge badge-soft-success';
+                    badge.textContent = 'Completed';
+                    btn.replaceWith(badge);
+                    if (typeof data.progress === 'number') {
+                        document.getElementById('progressLabel').textContent = Math.round(data.progress) + '%';
+                        document.getElementById('progressBar').style.width = data.progress + '%';
+                    }
+                    App.toast('Marked as complete — progress updated!', 'success');
+                })
+                .catch(function () {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-check me-1"></i>Done';
+                    App.toast('Could not update progress. Please try again.', 'error');
+                });
             });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                if (data.isNew) {
-                    showToast(`✅ Topic "${topicName}" marked as complete!`, 'success');
-                    // Update button
-                    event.target.closest('button').innerHTML = '<i class="fas fa-check"></i> Completed';
-                    event.target.closest('button').disabled = true;
-                    event.target.closest('button').classList.add('btn-secondary');
-                    event.target.closest('button').classList.remove('btn-success');
-                } else {
-                    showToast('Already completed', 'info');
-                }
-            } else {
-                showToast('Error marking as complete', 'danger');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            showToast('Error occurred', 'danger');
-        }
-    }
-
-    /// Mark material as complete
-    async function markMaterialComplete(materialId, materialName) {
-        try {
-            const response = await fetch(`/Student/MarkComplete?materialId=${materialId}&courseId=${courseId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('[name="__RequestVerificationToken"]')?.value || ''
-                }
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                if (data.isNew) {
-                    showToast(`✅ Material "${materialName}" marked as complete!`, 'success');
-                    // Update button
-                    event.target.closest('button').innerHTML = '<i class="fas fa-check"></i>';
-                    event.target.closest('button').disabled = true;
-                    event.target.closest('button').classList.add('btn-secondary');
-                    event.target.closest('button').classList.remove('btn-success');
-                } else {
-                    showToast('Already completed', 'info');
-                }
-            } else {
-                showToast('Error marking as complete', 'danger');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            showToast('Error occurred', 'danger');
-        }
-    }
-
-    /// Show toast notification
-    function showToast(message, type = 'info') {
-        const toastContainer = document.querySelector('.toast-container') || document.body;
-        const toast = document.createElement('div');
-        toast.className = `alert alert-${type} alert-dismissible fade show`;
-        toast.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-        toast.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-        toastContainer.appendChild(toast);
-        
-        // Auto-remove after 3 seconds
-        setTimeout(() => toast.remove(), 3000);
-    }
-</script>
+        });
+    </script>
+}

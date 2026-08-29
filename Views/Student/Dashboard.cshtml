@@ -1,273 +1,195 @@
-@using System.Linq;
-@model IEnumerable<EduConnect.Models.Enrollment>
-
+@model StudentDashboardViewModel
 @{
-    ViewData["Title"] = "Student Dashboard";
+    ViewData["Title"] = "My Dashboard";
 }
 
-<div class="row mb-4">
-    <div class="col-md-12">
-        <h1>Student Dashboard</h1>
-        <div class="mt-2">
-            <a class="btn btn-outline-primary" asp-action="MyProgress">
-                <i class="fas fa-chart-line me-2"></i>My Progress
-            </a>
-            <a class="btn btn-outline-success" asp-action="Analytics">
-                <i class="fas fa-chart-bar me-2"></i>Analytics Dashboard
-            </a>
+<div class="page-header">
+    <div>
+        <h1>Welcome back, @Model.StudentName! 👋</h1>
+        <p class="page-subtitle">Here's what's happening with your learning</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-primary" asp-action="BrowseCourses"><i class="fa-solid fa-compass me-2"></i>Browse Courses</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon primary"><i class="fa-solid fa-book-open"></i></span>
+            <div>
+                <div class="stat-value">@Model.EnrolledCourses</div>
+                <div class="stat-label">Enrolled Courses</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon success"><i class="fa-solid fa-calendar-check"></i></span>
+            <div>
+                <div class="stat-value">@Model.AttendancePercentage%</div>
+                <div class="stat-label">Attendance</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon warning"><i class="fa-solid fa-percent"></i></span>
+            <div>
+                <div class="stat-value">@(Model.AverageQuizScore > 0 ? $"{Model.AverageQuizScore}%" : "—")</div>
+                <div class="stat-label">Avg. Quiz Score</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card stat-card">
+            <span class="stat-icon info"><i class="fa-solid fa-award"></i></span>
+            <div>
+                <div class="stat-value">@(Model.AverageGpa?.ToString("0.00") ?? "—")</div>
+                <div class="stat-label">Average GPA</div>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Enrolled Courses</h5>
-                <p class="card-text display-4">@ViewBag.EnrolledCourses</p>
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="card-title">My Courses</h6>
+                <a class="btn btn-sm btn-outline-primary" asp-action="BrowseCourses"><i class="fa-solid fa-plus me-1"></i>Enroll in More</a>
             </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Completed Courses</h5>
-                <p class="card-text display-4">@ViewBag.CompletedCourses</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Attendance</h5>
-                <p class="card-text display-4">@ViewBag.AttendancePercentage%</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Average GPA</h5>
-                <p class="card-text display-4">@ViewBag.AverageGPA</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mb-4">
-    <div class="col-md-12">
-        <h3>Recent Announcements</h3>
-        @if (ViewBag.Announcements?.Count > 0)
-        {
-            <div class="list-group">
-                @foreach (var announcement in ViewBag.Announcements)
-                {
-                    <div class="list-group-item">
-                        <h5 class="mb-1">@announcement.Title</h5>
-                        <p class="mb-1">@announcement.Content</p>
-                        <small class="text-muted">@announcement.CreatedAt.ToString("dd MMM yyyy HH:mm")</small>
-                    </div>
-                }
-            </div>
-        }
-        else
-        {
-            <p class="text-muted">No announcements at this time.</p>
-        }
-    </div>
-</div>
-
-<!-- Semester Results Section -->
-<div class="row mb-4">
-    <div class="col-md-12">
-        <h3><i class="fas fa-graduation-cap me-2"></i>Latest Semester Results</h3>
-        @if (ViewBag.SemesterResults?.Count > 0)
-        {
-            <div class="table-responsive">
-                <table class="table table-sm table-striped">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Semester</th>
-                            <th>Course</th>
-                            <th>Marks</th>
-                            <th>Grade</th>
-                            <th>GPA</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var result in ((System.Collections.Generic.List<EduConnect.Models.SemesterResult>)ViewBag.SemesterResults).Take(5))
-                        {
-                            <tr>
-                                <td>@result.Semester</td>
-                                <td>@result.CourseName</td>
-                                <td><strong>@result.MarksObtained</strong>/100</td>
-                                <td><span class="badge bg-info">@result.Grade</span></td>
-                                <td>
-                                    @if (result.GPA >= 3.8m)
-                                    {
-                                        <span class="badge bg-success">@result.GPA</span>
-                                    }
-                                    else if (result.GPA >= 3.0m)
-                                    {
-                                        <span class="badge bg-info">@result.GPA</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-warning">@result.GPA</span>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-        else
-        {
-            <p class="text-muted">No semester results available yet.</p>
-        }
-    </div>
-</div>
-
-<!-- Attendance Section -->
-<div class="row mb-4">
-    <div class="col-md-12">
-        <h3><i class="fas fa-clipboard-check me-2"></i>Recent Attendance</h3>
-        @if (ViewBag.RecentAttendance?.Count > 0)
-        {
-            <div class="table-responsive">
-                <table class="table table-sm table-striped">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Course</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                            <th>Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var att in ((System.Collections.Generic.List<EduConnect.Models.Attendance>)ViewBag.RecentAttendance).Take(5))
-                        {
-                            <tr>
-                                <td>@att.Course?.Title</td>
-                                <td>@att.AttendanceDate.ToString("MMM dd, yyyy")</td>
-                                <td>
-                                    @if (att.Status == "Present")
-                                    {
-                                        <span class="badge bg-success">Present</span>
-                                    }
-                                    else if (att.Status == "Absent")
-                                    {
-                                        <span class="badge bg-danger">Absent</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-warning">Leave</span>
-                                    }
-                                </td>
-                                <td>@(string.IsNullOrEmpty(att.Remarks) ? "-" : att.Remarks)</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-        else
-        {
-            <p class="text-muted">No attendance records available.</p>
-        }
-    </div>
-</div>
-
-<!-- Course Progress Section -->
-<div class="row mb-4">
-    <div class="col-md-12">
-        <h3><i class="fas fa-tasks me-2"></i>Course Progress Summary</h3>
-        @if (ViewBag.CourseProgress?.Count > 0)
-        {
-            <div class="row">
-                @foreach (var progress in ViewBag.CourseProgress)
-                {
-                    <div class="col-md-6 mb-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <h6 class="card-title">@progress.Course?.Title</h6>
-                                <p class="card-text small mb-2">
-                                    <strong>Progress:</strong> @progress.CompletionPercentage%
-                                </p>
-                                <div class="progress mb-2" style="height: 15px;">
-                                    <div class="progress-bar" role="progressbar" style="width: @progress.CompletionPercentage%" aria-valuenow="@progress.CompletionPercentage" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-                                <small class="text-muted">
-                                    Topics: @progress.TopicsCompleted/@progress.TotalTopics | 
-                                    Quizzes: @progress.QuizzesTaken | 
-                                    Avg Score: @progress.AverageScore%
-                                </small>
-                                <br />
-                                @if (progress.ProgressStatus == "Completed")
-                                {
-                                    <span class="badge bg-success mt-2">Completed</span>
-                                }
-                                else if (progress.ProgressStatus == "In Progress")
-                                {
-                                    <span class="badge bg-primary mt-2">In Progress</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-secondary mt-2">Not Started</span>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
-        else
-        {
-            <p class="text-muted">No course progress data available.</p>
-        }
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-12">
-        <h2>My Courses</h2>
-        <a class="btn btn-primary mb-3" asp-action="BrowseCourses">Browse Courses</a>
-
-        @if (Model.Any())
-        {
-            <div class="row">
-                @foreach (var enrollment in Model)
-                {
-                    <div class="col-md-6 mb-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title">@enrollment.Course?.Title</h5>
-                                <p class="card-text">@enrollment.Course?.Description</p>
-                                <div class="mb-2">
-                                    <small class="text-muted">Progress: @enrollment.ProgressPercentage%</small>
-                                    <div class="progress" style="height: 20px;">
-                                        <div class="progress-bar" role="progressbar" style="width: @enrollment.ProgressPercentage%" aria-valuenow="@enrollment.ProgressPercentage" aria-valuemin="0" aria-valuemax="100"></div>
+            @if (Model.Enrollments.Count == 0)
+            {
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fa-solid fa-compass"></i></div>
+                    <h5>You're not enrolled in any courses yet</h5>
+                    <p>Browse the course catalog and start learning today.</p>
+                    <a class="btn btn-primary" asp-action="BrowseCourses"><i class="fa-solid fa-compass me-2"></i>Browse Courses</a>
+                </div>
+            }
+            else
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var enrollment in Model.Enrollments)
+                    {
+                        <li class="list-group-item py-3" style="border-color:#f1f5f9">
+                            <div class="d-flex align-items-center gap-3 flex-wrap">
+                                <div class="flex-grow-1" style="min-width:220px">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <a class="fw-semibold text-body" asp-action="CourseDetails" asp-route-id="@enrollment.CourseId">@enrollment.Course?.Title</a>
+                                        @if (enrollment.IsCompleted)
+                                        {
+                                            <span class="badge badge-soft-success">Completed</span>
+                                        }
                                     </div>
+                                    <span class="text-muted" style="font-size:.82rem">
+                                        <i class="fa-solid fa-chalkboard-user me-1"></i>@(enrollment.Course?.Faculty?.FullName ?? "Faculty")
+                                        · <span class="badge badge-soft-muted">@enrollment.Course?.Category</span>
+                                    </span>
                                 </div>
-                                @if (enrollment.IsCompleted)
-                                {
-                                    <span class="badge bg-success">Completed</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-primary">In Progress</span>
-                                }
-                                <a class="btn btn-sm btn-info mt-2" asp-action="CourseDetails" asp-route-id="@enrollment.CourseId">View Course</a>
+                                <div class="d-flex align-items-center gap-2" style="width:180px">
+                                    <div class="progress flex-grow-1"><div class="progress-bar @(enrollment.IsCompleted ? "bg-success" : "")" style="width:@(enrollment.ProgressPercentage)%"></div></div>
+                                    <span class="text-muted" style="font-size:.8rem">@enrollment.ProgressPercentage%</span>
+                                </div>
+                                <a class="btn btn-sm btn-primary" asp-action="CourseDetails" asp-route-id="@enrollment.CourseId">Continue <i class="fa-solid fa-arrow-right ms-1"></i></a>
                             </div>
-                        </div>
-                    </div>
-                }
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title">Recent Quiz Results</h6>
+                <a class="btn btn-sm btn-outline-primary" asp-action="MyResults">View All</a>
             </div>
-        }
-        else
-        {
-            <p class="text-muted">You are not enrolled in any courses yet. <a asp-action="BrowseCourses">Browse courses</a> to get started!</p>
-        }
+            @if (Model.RecentQuizResults.Count == 0)
+            {
+                <div class="empty-state py-4"><p class="mb-0">No quiz attempts yet — open a course and take your first quiz!</p></div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table app-table">
+                        <thead><tr><th>Quiz</th><th>Course</th><th>Score</th><th>Result</th><th>Date</th></tr></thead>
+                        <tbody>
+                            @foreach (var result in Model.RecentQuizResults)
+                            {
+                                <tr>
+                                    <td><a class="fw-medium text-body" asp-action="QuizResult" asp-route-quizResultId="@result.Id">@result.Quiz?.Title</a></td>
+                                    <td class="text-muted">@result.Quiz?.Course?.Title</td>
+                                    <td>@result.MarksObtained/@result.TotalMarks (@result.PercentageScore.ToString("0"))%</td>
+                                    <td><span class="badge @(result.IsPassed ? "badge-soft-success" : "badge-soft-danger")">@(result.IsPassed ? "Passed" : "Failed")</span></td>
+                                    <td class="text-muted">@result.AttemptedAt.ToString("dd MMM")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="card-title"><i class="fa-solid fa-bullhorn me-2 text-primary"></i>Announcements</h6>
+                <a class="btn btn-sm btn-outline-primary" asp-action="Announcements">All</a>
+            </div>
+            @if (Model.Announcements.Count == 0)
+            {
+                <div class="empty-state py-4"><p class="mb-0">No announcements right now.</p></div>
+            }
+            else
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var announcement in Model.Announcements)
+                    {
+                        <li class="list-group-item py-3" style="border-color:#f1f5f9">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <span class="fw-semibold" style="font-size:.9rem">@announcement.Title</span>
+                                @if (announcement.Course != null)
+                                {
+                                    <span class="badge badge-soft-primary" style="font-size:.68rem">@announcement.Course.Title</span>
+                                }
+                            </div>
+                            <p class="text-muted mb-1" style="font-size:.83rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden">@announcement.Content</p>
+                            <span class="text-muted" style="font-size:.75rem">@announcement.CreatedAt.ToString("dd MMM yyyy")</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title"><i class="fa-solid fa-calendar-check me-2 text-success"></i>Recent Attendance</h6>
+                <a class="btn btn-sm btn-outline-primary" asp-action="MyAttendance">All</a>
+            </div>
+            @if (Model.RecentAttendance.Count == 0)
+            {
+                <div class="empty-state py-4"><p class="mb-0">No attendance records yet.</p></div>
+            }
+            else
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var record in Model.RecentAttendance)
+                    {
+                        var badge = record.Status switch
+                        {
+                            "Present" => "badge-soft-success",
+                            "Absent" => "badge-soft-danger",
+                            _ => "badge-soft-warning",
+                        };
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-2" style="border-color:#f1f5f9; font-size:.87rem">
+                            <span class="text-muted">@record.AttendanceDate.ToString("ddd, dd MMM")</span>
+                            <span class="badge @badge">@record.Status</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
     </div>
 </div>

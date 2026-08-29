@@ -1,290 +1,74 @@
-@using System.Collections.Generic;
+@model List<StudentListItemViewModel>
 @{
     ViewData["Title"] = "Manage Students";
 }
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-<style>
-    .manage-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 30px 20px;
-        margin-bottom: 30px;
-        border-radius: 0 0 15px 15px;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 20px;
-    }
-
-    .manage-header h1 {
-        margin: 0;
-        font-size: 2rem;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-    }
-
-    .manage-header .add-btn {
-        background: white;
-        color: #667eea;
-        padding: 12px 25px;
-        border-radius: 10px;
-        font-weight: 600;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .manage-header .add-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-    }
-
-    .search-box {
-        background: white;
-        padding: 15px 20px;
-        border-radius: 10px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-        margin-bottom: 30px;
-    }
-
-    .search-box input {
-        border: 2px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 10px 15px;
-        width: 100%;
-        transition: all 0.3s ease;
-    }
-
-    .search-box input:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    .table-container {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-        overflow: hidden;
-    }
-
-    .table-container table {
-        width: 100%;
-        margin: 0;
-    }
-
-    .table-container thead {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-    }
-
-    .table-container th {
-        padding: 18px 20px;
-        font-weight: 600;
-        text-align: left;
-        font-size: 0.95rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .table-container td {
-        padding: 16px 20px;
-        border-bottom: 1px solid #e2e8f0;
-        color: #4a5568;
-    }
-
-    .table-container tbody tr:hover {
-        background: #f7fafc;
-    }
-
-    .table-container tbody tr:last-child td {
-        border-bottom: none;
-    }
-
-    .status-badge {
-        display: inline-block;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-
-    .status-active {
-        background: #c6f6d5;
-        color: #22543d;
-    }
-
-    .status-inactive {
-        background: #fed7d7;
-        color: #742a2a;
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 8px;
-    }
-
-    .action-btn {
-        padding: 8px 12px;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.9rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-    }
-
-    .action-btn.edit {
-        background: #bee3f8;
-        color: #2c5282;
-    }
-
-    .action-btn.edit:hover {
-        background: #90cdf4;
-        transform: translateY(-2px);
-    }
-
-    .action-btn.delete {
-        background: #fed7d7;
-        color: #742a2a;
-    }
-
-    .action-btn.delete:hover {
-        background: #fc8181;
-        transform: translateY(-2px);
-    }
-
-    .action-btn.toggle {
-        background: #feebc8;
-        color: #7c2d12;
-    }
-
-    .action-btn.toggle:hover {
-        background: #fbd38d;
-        transform: translateY(-2px);
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-        color: #718096;
-    }
-
-    .empty-state i {
-        font-size: 3rem;
-        color: #cbd5e0;
-        margin-bottom: 20px;
-    }
-
-    .empty-state p {
-        font-size: 1.1rem;
-        margin: 0;
-    }
-
-    .pagination-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 10px;
-        margin-top: 30px;
-        padding: 20px;
-    }
-
-    .pagination-container a,
-    .pagination-container span {
-        padding: 8px 12px;
-        border-radius: 6px;
-        background: white;
-        border: 2px solid #e2e8f0;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .pagination-container a:hover {
-        background: #667eea;
-        color: white;
-        border-color: #667eea;
-    }
-</style>
-</style>
-
-<div class="manage-header">
-    <h1>
-        <i class="fas fa-users"></i>
-        Manage Students
-    </h1>
-    <a href="@Url.Action("AddStudent")" class="add-btn">
-        <i class="fas fa-plus"></i>
-        Add New Student
-    </a>
+<div class="page-header">
+    <div>
+        <h1>Students</h1>
+        <p class="page-subtitle">@Model.Count student account@(Model.Count == 1 ? "" : "s") registered</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-primary" asp-action="AddStudent"><i class="fa-solid fa-user-plus me-2"></i>Add Student</a>
+    </div>
 </div>
 
-@Html.AntiForgeryToken()
-
-<div class="container-fluid">
-    <!-- Search Box -->
-    <div class="search-box">
-        <input type="text" id="searchInput" placeholder="🔍 Search by name, email, or phone..." onkeyup="filterTable()">
+<div class="card" data-table>
+    <div class="card-header">
+        <h6 class="card-title">All Students</h6>
+        <div class="table-search">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="search" class="form-control form-control-sm" placeholder="Search students…" data-table-search />
+        </div>
     </div>
-
-    <!-- Students Table -->
-    @if (Model != null && Model.Count > 0)
+    @if (Model.Count == 0)
     {
-        <div class="table-container">
-            <table>
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fa-solid fa-user-graduate"></i></div>
+            <h5>No students yet</h5>
+            <p>Add your first student account to get started.</p>
+            <a class="btn btn-primary" asp-action="AddStudent"><i class="fa-solid fa-user-plus me-2"></i>Add Student</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table app-table" data-page-size="10">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Email</th>
+                        <th data-sort="text">Name</th>
+                        <th data-sort="text">Email</th>
                         <th>Phone</th>
-                        <th>Enrollments</th>
-                        <th>Avg Progress</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th data-sort="num">Courses</th>
+                        <th data-sort="num">Avg. Progress</th>
+                        <th data-sort="date">Registered</th>
+                        <th data-sort="text">Status</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
-                <tbody id="studentTable">
+                <tbody>
                     @foreach (var student in Model)
                     {
-                        <tr>
-                            <td style="font-weight: 500;">@student.FullName</td>
-                            <td>@student.Email</td>
-                            <td>@student.PhoneNumber</td>
+                        <tr id="student-row-@student.Id">
+                            <td class="fw-medium">@student.FullName</td>
+                            <td class="text-muted">@student.Email</td>
+                            <td class="text-muted">@(string.IsNullOrEmpty(student.PhoneNumber) ? "—" : student.PhoneNumber)</td>
+                            <td>@student.EnrollmentCount</td>
                             <td>
-                                <span style="background: #e6fffa; color: #276749; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 0.85rem;">
-                                    @student.EnrollmentCount Courses
-                                </span>
-                            </td>
-                            <td>
-                                <div style="background: #e2e8f0; height: 6px; border-radius: 10px; overflow: hidden; width: 100px;">
-                                    <div style="height: 100%; width: @student.AverageProgress%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);"></div>
+                                <div class="d-flex align-items-center gap-2" style="min-width:110px">
+                                    <div class="progress flex-grow-1"><div class="progress-bar" style="width:@(student.AverageProgress)%"></div></div>
+                                    <span style="font-size:.82rem">@student.AverageProgress%</span>
                                 </div>
-                                <small style="color: #718096;">@student.AverageProgress%</small>
                             </td>
+                            <td class="text-muted" data-value="@student.RegisteredDate.ToString("yyyy-MM-dd")">@student.RegisteredDate.ToString("dd MMM yyyy")</td>
                             <td>
-                                <span class="status-badge @(student.IsActive ? "status-active" : "status-inactive")">
-                                    @(student.IsActive ? "Active" : "Inactive")
-                                </span>
+                                <span class="badge @(student.IsActive ? "badge-soft-success" : "badge-soft-danger") status-badge">@(student.IsActive ? "Active" : "Inactive")</span>
                             </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <a href="@Url.Action("EditStudent", new { id = student.Id })" class="action-btn edit">
-                                        <i class="fas fa-edit"></i> Edit
-                                    </a>
-                                    <button type="button" class="action-btn delete" onclick="confirmDelete('@student.Id', 'student')">
-                                        <i class="fas fa-trash"></i> Delete
-                                    </button>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <a class="btn btn-outline-secondary" asp-action="EditStudent" asp-route-id="@student.Id" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                                    <button type="button" class="btn btn-outline-secondary toggle-status-btn" data-id="@student.Id" title="Activate / Deactivate"><i class="fa-solid fa-power-off"></i></button>
+                                    <button type="button" class="btn btn-outline-danger delete-btn" data-id="@student.Id" data-name="@student.FullName" title="Delete"><i class="fa-solid fa-trash"></i></button>
                                 </div>
                             </td>
                         </tr>
@@ -292,77 +76,52 @@
                 </tbody>
             </table>
         </div>
+        <div class="card-footer table-pagination" data-table-pagination></div>
     }
-    else
-    {
-        <div class="empty-state">
-            <i class="fas fa-user-slash"></i>
-            <p>No students found. <a href="@Url.Action("AddStudent")" style="color: #667eea; text-decoration: none; font-weight: 600;">Add your first student</a></p>
-        </div>
-    }
-
-    <!-- Back Button -->
-    <div style="margin-top: 40px; margin-bottom: 40px;">
-        <a href="@Url.Action("Dashboard")" class="btn btn-outline-primary" style="border-radius: 10px; padding: 10px 30px;">
-            <i class="fas fa-arrow-left"></i> Back to Dashboard
-        </a>
-    </div>
 </div>
 
-<script>
-    function filterTable() {
-        const input = document.getElementById('searchInput');
-        const filter = input.value.toLowerCase();
-        const table = document.getElementById('studentTable');
-        const rows = table.getElementsByTagName('tr');
-
-        for (let i = 0; i < rows.length; i++) {
-            const text = rows[i].textContent || rows[i].innerText;
-            rows[i].style.display = text.toLowerCase().includes(filter) ? '' : 'none';
-        }
-    }
-
-    function confirmDelete(id, type) {
-        if (confirm('Are you sure you want to delete this student member?')) {
-            fetch(`/Admin/DeleteStudent`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `id=${encodeURIComponent(id)}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error deleting student. Check console for details.');
+@section Scripts {
+    <script>
+        document.querySelectorAll('.delete-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                App.confirm('Delete student "' + btn.dataset.name + '"? All of their enrollments, results and records will be removed permanently.', function () {
+                    fetch('@Url.Action("DeleteStudent")', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': App.token() },
+                        body: 'id=' + encodeURIComponent(btn.dataset.id)
+                    })
+                    .then(r => r.json())
+                    .then(function (data) {
+                        if (data.success) {
+                            App.toast(data.message, 'success');
+                            setTimeout(() => location.reload(), 700);
+                        } else {
+                            App.toast(data.message || 'Delete failed', 'error');
+                        }
+                    })
+                    .catch(() => App.toast('Delete failed — please try again.', 'error'));
+                });
             });
-        }
-    }
+        });
 
-    function toggleStatus(id, type) {
-        fetch(`/Admin/ToggleStudentStatus`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `id=${encodeURIComponent(id)}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Error toggling status');
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    }
-</script>
+        document.querySelectorAll('.toggle-status-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                fetch('@Url.Action("ToggleStudentStatus")', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': App.token() },
+                    body: 'id=' + encodeURIComponent(btn.dataset.id)
+                })
+                .then(r => r.json())
+                .then(function (data) {
+                    if (data.success) {
+                        const badge = document.querySelector('#student-row-' + btn.dataset.id + ' .status-badge');
+                        badge.textContent = data.isActive ? 'Active' : 'Inactive';
+                        badge.className = 'badge status-badge ' + (data.isActive ? 'badge-soft-success' : 'badge-soft-danger');
+                        App.toast('Account is now ' + (data.isActive ? 'active' : 'inactive') + '.', 'success');
+                    }
+                })
+                .catch(() => App.toast('Could not update status.', 'error'));
+            });
+        });
+    </script>
+}

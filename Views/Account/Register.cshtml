@@ -1,70 +1,62 @@
 @model RegisterViewModel
-
 @{
-    ViewData["Title"] = "Register";
+    ViewData["Title"] = "Create Account";
+    Layout = "_AuthLayout";
 }
 
-<div class="row">
-    <div class="col-md-6 offset-md-3">
-        <h1>Create a new account</h1>
-        <hr />
+<div class="card">
+    <div class="card-body p-4">
+        <h4 class="mb-1">Create your student account</h4>
+        <p class="text-muted mb-4" style="font-size:.9rem">
+            Faculty accounts are created by an administrator.
+        </p>
 
-        <form asp-route-returnUrl="@ViewData["ReturnUrl"]" method="post">
-            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+        <form asp-action="Register" asp-route-returnUrl="@ViewData["ReturnUrl"]" method="post" novalidate>
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
 
-            <div class="mb-3">
-                <label asp-for="FirstName" class="form-label"></label>
-                <input asp-for="FirstName" class="form-control" />
-                <span asp-validation-for="FirstName" class="text-danger"></span>
-            </div>
-
-            <div class="mb-3">
-                <label asp-for="LastName" class="form-label"></label>
-                <input asp-for="LastName" class="form-control" />
-                <span asp-validation-for="LastName" class="text-danger"></span>
+            <div class="row g-3 mb-3">
+                <div class="col-sm-6">
+                    <label asp-for="FirstName" class="form-label"></label>
+                    <input asp-for="FirstName" class="form-control" placeholder="Alex" />
+                    <span asp-validation-for="FirstName"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="LastName" class="form-label"></label>
+                    <input asp-for="LastName" class="form-control" placeholder="Johnson" />
+                    <span asp-validation-for="LastName"></span>
+                </div>
             </div>
 
             <div class="mb-3">
                 <label asp-for="Email" class="form-label"></label>
-                <input asp-for="Email" class="form-control" />
-                <span asp-validation-for="Email" class="text-danger"></span>
+                <input asp-for="Email" class="form-control" placeholder="you@example.com" autocomplete="username" />
+                <span asp-validation-for="Email"></span>
             </div>
 
             <div class="mb-3">
                 <label asp-for="Password" class="form-label"></label>
-                <input asp-for="Password" type="password" class="form-control" />
-                <span asp-validation-for="Password" class="text-danger"></span>
+                <input asp-for="Password" class="form-control" autocomplete="new-password" />
+                <span asp-validation-for="Password"></span>
+                <div class="form-text">At least 8 characters with upper &amp; lower case, a number and a symbol.</div>
             </div>
 
-            <div class="mb-3">
+            <div class="mb-4">
                 <label asp-for="ConfirmPassword" class="form-label"></label>
-                <input asp-for="ConfirmPassword" type="password" class="form-control" />
-                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                <span asp-validation-for="ConfirmPassword"></span>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="Role" class="form-label">Register as:</label>
-                <select asp-for="Role" class="form-control">
-                    <option value="">-- Select Role --</option>
-                    <option value="Student">Student</option>
-                    <option value="Faculty">Faculty</option>
-                </select>
-                <span asp-validation-for="Role" class="text-danger"></span>
-            </div>
-
-            <button type="submit" class="btn btn-primary">Register</button>
+            <button type="submit" class="btn btn-primary w-100 py-2">
+                <i class="fa-solid fa-user-plus me-2"></i>Create Account
+            </button>
         </form>
-    </div>
-</div>
 
-<div class="row mt-3">
-    <div class="col-md-6 offset-md-3">
-        <p>
-            <a asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]">Already have an account? Log in</a>
+        <p class="text-center text-muted mt-4 mb-0" style="font-size:.88rem">
+            Already have an account? <a asp-action="Login">Sign in</a>
         </p>
     </div>
 </div>
 
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <partial name="_ValidationScriptsPartial" />
 }

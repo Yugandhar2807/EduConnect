@@ -1,0 +1,49 @@
+@model StudentAnnouncementsViewModel
+@{
+    ViewData["Title"] = "Announcements";
+}
+
+<div class="page-header">
+    <div>
+        <h1>Announcements</h1>
+        <p class="page-subtitle">Updates from your courses and the institution</p>
+    </div>
+</div>
+
+<div class="card">
+    @if (Model.Announcements.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fa-solid fa-bullhorn"></i></div>
+            <h5>No announcements</h5>
+            <p>There are no announcements for you right now — check back later.</p>
+        </div>
+    }
+    else
+    {
+        @foreach (var announcement in Model.Announcements)
+        {
+            <div class="announcement-item">
+                <span class="announcement-icon"><i class="fa-solid fa-bullhorn"></i></span>
+                <div class="flex-grow-1" style="min-width:0">
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                        <span class="fw-semibold">@announcement.Title</span>
+                        @if (announcement.Course != null)
+                        {
+                            <span class="badge badge-soft-primary">@announcement.Course.Title</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-soft-info">Portal-wide</span>
+                        }
+                    </div>
+                    <p class="text-muted mb-1" style="font-size:.9rem; white-space:pre-wrap">@announcement.Content</p>
+                    <span class="text-muted" style="font-size:.78rem">
+                        <i class="fa-solid fa-user me-1"></i>@(announcement.Faculty?.FullName ?? "Administration")
+                        · <i class="fa-solid fa-clock me-1"></i>@announcement.CreatedAt.ToString("dd MMM yyyy, HH:mm")
+                    </span>
+                </div>
+            </div>
+        }
+    }
+</div>

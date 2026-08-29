@@ -1,254 +1,60 @@
 @model EditUserViewModel
-
 @{
     ViewData["Title"] = "Edit Student";
 }
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-<style>
-    .form-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 30px 20px;
-        margin-bottom: 30px;
-        border-radius: 0 0 15px 15px;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
-    }
-
-    .form-header h1 {
-        margin: 0;
-        font-size: 2rem;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-    }
-
-    .form-container {
-        max-width: 600px;
-        margin: 0 auto;
-        background: white;
-        border-radius: 15px;
-        padding: 40px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    }
-
-    .form-group {
-        margin-bottom: 25px;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-        color: #2d3748;
-        font-size: 0.95rem;
-    }
-
-    .form-group input {
-        width: 100%;
-        padding: 12px 15px;
-        border: 2px solid #e2e8f0;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    .form-group input:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    .form-group input::placeholder {
-        color: #cbd5e0;
-    }
-
-    .form-group input[type="checkbox"] {
-        width: auto;
-        margin-right: 8px;
-        cursor: pointer;
-    }
-
-    .input-icon {
-        position: relative;
-    }
-
-    .input-icon i {
-        position: absolute;
-        left: 15px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #cbd5e0;
-        font-size: 1rem;
-        pointer-events: none;
-    }
-
-    .input-icon input {
-        padding-left: 45px;
-    }
-
-    .checkbox-group {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .checkbox-group label {
-        margin-bottom: 0;
-    }
-
-    .form-group input.error {
-        border-color: #f56565;
-    }
-
-    .error-message {
-        color: #f56565;
-        font-size: 0.85rem;
-        margin-top: 5px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-
-    .form-actions {
-        display: flex;
-        gap: 15px;
-        margin-top: 35px;
-    }
-
-    .btn {
-        flex: 1;
-        padding: 13px 20px;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    }
-
-    .btn.submit {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        text-decoration: none;
-    }
-
-    .btn.submit:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
-    }
-
-    .btn.cancel {
-        background: #e2e8f0;
-        color: #4a5568;
-        text-decoration: none;
-    }
-
-    .btn.cancel:hover {
-        background: #cbd5e0;
-        transform: translateY(-2px);
-    }
-
-    .success-message {
-        background: #c6f6d5;
-        border-left: 4px solid #48bb78;
-        color: #22543d;
-        padding: 15px;
-        border-radius: 6px;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .divider {
-        border-top: 2px solid #e2e8f0;
-        margin: 30px 0;
-    }
-</style>
-
-<div class="form-header">
-    <h1>
-        <i class="fas fa-user-edit"></i>
-        Edit Student
-    </h1>
+<div class="page-header">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="ManageStudents">Students</a></li>
+                <li class="breadcrumb-item active">Edit</li>
+            </ol>
+        </nav>
+        <h1>Edit Student</h1>
+        <p class="page-subtitle">@Model.Email</p>
+    </div>
 </div>
 
-<div class="container-fluid">
-    <div class="form-container">
-        @if (ViewBag.Success != null)
-        {
-            <div class="success-message">
-                <i class="fas fa-check-circle"></i>
-                @ViewBag.Success
+<div class="row">
+    <div class="col-lg-7 col-xl-6">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="EditStudent" asp-route-id="@Model.Id" method="post" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
+                    <input type="hidden" asp-for="Id" />
+
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label"></label>
+                        <input asp-for="FullName" class="form-control" />
+                        <span asp-validation-for="FullName"></span>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-7">
+                            <label asp-for="Email" class="form-label"></label>
+                            <input asp-for="Email" class="form-control" disabled />
+                            <div class="form-text">Email addresses cannot be changed.</div>
+                        </div>
+                        <div class="col-sm-5">
+                            <label asp-for="PhoneNumber" class="form-label"></label>
+                            <input asp-for="PhoneNumber" class="form-control" />
+                            <span asp-validation-for="PhoneNumber"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch mb-4">
+                        <input asp-for="IsActive" class="form-check-input" role="switch" />
+                        <label asp-for="IsActive" class="form-check-label">Account is active</label>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-2"></i>Save Changes</button>
+                        <a class="btn btn-outline-secondary" asp-action="ManageStudents">Cancel</a>
+                    </div>
+                </form>
             </div>
-        }
-
-        <form asp-action="EditStudent" asp-controller="Admin" method="post" class="needs-validation" novalidate>
-            <input type="hidden" asp-for="Id" />
-
-            <!-- Full Name -->
-            <div class="form-group">
-                <label asp-for="FullName">Full Name</label>
-                <div class="input-icon">
-                    <i class="fas fa-user"></i>
-                    <input asp-for="FullName" type="text" placeholder="Enter student's full name" required>
-                </div>
-                <span asp-validation-for="FullName" class="error-message"></span>
-            </div>
-
-            <!-- Email (Read-only) -->
-            <div class="form-group">
-                <label asp-for="Email">Email Address (Read-only)</label>
-                <div class="input-icon">
-                    <i class="fas fa-envelope"></i>
-                    <input asp-for="Email" type="email" placeholder="Email" readonly style="background-color: #f7fafc; cursor: not-allowed;">
-                </div>
-            </div>
-
-            <!-- Phone Number -->
-            <div class="form-group">
-                <label asp-for="PhoneNumber">Phone Number</label>
-                <div class="input-icon">
-                    <i class="fas fa-phone"></i>
-                    <input asp-for="PhoneNumber" type="tel" placeholder="Enter student's phone number">
-                </div>
-                <span asp-validation-for="PhoneNumber" class="error-message"></span>
-            </div>
-
-            <div class="divider"></div>
-
-            <!-- Active Status -->
-            <div class="form-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" asp-for="IsActive" id="isActiveCheckbox">
-                    <label for="isActiveCheckbox">Student Account is Active</label>
-                </div>
-                <small style="color: #718096; margin-top: 8px; display: block;">
-                    <i class="fas fa-info-circle"></i>
-                    Uncheck to deactivate this student account
-                </small>
-            </div>
-
-            <!-- Form Actions -->
-            <div class="form-actions">
-                <button type="submit" class="btn submit">
-                    <i class="fas fa-save"></i>
-                    Save Changes
-                </button>
-                <a href="@Url.Action("ManageStudents")" class="btn cancel">
-                    <i class="fas fa-times"></i>
-                    Cancel
-                </a>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 

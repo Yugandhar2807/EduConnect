@@ -2,17 +2,15 @@
     ViewData["Title"] = "Access Denied";
 }
 
-<div class="container mt-5">
-    <div class="row">
-        <div class="col-md-6 offset-md-3">
-            <div class="alert alert-danger" role="alert">
-                <h4 class="alert-heading">Access Denied</h4>
-                <p>You do not have permission to access this resource.</p>
-                <hr />
-                <p class="mb-0">
-                    <a href="@Url.Action("Index", "Home")" class="btn btn-primary">Return to Home</a>
-                </p>
-            </div>
+<div class="d-flex align-items-center justify-content-center" style="min-height: 60vh">
+    <div class="empty-state">
+        <div class="empty-icon" style="width:80px;height:80px;font-size:2rem;background:var(--danger-soft);color:var(--danger)">
+            <i class="fa-solid fa-lock"></i>
         </div>
+        <h2 class="mb-2">Access denied</h2>
+        <p>You do not have permission to view this page. If you believe this is a mistake, contact your administrator.</p>
+        <a class="btn btn-primary" asp-controller="Home" asp-action="Index">
+            <i class="fa-solid fa-house me-2"></i>Back to Home
+        </a>
     </div>
 </div>

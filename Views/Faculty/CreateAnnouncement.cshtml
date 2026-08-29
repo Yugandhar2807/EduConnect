@@ -1,0 +1,63 @@
+@model AnnouncementFormViewModel
+@{
+    ViewData["Title"] = "New Announcement";
+    var courses = (List<Course>)ViewBag.Courses;
+}
+
+<div class="page-header">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="Announcements">Announcements</a></li>
+                <li class="breadcrumb-item active">New</li>
+            </ol>
+        </nav>
+        <h1>New Announcement</h1>
+        <p class="page-subtitle">Announcements are shown on student dashboards</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-7 col-xl-6">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="CreateAnnouncement" method="post" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Title" class="form-label"></label>
+                        <input asp-for="Title" class="form-control" placeholder="e.g. Quiz 2 opens on Monday" autofocus />
+                        <span asp-validation-for="Title"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="CourseId" class="form-label"></label>
+                        <select asp-for="CourseId" class="form-select">
+                            <option value="">🌐 Global — visible to all students</option>
+                            @foreach (var course in courses)
+                            {
+                                <option value="@course.Id">@course.Title</option>
+                            }
+                        </select>
+                        <span asp-validation-for="CourseId"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Content" class="form-label">Message</label>
+                        <textarea asp-for="Content" class="form-control" rows="5" placeholder="Write the announcement…"></textarea>
+                        <span asp-validation-for="Content"></span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-bullhorn me-2"></i>Publish</button>
+                        <a class="btn btn-outline-secondary" asp-action="Announcements">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

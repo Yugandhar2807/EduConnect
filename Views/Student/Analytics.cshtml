@@ -1,409 +1,177 @@
+@model StudentAnalyticsViewModel
 @{
-    ViewData["Title"] = "Student Analytics Dashboard";
+    ViewData["Title"] = "My Analytics";
 }
 
-<div class="container mt-5 analytics-page">
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <h1 class="mb-2">📊 Your Analytics Dashboard</h1>
-            <p class="text-muted">Last updated: <span id="lastUpdated">Loading...</span></p>
-        </div>
-    </div>
-
-    <div id="loadingSpinner" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <p class="mt-2">Loading your analytics data...</p>
-    </div>
-
-    <div id="analyticsContent" style="display: none;">
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-center bg-light">
-                    <div class="card-body">
-                        <h5 class="card-title text-muted">Total Enrollments</h5>
-                        <h2 id="totalEnrollments" class="text-primary">0</h2>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center bg-light">
-                    <div class="card-body">
-                        <h5 class="card-title text-muted">Courses Completed</h5>
-                        <h2 id="coursesCompleted" class="text-success">0</h2>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center bg-light">
-                    <div class="card-body">
-                        <h5 class="card-title text-muted">Current GPA</h5>
-                        <h2 id="currentGpa" class="text-info">0.0</h2>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center bg-light">
-                    <div class="card-body">
-                        <h5 class="card-title text-muted">Avg Attendance</h5>
-                        <h2 id="avgAttendance" class="text-warning">0%</h2>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Row 2: Charts -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">📈 Course Progress</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="courseProgressChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-info text-white">
-                        <h5 class="mb-0">📊 GPA Trend</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="gpaTrendChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Row 3: More Charts -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">✅ Attendance Summary</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="attendanceChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-warning text-white">
-                        <h5 class="mb-0">📝 Grade Distribution</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="gradeChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Row 4: Quiz Performance -->
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header bg-secondary text-white">
-                        <h5 class="mb-0">🎯 Quiz Performance by Course</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="quizPerformanceChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Error Message (Hidden until needed) -->
-    <div id="errorMessage" class="alert alert-danger" style="display: none;">
-        <p>Failed to load analytics data. Please try again.</p>
-    </div>
-            </div>
-        </div>
-    </div>
-
-<!-- Chart.js Library -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<script>
-    let charts = {};
-
-    // Load analytics data on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        loadAnalyticsData();
-    });
-
-    function loadAnalyticsData() {
-        fetch('/api/student/analytics-data')
-            .then(response => {
-                if (!response.ok) throw new Error('Failed to load data');
-                return response.json();
-            })
-            .then(data => {
-                displayAnalytics(data);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('loadingSpinner').style.display = 'none';
-                document.getElementById('errorMessage').style.display = 'block';
-            });
-    }
-
-    function displayAnalytics(data) {
-        // Update last updated time
-        const now = new Date();
-        document.getElementById('lastUpdated').textContent = now.toLocaleString();
-
-        // Update overview stats
-        const totalEnrollments = data.enrollments.length;
-        const coursesCompleted = data.courseProgress.filter(c => c.completionPercentage >= 100).length;
-        const currentGpa = data.semesterResults.length > 0 ? data.semesterResults[data.semesterResults.length - 1].gpa : 0;
-        const avgAttendance = data.attendanceSummary.attendancePercentage || 0;
-
-        document.getElementById('totalEnrollments').textContent = totalEnrollments;
-        document.getElementById('coursesCompleted').textContent = coursesCompleted;
-        document.getElementById('currentGpa').textContent = currentGpa.toFixed(2);
-        document.getElementById('avgAttendance').textContent = Math.round(avgAttendance) + '%';
-
-        // Create charts
-        createCourseProgressChart(data.courseProgress);
-        createGpaTrendChart(data.semesterResults);
-        createAttendanceChart(data.attendanceSummary);
-        createGradeDistributionChart(data.semesterResults);
-        createQuizPerformanceChart(data.enrollments);
-
-        // Show content and hide spinner
-        document.getElementById('loadingSpinner').style.display = 'none';
-        document.getElementById('analyticsContent').style.display = 'block';
-    }
-
-    function createCourseProgressChart(courseProgress) {
-        const ctx = document.getElementById('courseProgressChart').getContext('2d');
-        
-        // Limit to 8 courses for readability
-        const limitedData = courseProgress.slice(0, 8);
-        
-        charts.courseProgress = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: limitedData.map(c => c.courseName),
-                datasets: [{
-                    label: 'Progress (%)',
-                    data: limitedData.map(c => c.completionPercentage),
-                    backgroundColor: [
-                        '#0d6efd', '#0dcaf0', '#198754', '#ffc107', '#fd7e14', '#dc3545', '#6f42c1', '#20c997'
-                    ].slice(0, limitedData.length),
-                    borderRadius: 5,
-                    borderSkipped: false
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-    }
-
-    function createGpaTrendChart(semesterResults) {
-        const ctx = document.getElementById('gpaTrendChart').getContext('2d');
-        
-        charts.gpaTrend = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: semesterResults.map(s => s.semesterName || 'Sem ' + (semesterResults.indexOf(s) + 1)),
-                datasets: [{
-                    label: 'GPA',
-                    data: semesterResults.map(s => s.gpa),
-                    borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 5,
-                    pointBackgroundColor: '#0d6efd',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 4.0,
-                        min: 0
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-    }
-
-    function createAttendanceChart(attendanceSummary) {
-        const ctx = document.getElementById('attendanceChart').getContext('2d');
-        
-        const present = attendanceSummary.present || 0;
-        const absent = attendanceSummary.absent || 0;
-        const leave = attendanceSummary.leave || 0;
-
-        charts.attendance = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Present', 'Absent', 'Leave'],
-                datasets: [{
-                    data: [present, absent, leave],
-                    backgroundColor: [
-                        '#198754',
-                        '#dc3545',
-                        '#ffc107'
-                    ],
-                    borderColor: '#fff',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
-    }
-
-    function createGradeDistributionChart(semesterResults) {
-        const ctx = document.getElementById('gradeChart').getContext('2d');
-        
-        // Count grades
-        const grades = {
-            'A': 0,
-            'B': 0,
-            'C': 0,
-            'D': 0,
-            'F': 0
-        };
-
-        semesterResults.forEach(sem => {
-            if (sem.gpa >= 3.7) grades['A']++;
-            else if (sem.gpa >= 3.3) grades['B']++;
-            else if (sem.gpa >= 2.7) grades['C']++;
-            else if (sem.gpa >= 2.0) grades['D']++;
-            else grades['F']++;
-        });
-
-        charts.grades = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['A', 'B', 'C', 'D', 'F'],
-                datasets: [{
-                    label: 'Count',
-                    data: [grades['A'], grades['B'], grades['C'], grades['D'], grades['F']],
-                    backgroundColor: [
-                        '#198754',
-                        '#0dcaf0',
-                        '#ffc107',
-                        '#fd7e14',
-                        '#dc3545'
-                    ],
-                    borderRadius: 5,
-                    borderSkipped: false
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-    }
-
-    function createQuizPerformanceChart(enrollments) {
-        const ctx = document.getElementById('quizPerformanceChart').getContext('2d');
-
-        const courseLabels = enrollments.map(e => e.courseName).slice(0, 8);
-        const courseAverages = enrollments.map(e => e.quizAverageScore || 0).slice(0, 8);
-
-        charts.quizPerformance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: courseLabels,
-                datasets: [{
-                    label: 'Average Quiz Score',
-                    data: courseAverages,
-                    backgroundColor: '#0d6efd',
-                    borderRadius: 5,
-                    borderSkipped: false
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) { return value + '%'; }
-                        }
-                    }
-                },
-                plugins: { legend: { display: false } }
-            }
-        });
-    }
-</script>
-
-    </div>
-
-    <div id="errorMessage" class="alert alert-danger" style="display: none;">
-        <p>Failed to load analytics data. Please try again.</p>
+<div class="page-header">
+    <div>
+        <h1>My Analytics</h1>
+        <p class="page-subtitle">A visual overview of your academic performance</p>
     </div>
 </div>
 
-<style>
-    .analytics-page,
-    .analytics-page .card,
-    .analytics-page .card-body,
-    .analytics-page h1,
-    .analytics-page h2,
-    .analytics-page h5,
-    .analytics-page p,
-    .analytics-page small,
-    .analytics-page li,
-    .analytics-page span {
-        color: #111 !important;
-    }
-</style>
+<!-- Loading state -->
+<div id="analyticsLoading" class="card">
+    <div class="card-body text-center py-5">
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <p class="text-muted mb-0">Loading your analytics…</p>
+    </div>
+</div>
+
+<!-- Error state -->
+<div id="analyticsError" class="card" style="display:none">
+    <div class="empty-state">
+        <div class="empty-icon" style="background:var(--danger-soft);color:var(--danger)"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h5>Could not load analytics</h5>
+        <p>Something went wrong while fetching your data.</p>
+        <button type="button" class="btn btn-primary" onclick="location.reload()"><i class="fa-solid fa-rotate-right me-2"></i>Retry</button>
+    </div>
+</div>
+
+<!-- Content -->
+<div id="analyticsContent" style="display:none">
+    <div class="row g-3 mb-4" id="statCards"></div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header"><h6 class="card-title">Course Progress &amp; Quiz Averages</h6></div>
+                <div class="card-body">
+                    <div class="chart-container" style="height:280px"><canvas id="courseChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header"><h6 class="card-title">Attendance Split</h6></div>
+                <div class="card-body">
+                    <div class="chart-container" style="height:280px"><canvas id="attendanceChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header"><h6 class="card-title">GPA by Course (semester results)</h6></div>
+                <div class="card-body">
+                    <div class="chart-container" style="height:260px"><canvas id="gpaChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header"><h6 class="card-title">Monthly Attendance</h6></div>
+                <div class="card-body">
+                    <div class="chart-container" style="height:260px"><canvas id="monthChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script>
+        Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+        Chart.defaults.color = '#64748b';
+
+        function statCard(icon, color, value, label) {
+            return '<div class="col-6 col-xl-3"><div class="card stat-card">' +
+                '<span class="stat-icon ' + color + '"><i class="fa-solid ' + icon + '"></i></span>' +
+                '<div><div class="stat-value">' + value + '</div><div class="stat-label">' + label + '</div></div>' +
+                '</div></div>';
+        }
+
+        fetch('/api/student/analytics-data')
+            .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+            .then(function (data) {
+                document.getElementById('analyticsLoading').style.display = 'none';
+                document.getElementById('analyticsContent').style.display = '';
+
+                const att = data.attendanceSummary;
+                const avgProgress = data.enrollments.length
+                    ? Math.round(data.enrollments.reduce((s, e) => s + (e.progressPercentage || 0), 0) / data.enrollments.length)
+                    : 0;
+                const gpaValues = data.semesterResults.map(r => r.gpa);
+                const avgGpa = gpaValues.length ? (gpaValues.reduce((a, b) => a + b, 0) / gpaValues.length).toFixed(2) : '—';
+
+                document.getElementById('statCards').innerHTML =
+                    statCard('fa-book-open', 'primary', data.enrollments.length, 'Enrolled Courses') +
+                    statCard('fa-bars-progress', 'info', avgProgress + '%', 'Avg. Progress') +
+                    statCard('fa-calendar-check', 'success', att.attendancePercentage + '%', 'Attendance') +
+                    statCard('fa-award', 'warning', avgGpa, 'Average GPA');
+
+                /* Course progress + quiz averages */
+                new Chart(document.getElementById('courseChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.enrollments.map(e => e.courseName),
+                        datasets: [
+                            { label: 'Progress %', data: data.enrollments.map(e => e.progressPercentage || 0), backgroundColor: '#4f46e5', borderRadius: 5, maxBarThickness: 26 },
+                            { label: 'Quiz Avg %', data: data.enrollments.map(e => e.quizAverageScore || 0), backgroundColor: '#0284c7', borderRadius: 5, maxBarThickness: 26 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } },
+                        scales: { y: { beginAtZero: true, max: 100, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+                    }
+                });
+
+                /* Attendance doughnut */
+                new Chart(document.getElementById('attendanceChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Present', 'Absent', 'Leave'],
+                        datasets: [{ data: [att.presentDays, att.absentDays, att.leaveDays], backgroundColor: ['#16a34a', '#dc2626', '#d97706'], borderWidth: 0 }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, cutout: '65%',
+                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } }
+                    }
+                });
+
+                /* GPA per semester-course */
+                new Chart(document.getElementById('gpaChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.semesterResults.map(r => r.courseName + ' (' + r.semester.split(' ')[0] + ')'),
+                        datasets: [{ label: 'GPA', data: data.semesterResults.map(r => r.gpa), backgroundColor: '#4f46e5', borderRadius: 5, maxBarThickness: 22 }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { beginAtZero: true, max: 4, grid: { color: '#f1f5f9' } }, y: { grid: { display: false }, ticks: { font: { size: 10 } } } }
+                    }
+                });
+
+                /* Monthly attendance stacked */
+                new Chart(document.getElementById('monthChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.attendanceByMonth.map(m => m.month),
+                        datasets: [
+                            { label: 'Present', data: data.attendanceByMonth.map(m => m.present), backgroundColor: '#16a34a', borderRadius: 4, maxBarThickness: 26 },
+                            { label: 'Absent', data: data.attendanceByMonth.map(m => m.absent), backgroundColor: '#dc2626', borderRadius: 4, maxBarThickness: 26 },
+                            { label: 'Leave', data: data.attendanceByMonth.map(m => m.leave), backgroundColor: '#d97706', borderRadius: 4, maxBarThickness: 26 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } } },
+                        scales: {
+                            x: { stacked: true, grid: { display: false } },
+                            y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f1f5f9' } }
+                        }
+                    }
+                });
+            })
+            .catch(function () {
+                document.getElementById('analyticsLoading').style.display = 'none';
+                document.getElementById('analyticsError').style.display = '';
+            });
+    </script>
+}

@@ -1,0 +1,90 @@
+@model ProfileViewModel
+@{
+    ViewData["Title"] = "My Profile";
+    var initials = string.Concat(($"{Model.FirstName} {Model.LastName}")
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => char.ToUpperInvariant(p[0])));
+    if (string.IsNullOrEmpty(initials)) { initials = "U"; }
+}
+
+<div class="page-header">
+    <div>
+        <h1>My Profile</h1>
+        <p class="page-subtitle">Manage your personal information</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body text-center p-4">
+                <span class="avatar avatar-lg mx-auto mb-3">@initials</span>
+                <h5 class="mb-1">@Model.FirstName @Model.LastName</h5>
+                <p class="text-muted mb-2">@Model.Email</p>
+                <span class="badge badge-soft-primary">@Model.Role</span>
+                @if (!string.IsNullOrEmpty(Model.Department))
+                {
+                    <span class="badge badge-soft-muted">@Model.Department</span>
+                }
+                <hr />
+                <p class="text-muted mb-0" style="font-size:.85rem">
+                    <i class="fa-solid fa-calendar me-1"></i>Member since @Model.MemberSince.ToString("MMMM yyyy")
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><h6 class="card-title">Edit Profile</h6></div>
+            <div class="card-body">
+                <form asp-action="Profile" method="post" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2"></div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-6">
+                            <label asp-for="FirstName" class="form-label"></label>
+                            <input asp-for="FirstName" class="form-control" />
+                            <span asp-validation-for="FirstName"></span>
+                        </div>
+                        <div class="col-sm-6">
+                            <label asp-for="LastName" class="form-label"></label>
+                            <input asp-for="LastName" class="form-control" />
+                            <span asp-validation-for="LastName"></span>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-6">
+                            <label asp-for="Email" class="form-label"></label>
+                            <input asp-for="Email" class="form-control" disabled />
+                            <div class="form-text">Email addresses cannot be changed.</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label asp-for="PhoneNumber" class="form-label"></label>
+                            <input asp-for="PhoneNumber" class="form-control" placeholder="+1 555 000 1234" />
+                            <span asp-validation-for="PhoneNumber"></span>
+                        </div>
+                    </div>
+
+                    @if (Model.Role == "Faculty")
+                    {
+                        <div class="mb-3">
+                            <label asp-for="Department" class="form-label"></label>
+                            <input asp-for="Department" class="form-control" />
+                            <span asp-validation-for="Department"></span>
+                        </div>
+                    }
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-2"></i>Save Changes</button>
+                        <a class="btn btn-outline-secondary" asp-action="ChangePassword"><i class="fa-solid fa-key me-2"></i>Change Password</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

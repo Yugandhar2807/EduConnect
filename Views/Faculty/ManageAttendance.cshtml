@@ -1,137 +1,112 @@
 @model List<ApplicationUser>
-
 @{
     ViewData["Title"] = "Mark Attendance";
+    DateTime attendanceDate = ViewBag.AttendanceDate;
+    var existing = (Dictionary<string, string>)ViewBag.TodayAttendance;
+    var remarks = (Dictionary<string, string?>)ViewBag.TodayRemarks;
 }
 
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-12">
-            <h2><i class="fas fa-clipboard-list me-2"></i>Mark Attendance - @ViewBag.AttendanceDate.ToString("dddd, MMMM dd, yyyy")</h2>
-            <p class="text-muted">Mark attendance for all students</p>
-            <hr />
+<div class="page-header">
+    <div>
+        <h1>Mark Attendance</h1>
+        <p class="page-subtitle">Daily roll call for @attendanceDate.ToString("dddd, dd MMMM yyyy")</p>
+    </div>
+    <div class="page-actions">
+        <form method="get" asp-action="ManageAttendance" class="d-flex gap-2">
+            <input type="date" name="date" class="form-control" value="@attendanceDate.ToString("yyyy-MM-dd")" max="@DateTime.UtcNow.ToString("yyyy-MM-dd")" style="width:auto" />
+            <button type="submit" class="btn btn-outline-primary"><i class="fa-solid fa-calendar-day me-1"></i>Go</button>
+        </form>
+        <a class="btn btn-outline-secondary" asp-action="AttendanceList"><i class="fa-solid fa-clock-rotate-left me-2"></i>Log</a>
+    </div>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fa-solid fa-users"></i></div>
+            <h5>No active students</h5>
+            <p>There are no active student accounts to mark attendance for.</p>
         </div>
     </div>
-
-    @if (TempData["Success"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-
-    @if (TempData["Error"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-
-    <form method="post" class="card">
-        <div class="card-body">
+}
+else
+{
+    <form asp-action="ManageAttendance" method="post">
+        <input type="hidden" name="attendanceDate" value="@attendanceDate.ToString("yyyy-MM-dd")" />
+        <div class="card" data-table>
+            <div class="card-header">
+                <h6 class="card-title">@Model.Count students</h6>
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-success" id="markAllPresent"><i class="fa-solid fa-check-double me-1"></i>All Present</button>
+                        <button type="button" class="btn btn-outline-secondary" id="clearAll">Clear</button>
+                    </div>
+                    <div class="table-search">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="search" class="form-control form-control-sm" placeholder="Search…" data-table-search />
+                    </div>
+                </div>
+            </div>
             <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
+                <table class="table app-table" data-page-size="50">
+                    <thead>
                         <tr>
-                            <th>Student Name</th>
-                            <th>Status</th>
-                            <th>Remarks</th>
+                            <th data-sort="text">Student</th>
+                            <th data-sort="text">Email</th>
+                            <th style="min-width:260px">Status</th>
+                            <th style="min-width:180px">Remarks</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @if (Model != null && Model.Count > 0)
+                        @foreach (var student in Model)
                         {
-                            @foreach (var student in Model)
-                            {
-                                var todayStatus = ViewBag.TodayAttendance?.ContainsKey(student.Id) == true 
-                                    ? ViewBag.TodayAttendance[student.Id] 
-                                    : "";
-                                
-                                <tr>
-                                    <td>
-                                        <strong style="color: #000; font-size: 16px; font-weight: 600;">@(student.FullName ?? student.UserName)</strong>
-                                        <input type="hidden" name="studentIds" value="@student.Id" />
-                                    </td>
-                                    <td>
-                                        <select name="status_@student.Id" class="form-select form-select-sm" style="width: 120px;">
-                                            <option value="">-- Select --</option>
-                                            @if (todayStatus == "Present")
-                                            {
-                                                <option value="Present" selected>Present</option>
-                                            }
-                                            else
-                                            {
-                                                <option value="Present">Present</option>
-                                            }
-                                            @if (todayStatus == "Absent")
-                                            {
-                                                <option value="Absent" selected>Absent</option>
-                                            }
-                                            else
-                                            {
-                                                <option value="Absent">Absent</option>
-                                            }
-                                            @if (todayStatus == "Leave")
-                                            {
-                                                <option value="Leave" selected>Leave</option>
-                                            }
-                                            else
-                                            {
-                                                <option value="Leave">Leave</option>
-                                            }
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <input type="text" name="remarks_@student.Id" class="form-control form-control-sm" placeholder="Optional notes" />
-                                    </td>
-                                </tr>
-                            }
-                        }
-                        else
-                        {
+                            var current = existing.GetValueOrDefault(student.Id);
+                            var remark = remarks.GetValueOrDefault(student.Id);
                             <tr>
-                                <td colspan="3" class="text-center text-muted py-4">
-                                    <i class="fas fa-inbox"></i> No students found
+                                <td class="fw-medium">
+                                    @(student.FullName ?? student.Email)
+                                    <input type="hidden" name="studentIds" value="@student.Id" />
+                                </td>
+                                <td class="text-muted">@student.Email</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm status-group" role="group">
+                                        <input type="radio" class="btn-check" name="status_@student.Id" id="present_@student.Id" value="Present" checked="@(current == "Present")" />
+                                        <label class="btn btn-outline-success" for="present_@student.Id"><i class="fa-solid fa-check me-1"></i>Present</label>
+
+                                        <input type="radio" class="btn-check" name="status_@student.Id" id="absent_@student.Id" value="Absent" checked="@(current == "Absent")" />
+                                        <label class="btn btn-outline-danger" for="absent_@student.Id"><i class="fa-solid fa-xmark me-1"></i>Absent</label>
+
+                                        <input type="radio" class="btn-check" name="status_@student.Id" id="leave_@student.Id" value="Leave" checked="@(current == "Leave")" />
+                                        <label class="btn btn-outline-warning" for="leave_@student.Id"><i class="fa-solid fa-umbrella-beach me-1"></i>Leave</label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" name="remarks_@student.Id" class="form-control form-control-sm" placeholder="Optional" value="@remark" />
                                 </td>
                             </tr>
                         }
                     </tbody>
                 </table>
             </div>
-
-            <div class="mt-3">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-2"></i>Save Attendance
-                </button>
-                <a href="@Url.Action("Dashboard")" class="btn btn-secondary">
-                    <i class="fas fa-times me-2"></i>Cancel
-                </a>
+            <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span class="text-muted" style="font-size:.85rem"><i class="fa-solid fa-circle-info me-1"></i>Students without a selected status are skipped.</span>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-2"></i>Save Attendance</button>
             </div>
         </div>
     </form>
+}
 
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Attendance History</h5>
-                </div>
-                <div class="card-body">
-                    <p><a href="@Url.Action("AttendanceList")" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-list me-1"></i>View All Records
-                    </a></p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-    .table-hover tbody tr:hover {
-        background-color: #f8f9fa;
-    }
-</style>
-    </div>
-</div>
+@section Scripts {
+    <script>
+        const markAllBtn = document.getElementById('markAllPresent');
+        if (markAllBtn) {
+            markAllBtn.addEventListener('click', function () {
+                document.querySelectorAll('input.btn-check[value="Present"]').forEach(r => r.checked = true);
+            });
+            document.getElementById('clearAll').addEventListener('click', function () {
+                document.querySelectorAll('.status-group input.btn-check').forEach(r => r.checked = false);
+            });
+        }
+    </script>
+}

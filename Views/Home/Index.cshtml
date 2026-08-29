@@ -1,19 +1,51 @@
 @{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Welcome";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome to EduConnect</h1>
-    <p class="lead">An Interactive Learning Portal for Students and Faculty</p>
-    
-    @if (!User.Identity?.IsAuthenticated ?? true)
-    {
-        <div class="mt-4">
-            <a class="btn btn-primary btn-lg" asp-area="" asp-controller="Account" asp-action="Login">Login</a>
+<section class="landing-hero">
+    <h1>Learning, teaching and progress<br />in one connected portal</h1>
+    <p>
+        EduConnect brings students and faculty together — create courses, share materials,
+        run interactive quizzes, track attendance and monitor academic performance from a single dashboard.
+    </p>
+    <div class="d-flex gap-2 justify-content-center flex-wrap">
+        <a class="btn btn-light btn-lg fw-semibold" asp-controller="Account" asp-action="Register">
+            <i class="fa-solid fa-rocket me-2"></i>Create a Student Account
+        </a>
+        <a class="btn btn-outline-light btn-lg" asp-controller="Account" asp-action="Login">
+            Sign In
+        </a>
+    </div>
+</section>
+
+<section class="landing-section">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 style="letter-spacing:-.02em">Everything your institution needs</h2>
+            <p class="text-muted">Purpose-built workflows for every role.</p>
         </div>
-    }
-    else
-    {
-        <p class="mt-4">Welcome! Select your role above to continue.</p>
-    }
-</div>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-chalkboard-user"></i></div>
+                    <h5>For Faculty</h5>
+                    <p class="text-muted mb-0">Create courses with topics and materials, build quizzes with multiple question types, publish announcements and monitor every student's progress.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-user-graduate"></i></div>
+                    <h5>For Students</h5>
+                    <p class="text-muted mb-0">Enroll in courses, study materials at your own pace, attempt timed quizzes with instant results and follow your progress with rich analytics.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                    <h5>For Administrators</h5>
+                    <p class="text-muted mb-0">Manage users, record semester results, oversee attendance and export institution-wide analytics — with full role-based access control.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

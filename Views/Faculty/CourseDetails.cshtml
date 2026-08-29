@@ -1,477 +1,243 @@
-@model EduConnect.Models.Course
-
+@model Course
 @{
-    ViewData["Title"] = "Course Details";
+    ViewData["Title"] = Model.Title;
+    var topics = Model.Topics?.OrderBy(t => t.CreatedAt).ToList() ?? new List<Topic>();
+    var materials = Model.Materials?.OrderByDescending(m => m.UploadedAt).ToList() ?? new List<Material>();
+    var quizzes = Model.Quizzes?.OrderByDescending(q => q.CreatedAt).ToList() ?? new List<Quiz>();
+    var enrollmentCount = Model.Enrollments?.Count ?? 0;
 }
 
-<style>
-    .course-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 40px;
-        border-radius: 10px;
-        margin-bottom: 30px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        animation: slideInDown 0.6s ease-out;
-    }
-
-    .course-header h1 {
-        margin-bottom: 10px;
-        font-size: 2.5em;
-        font-weight: 700;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-    }
-
-    .course-header .badge {
-        background: rgba(255,255,255,0.3);
-        font-size: 14px;
-        padding: 8px 12px;
-        margin-right: 10px;
-    }
-
-    .card {
-        border: none;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-        margin-bottom: 25px;
-        border-radius: 10px;
-        transition: all 0.3s ease;
-        animation: fadeInUp 0.6s ease-out;
-    }
-
-    .card:hover {
-        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-        transform: translateY(-5px);
-    }
-
-    .card-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 10px 10px 0 0;
-        padding: 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .card-header h5 {
-        margin: 0;
-        font-size: 1.2em;
-        font-weight: 600;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        padding: 8px 16px;
-        transition: all 0.3s ease;
-    }
-
-    .btn-primary:hover {
-        background: linear-gradient(135deg, #5568d3 0%, #6a3f92 100%);
-        transform: scale(1.05);
-    }
-
-    .list-group-item {
-        border: 1px solid #e0e0e0;
-        padding: 15px;
-        margin-bottom: 10px;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-        background: #f8f9fa;
-    }
-
-    .list-group-item:hover {
-        background: #fff3e0;
-        border-color: #667eea;
-        box-shadow: 0 3px 10px rgba(102, 126, 234, 0.1);
-    }
-
-    .list-group-item strong {
-        color: #333;
-        font-size: 1.05em;
-    }
-
-    .btn-sm {
-        padding: 6px 12px;
-        font-size: 0.85em;
-        border-radius: 5px;
-        transition: all 0.2s ease;
-    }
-
-    .btn-sm:hover {
-        transform: scale(1.1);
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 40px 20px;
-        color: #999;
-    }
-
-    .empty-state i {
-        font-size: 3em;
-        margin-bottom: 15px;
-        opacity: 0.5;
-    }
-
-    .stats-card {
-        text-align: center;
-        padding: 20px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-radius: 8px;
-        margin-bottom: 15px;
-    }
-
-    .stats-card .number {
-        font-size: 2em;
-        font-weight: 700;
-    }
-
-    .stats-card .label {
-        font-size: 0.9em;
-        opacity: 0.9;
-    }
-
-    @@keyframes slideInDown {
-        from {
-            opacity: 0;
-            transform: translateY(-20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    @@keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-</style>
-
-<div class="course-header">
-    <h1>📚 @Model.Title</h1>
+<div class="page-header">
     <div>
-        <span class="badge">@Model.Category</span>
-        <span class="badge">@(Model.IsActive ? "✓ Active" : "✗ Inactive")</span>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="Dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item active">@Model.Title</li>
+            </ol>
+        </nav>
+        <h1>@Model.Title</h1>
+        <p class="page-subtitle">
+            <span class="badge badge-soft-muted me-1">@Model.Category</span>
+            <span class="badge @(Model.IsActive ? "badge-soft-success" : "badge-soft-danger") me-2">@(Model.IsActive ? "Active" : "Inactive")</span>
+            @enrollmentCount student@(enrollmentCount == 1 ? "" : "s") enrolled
+        </p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-outline-primary" asp-action="CourseStudents" asp-route-id="@Model.Id"><i class="fa-solid fa-users me-2"></i>Students</a>
+        <a class="btn btn-outline-secondary" asp-action="EditCourse" asp-route-id="@Model.Id"><i class="fa-solid fa-pen me-2"></i>Edit</a>
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-12">
+<div class="card mb-4">
+    <div class="card-body">
+        <p class="text-muted mb-0">@Model.Description</p>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-3" id="courseTabs" role="tablist" style="border-bottom-color:var(--border)">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-topics" type="button" role="tab"><i class="fa-solid fa-list me-2"></i>Topics <span class="badge badge-soft-muted ms-1">@topics.Count</span></button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-materials" type="button" role="tab"><i class="fa-solid fa-file-lines me-2"></i>Materials <span class="badge badge-soft-muted ms-1">@materials.Count</span></button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-quizzes" type="button" role="tab"><i class="fa-solid fa-list-check me-2"></i>Quizzes <span class="badge badge-soft-muted ms-1">@quizzes.Count</span></button></li>
+</ul>
+
+<div class="tab-content">
+    <!-- ==================== TOPICS ==================== -->
+    <div class="tab-pane fade show active" id="tab-topics" role="tabpanel">
         <div class="card">
             <div class="card-header">
-                <h5>📝 Course Description</h5>
-            </div>
-            <div class="card-body">
-                <p style="line-height: 1.8;">@Model.Description</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-12">
-        <div class="card mb-3">
-            <div class="card-header">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h5 style="margin: 0;">� Topics
-                        <span class="badge bg-light text-dark">@(Model.Topics?.Count() ?? 0)</span>
-                    </h5>
-                    <div>
-                        <button type="button" class="btn btn-sm btn-success" onclick="generateTopicsForCourse(@Model.Id)">
-                            <i class="fas fa-magic"></i> AI Generate
-                        </button>
-                        <a class="btn btn-sm btn-primary" asp-action="AddTopic" asp-route-courseId="@Model.Id">
-                            <i class="fas fa-plus-circle"></i> Add Topic
-                        </a>
-                    </div>
+                <h6 class="card-title">Course Topics</h6>
+                <div class="d-flex gap-2">
+                    <form asp-action="GenerateTopicsWithAI" method="post" data-confirm="Generate a topic syllabus for this course with AI?">
+                        <input type="hidden" name="courseId" value="@Model.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>Generate with AI</button>
+                    </form>
+                    <a class="btn btn-sm btn-primary" asp-action="AddTopic" asp-route-courseId="@Model.Id"><i class="fa-solid fa-plus me-1"></i>Add Topic</a>
                 </div>
             </div>
-            <div class="card-body">
-                @if (Model.Topics?.Any() ?? false)
-                {
-                    <div class="list-group">
-                        @foreach (var topic in Model.Topics.OrderBy(t => t.CreatedAt))
-                        {
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div style="flex: 1;">
-                                    <strong><i class="fas fa-book"></i> @topic.Name</strong>
-                                    @if (!string.IsNullOrEmpty(topic.Description))
-                                    {
-                                        <br />
-                                        <small class="text-muted">@topic.Description</small>
-                                    }
-                                    <br />
-                                    @if (!string.IsNullOrEmpty(topic.PdfFilePath))
-                                    {
-                                        <small class="text-muted">
-                                            📄 PDF: 
-                                            @{
-                                                var pdfFileName = System.IO.Path.GetFileName(topic.PdfFilePath);
+            @if (topics.Count == 0)
+            {
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fa-solid fa-list"></i></div>
+                    <h5>No topics yet</h5>
+                    <p>Structure your course with topics — add them manually or generate a full syllabus with AI.</p>
+                </div>
+            }
+            else
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var (topic, index) in topics.Select((t, i) => (t, i)))
+                    {
+                        <li class="list-group-item d-flex align-items-center gap-3 py-3" style="border-color:#f1f5f9">
+                            <span class="avatar" style="width:32px;height:32px;font-size:.8rem">@(index + 1)</span>
+                            <div class="flex-grow-1" style="min-width:0">
+                                <div class="fw-medium">@topic.Name</div>
+                                <div class="text-muted text-truncate" style="font-size:.83rem">@topic.Description</div>
+                            </div>
+                            @if (!string.IsNullOrEmpty(topic.PdfFilePath))
+                            {
+                                <a class="btn btn-sm btn-outline-secondary" href="@topic.PdfFilePath" target="_blank" title="View PDF"><i class="fa-solid fa-file-pdf"></i></a>
+                            }
+                            <form asp-action="GenerateMaterialWithAI" method="post" class="d-inline">
+                                <input type="hidden" name="topicId" value="@topic.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Generate learning material with AI"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                            </form>
+                            <form asp-action="DeleteTopic" method="post" class="d-inline" data-confirm="Delete topic '@topic.Name'?">
+                                <input type="hidden" name="topicId" value="@topic.Id" />
+                                <input type="hidden" name="courseId" value="@Model.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+
+    <!-- ==================== MATERIALS ==================== -->
+    <div class="tab-pane fade" id="tab-materials" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title">Study Materials</h6>
+                <a class="btn btn-sm btn-primary" asp-action="UploadMaterial" asp-route-courseId="@Model.Id"><i class="fa-solid fa-upload me-1"></i>Add Material</a>
+            </div>
+            @if (materials.Count == 0)
+            {
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fa-solid fa-file-lines"></i></div>
+                    <h5>No materials yet</h5>
+                    <p>Upload PDFs, videos or documents — or write text notes directly.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table app-table">
+                        <thead>
+                            <tr><th>Title</th><th>Type</th><th>Size</th><th>Uploaded</th><th class="text-end">Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var material in materials)
+                            {
+                                var icon = material.FileType switch
+                                {
+                                    "PDF" => "fa-file-pdf text-danger",
+                                    "Video" => "fa-file-video text-primary",
+                                    "Image" => "fa-file-image text-success",
+                                    "Text" => "fa-file-pen text-info",
+                                    _ => "fa-file text-secondary",
+                                };
+                                <tr>
+                                    <td>
+                                        <i class="fa-solid @icon me-2"></i><span class="fw-medium">@material.Title</span>
+                                    </td>
+                                    <td><span class="badge badge-soft-muted">@material.FileType</span></td>
+                                    <td class="text-muted">@(material.FileSize > 0 ? $"{material.FileSize / 1024.0 / 1024.0:0.##} MB" : "—")</td>
+                                    <td class="text-muted">@material.UploadedAt.ToString("dd MMM yyyy")</td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            @if (!string.IsNullOrEmpty(material.FilePath))
+                                            {
+                                                <a class="btn btn-outline-secondary" href="@material.FilePath" target="_blank" title="Open"><i class="fa-solid fa-up-right-from-square"></i></a>
                                             }
-                                            <a href="/Faculty/DownloadTopicPdf?fileName=@pdfFileName" target="_blank" style="color: #667eea; text-decoration: underline;" download>Download PDF</a>
-                                        </small>
-                                    }
-                                </div>
-                                <form method="post" asp-action="DeleteTopic" asp-route-topicId="@topic.Id" asp-route-courseId="@Model.Id" style="margin: 0;" onsubmit="return confirm('Are you sure you want to delete this topic?');">
-                                    <button type="submit" class="btn btn-sm btn-danger">
-                                        <i class="fas fa-trash"></i> Delete
-                                    </button>
-                                </form>
-                            </div>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <p style="font-size: 0.9em;">No topics added yet. Click "Add Topic" to create learning modules for your course</p>
-                }
-            </div>
+                                            else if (material.FileType == "Text")
+                                            {
+                                                <button type="button" class="btn btn-outline-secondary" title="Read"
+                                                        data-bs-toggle="modal" data-bs-target="#materialModal"
+                                                        data-title="@material.Title" data-content="@material.Description">
+                                                    <i class="fa-solid fa-book-open"></i>
+                                                </button>
+                                            }
+                                            <form asp-action="DeleteMaterial" method="post" class="d-inline" data-confirm="Delete material '@material.Title'?">
+                                                <input type="hidden" name="materialId" value="@material.Id" />
+                                                <input type="hidden" name="courseId" value="@Model.Id" />
+                                                <button type="submit" class="btn btn-outline-danger" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
         </div>
     </div>
 
-<div class="row">
-    <div class="col-md-12">
-        <div class="card mb-3">
-            <div class="card-header">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h5 style="margin: 0;">📂 Study Materials 
-                        <span class="badge bg-light text-dark">@(Model.Materials?.Count() ?? 0)</span>
-                    </h5>
-                    <a class="btn btn-sm btn-primary" asp-action="UploadMaterial" asp-route-courseId="@Model.Id">
-                        <i class="fas fa-cloud-upload-alt"></i> Upload Material
-                    </a>
-                </div>
-            </div>
-
-            <div class="card-body">
-                @if (Model.Materials?.Any() ?? false)
-                {
-                    <div class="list-group">
-                        @foreach (var material in Model.Materials)
-                        {
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div style="flex: 1;">
-                                    <strong><i class="fas fa-file"></i> @material.Title</strong>
-                                    <br />
-                                    <small class="text-muted">
-                                        📋 Type: <strong>@material.FileType</strong> | 
-                                        💾 Size: <strong>@((material.FileSize / 1024.0).ToString("F2")) KB</strong> | 
-                                        📅 Uploaded: <strong>@material.UploadedAt.ToString("dd MMM yyyy")</strong>
-                                    </small>
-                                </div>
-                                <div style="margin-left: 15px;">
-                                    <a href="@material.FilePath" class="btn btn-sm btn-success" download title="Download">
-                                        <i class="fas fa-download"></i> Download
-                                    </a>
-                                    <form asp-action="DeleteMaterial" asp-route-materialId="@material.Id" asp-route-courseId="@Model.Id" 
-                                          method="post" style="display:inline;" onsubmit="return confirm('Are you sure?');">
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete">
-                                            <i class="fas fa-trash"></i> Delete
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <div class="empty-state">
-                        <i class="fas fa-inbox"></i>
-                        <p style="font-size: 1.1em; margin-top: 10px;">No materials uploaded yet</p>
-                        <p style="font-size: 0.9em;">Click "Upload Material" to add study resources</p>
-                    </div>
-                }
-            </div>
-        </div>
-
+    <!-- ==================== QUIZZES ==================== -->
+    <div class="tab-pane fade" id="tab-quizzes" role="tabpanel">
         <div class="card">
             <div class="card-header">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <h5 style="margin: 0;">❓ Quizzes
-                        <span class="badge bg-light text-dark">@(Model.Quizzes?.Count() ?? 0)</span>
-                    </h5>
-                    <a class="btn btn-sm btn-primary" asp-action="CreateQuiz" asp-route-courseId="@Model.Id">
-                        <i class="fas fa-plus-circle"></i> Create Quiz
-                    </a>
+                <h6 class="card-title">Quizzes</h6>
+                <a class="btn btn-sm btn-primary" asp-action="CreateQuiz" asp-route-courseId="@Model.Id"><i class="fa-solid fa-plus me-1"></i>Create Quiz</a>
+            </div>
+            @if (quizzes.Count == 0)
+            {
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fa-solid fa-list-check"></i></div>
+                    <h5>No quizzes yet</h5>
+                    <p>Create a quiz and add multiple-choice, true/false or coding questions.</p>
                 </div>
-            </div>
-            <div class="card-body">
-                @if (Model.Quizzes?.Any() ?? false)
-                {
-                    <div class="list-group">
-                        @foreach (var quiz in Model.Quizzes)
-                        {
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div style="flex: 1;">
-                                    <strong><i class="fas fa-file-alt"></i> @quiz.Title</strong>
-                                    <br />
-                                    <small class="text-muted">
-                                        ❓ Questions: <strong>@quiz.TotalQuestions</strong> | 
-                                        ⭐ Marks: <strong>@quiz.TotalMarks</strong> | 
-                                        ⏱️ Duration: <strong>@quiz.DurationInMinutes min</strong> | 
-                                        ✓ Pass: <strong>@quiz.PassingMarks</strong>
-                                    </small>
-                                </div>
-                                <div style="margin-left: 15px;">
-                                    <a class="btn btn-sm btn-info" asp-action="AddQuizQuestion" asp-route-quizId="@quiz.Id">
-                                        <i class="fas fa-plus"></i> Add Question
-                                    </a>
-                                    <form asp-action="DeleteQuiz" asp-route-quizId="@quiz.Id" asp-route-courseId="@Model.Id" 
-                                          method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this quiz?');">
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete">
-                                            <i class="fas fa-trash"></i> Delete
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <div class="empty-state">
-                        <i class="fas fa-question-circle"></i>
-                        <p style="font-size: 1.1em; margin-top: 10px;">No quizzes created yet</p>
-                        <p style="font-size: 0.9em;">Click "Create Quiz" to add assessments for your course</p>
-                    </div>
-                }
-            </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table app-table">
+                        <thead>
+                            <tr><th>Quiz</th><th>Questions</th><th>Total Marks</th><th>Pass %</th><th>Duration</th><th>Status</th><th class="text-end">Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var quiz in quizzes)
+                            {
+                                <tr>
+                                    <td>
+                                        <a class="fw-medium text-body" asp-action="QuizDetails" asp-route-id="@quiz.Id">@quiz.Title</a>
+                                    </td>
+                                    <td>@(quiz.Questions?.Count ?? 0)</td>
+                                    <td>@quiz.TotalMarks</td>
+                                    <td>@quiz.PassingMarks%</td>
+                                    <td class="text-muted">@quiz.DurationInMinutes min</td>
+                                    <td><span class="badge @(quiz.IsActive ? "badge-soft-success" : "badge-soft-muted")">@(quiz.IsActive ? "Visible" : "Hidden")</span></td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <a class="btn btn-outline-secondary" asp-action="QuizDetails" asp-route-id="@quiz.Id" title="Manage"><i class="fa-solid fa-folder-open"></i></a>
+                                            <a class="btn btn-outline-secondary" asp-action="AddQuizQuestion" asp-route-quizId="@quiz.Id" title="Add Question"><i class="fa-solid fa-plus"></i></a>
+                                            <form asp-action="DeleteQuiz" method="post" class="d-inline" data-confirm="Delete quiz '@quiz.Title' and all its questions and results?">
+                                                <input type="hidden" name="quizId" value="@quiz.Id" />
+                                                <input type="hidden" name="courseId" value="@Model.Id" />
+                                                <button type="submit" class="btn btn-outline-danger" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
         </div>
     </div>
 </div>
 
-<div class="row mt-4">
-    <div class="col-md-12">
-        <div style="display: flex; gap: 10px; justify-content: flex-start;">
-            <a class="btn btn-secondary" asp-action="Dashboard">
-                <i class="fas fa-arrow-left"></i> Back to Dashboard
-            </a>
-            <a class="btn btn-warning" asp-action="EditCourse" asp-route-id="@Model.Id">
-                <i class="fas fa-edit"></i> Edit Course
-            </a>
+<!-- Text material reader modal -->
+<div class="modal fade" id="materialModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="materialModalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="materialModalBody" style="white-space:pre-wrap; font-size:.93rem"></div>
         </div>
     </div>
 </div>
 
 @section Scripts {
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Add some interactive feedback
-        document.querySelectorAll('.btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                this.style.opacity = '0.7';
-                setTimeout(() => this.style.opacity = '1', 100);
-            });
+    <script>
+        const materialModal = document.getElementById('materialModal');
+        materialModal.addEventListener('show.bs.modal', function (event) {
+            const btn = event.relatedTarget;
+            materialModal.querySelector('#materialModalTitle').textContent = btn.dataset.title;
+            materialModal.querySelector('#materialModalBody').textContent = btn.dataset.content;
         });
-
-        // Auto-hide alerts after 3 seconds
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(alert => {
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 3000);
-        });
-    });
-
-    async function generateTopicsForCourse(courseId) {
-        const courseTitle = '@Model.Title';
-        const courseDescription = '@Model.Description';
-
-        if (!courseTitle || !courseDescription) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Course must have title and description'
-            });
-            return;
-        }
-
-        // Show loading message
-        Swal.fire({
-            title: 'Generating Topics...',
-            html: 'Please wait while AI generates course topics<br><small>This may take 10-15 seconds</small>',
-            allowOutsideClick: false,
-            didOpen: async () => {
-                Swal.showLoading();
-                
-                try {
-                    // Step 1: Generate topics from AI
-                    const generateResponse = await fetch('/Faculty/GenerateTopicsAI', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            courseTitle: courseTitle,
-                            courseDescription: courseDescription
-                        })
-                    });
-
-                    const generateData = await generateResponse.json();
-                    
-                    if (!generateData.success || !generateData.topics || generateData.topics.length === 0) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: generateData.message || 'Failed to generate topics. Please try again.'
-                        });
-                        return;
-                    }
-
-                    // Step 2: Save generated topics to database
-                    const saveResponse = await fetch('/Faculty/SaveGeneratedTopics', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            courseId: courseId,
-                            topics: generateData.topics
-                        })
-                    });
-
-                    const saveData = await saveResponse.json();
-                    
-                    if (saveData.success) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Topics Generated & Saved!',
-                            html: '<p>AI has generated and saved the following topics:</p>' +
-                                '<ol style="text-align: left; margin-top: 10px;">' +
-                                generateData.topics.map(t => `<li>${t}</li>`).join('') +
-                                '</ol>' +
-                                '<p style="margin-top: 15px;"><strong>✓ Topics saved successfully!</strong></p>',
-                            confirmButtonText: 'Refresh Page'
-                        }).then(() => {
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Save Error',
-                            text: saveData.message || 'Failed to save topics. Please try again.'
-                        });
-                    }
-                } catch (error) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Failed to generate topics: ' + error.message
-                    });
-                }
-            }
-        });
-    }
-</script>
+    </script>
 }

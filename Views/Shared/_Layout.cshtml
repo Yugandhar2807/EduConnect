@@ -1,131 +1,116 @@
-@{
-    ViewData["Title"] = "EduConnect - Interactive Learning Portal";
-}
+@using Microsoft.AspNetCore.Identity
+@using EduConnect.Models
+@inject UserManager<ApplicationUser> UserManager
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"]</title>
-    <!-- Bootstrap CSS from CDN -->
+    <title>@(ViewData["Title"] != null ? $"{ViewData["Title"]} · EduConnect" : "EduConnect — Learning Portal")</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SweetAlert2 for Popups -->
-    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/animated-background.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
 </head>
-<body data-bs-theme="light">
+<body>
+    <form id="__af" class="d-none">@Html.AntiForgeryToken()</form>
 
-    <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light border-bottom box-shadow mb-3 navbar-floating">
-        <div class="container-fluid">
-            <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">
-                <i class="fas fa-graduation-cap"></i> EduConnect
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                    aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                <ul class="navbar-nav flex-grow-1">
-                    @if (User.Identity?.IsAuthenticated == true)
-                    {
-                        @if (User.IsInRole("Admin"))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Admin" asp-action="Dashboard">Admin Dashboard</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Admin" asp-action="Analytics">Analytics</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Admin" asp-action="ManageStudents">Students</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Admin" asp-action="ManageFaculty">Faculty</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Admin" asp-action="ManageSemesterResults">
-                                    <i class="fas fa-graduation-cap me-1"></i>Semester Results
-                                </a>
-                            </li>
-                        }
-                        @if (User.IsInRole("Faculty"))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Faculty" asp-action="Dashboard">Dashboard</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Faculty" asp-action="CreateCourse">Create Course</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Faculty" asp-action="ManageAttendance">
-                                    <i class="fas fa-clipboard-list me-1"></i>Attendance
-                                </a>
-                            </li>
-                        }
-                        @if (User.IsInRole("Student"))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Student" asp-action="Dashboard">Dashboard</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Student" asp-action="BrowseCourses">Browse Courses</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Student" asp-action="MyProgress">My Progress</a>
-                            </li>
-                        }
-                    }
-                </ul>
-                <div class="d-flex align-items-center gap-2">
-                    <!-- Dark/Light Mode Toggle -->
-                    <button id="themeToggleBtn" onclick="toggleTheme()" class="btn btn-outline-secondary theme-toggle" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">
-                        🌙
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        var currentUser = await UserManager.GetUserAsync(User);
+        var displayName = currentUser?.FullName
+            ?? $"{currentUser?.FirstName} {currentUser?.LastName}".Trim();
+        if (string.IsNullOrWhiteSpace(displayName)) { displayName = currentUser?.Email ?? "User"; }
+        var initials = string.Concat(displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Take(2).Select(p => char.ToUpperInvariant(p[0])));
+        var roleLabel = User.IsInRole("Admin") ? "Administrator" : User.IsInRole("Faculty") ? "Faculty" : "Student";
+
+        <div class="app">
+            <partial name="_Sidebar" />
+
+            <div class="app-main">
+                <header class="topbar">
+                    <button class="menu-toggle" type="button" aria-label="Toggle navigation">
+                        <i class="fa-solid fa-bars"></i>
                     </button>
-                    <partial name="_LoginPartial" />
-                </div>
+                    <h2 class="topbar-title d-none d-sm-block">@(ViewData["Title"] ?? "Dashboard")</h2>
+
+                    <div class="ms-auto d-flex align-items-center gap-2">
+                        <div class="dropdown user-menu">
+                            <button class="dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span class="avatar">@initials</span>
+                                <span class="d-none d-md-block text-start">
+                                    <span class="d-block fw-semibold" style="font-size:.88rem; line-height:1.2">@displayName</span>
+                                    <span class="d-block text-muted" style="font-size:.75rem">@roleLabel</span>
+                                </span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fa-solid fa-user"></i> My Profile</a></li>
+                                <li><a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword"><i class="fa-solid fa-key"></i> Change Password</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="post" asp-controller="Account" asp-action="Logout">
+                                        <button type="submit" class="dropdown-item text-danger"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </header>
+
+                <main class="app-content">
+                    @RenderBody()
+                </main>
+
+                <footer class="app-footer d-flex justify-content-between flex-wrap gap-2">
+                    <span>&copy; @DateTime.Now.Year EduConnect — Interactive Learning Portal</span>
+                    <span><a asp-controller="Home" asp-action="Privacy">Privacy</a></span>
+                </footer>
             </div>
         </div>
-    </nav>
-
-    <div class="container main-content">
-        <main role="main" class="pb-3 content-wrapper">
-            @if (TempData["Success"] != null)
-            {
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    @TempData["Success"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    }
+    else
+    {
+        <nav class="navbar navbar-expand-sm" style="background:var(--surface); border-bottom:1px solid var(--border)">
+            <div class="container">
+                <a class="navbar-brand fw-bold" asp-controller="Home" asp-action="Index" style="color:var(--text)">
+                    <span class="d-inline-flex align-items-center justify-content-center me-1" style="width:30px;height:30px;background:var(--primary);color:#fff;border-radius:8px;font-size:.85rem"><i class="fa-solid fa-graduation-cap"></i></span>
+                    EduConnect
+                </a>
+                <div class="ms-auto d-flex gap-2">
+                    <a class="btn btn-outline-primary btn-sm" asp-controller="Account" asp-action="Login">Sign In</a>
+                    <a class="btn btn-primary btn-sm" asp-controller="Account" asp-action="Register">Get Started</a>
                 </div>
-            }
-            @if (TempData["Error"] != null)
-            {
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    @TempData["Error"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            }
+            </div>
+        </nav>
+        <main>
             @RenderBody()
         </main>
-    </div>
+        <footer class="app-footer text-center">
+            &copy; @DateTime.Now.Year EduConnect — Interactive Learning Portal · <a asp-controller="Home" asp-action="Privacy">Privacy</a>
+        </footer>
+    }
 
-    <footer class="border-top footer text-muted mt-5">
-        <div class="container">
-            <p>&copy; 2024 EduConnect - Interactive Learning Portal</p>
-        </div>
-    </footer>
-
-    <!-- jQuery from CDN -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <!-- Bootstrap JS from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- SweetAlert2 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.3/dist/sweetalert2.all.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
-    <script src="~/js/theme-toggle.js" asp-append-version="true"></script>
+    <script src="~/js/app.js" asp-append-version="true"></script>
+
+    @if (TempData["Success"] != null)
+    {
+        <script>document.addEventListener('DOMContentLoaded', function () { App.toast(@Json.Serialize(TempData["Success"]), 'success'); });</script>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <script>document.addEventListener('DOMContentLoaded', function () { App.toast(@Json.Serialize(TempData["Error"]), 'error'); });</script>
+    }
+    @if (TempData["Info"] != null)
+    {
+        <script>document.addEventListener('DOMContentLoaded', function () { App.toast(@Json.Serialize(TempData["Info"]), 'info'); });</script>
+    }
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

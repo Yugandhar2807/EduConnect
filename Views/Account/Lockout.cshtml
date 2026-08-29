@@ -1,8 +1,15 @@
 @{
-    ViewData["Title"] = "Lockout";
+    ViewData["Title"] = "Account Locked";
+    Layout = "_AuthLayout";
 }
 
-<header>
-    <h1 class="text-danger">Locked out</h1>
-    <p class="text-danger">This account has been locked out, please try again later.</p>
-</header>
+<div class="card">
+    <div class="card-body p-4 text-center">
+        <div class="empty-icon mx-auto mb-3" style="width:64px;height:64px;background:var(--warning-soft);color:var(--warning);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem">
+            <i class="fa-solid fa-user-lock"></i>
+        </div>
+        <h4 class="mb-2">Account temporarily locked</h4>
+        <p class="text-muted">Too many failed sign-in attempts. Please wait 10 minutes and try again.</p>
+        <a class="btn btn-primary" asp-action="Login">Back to Sign In</a>
+    </div>
+</div>
