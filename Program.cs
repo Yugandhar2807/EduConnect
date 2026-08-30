@@ -101,6 +101,11 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 var app = builder.Build();
 
 // ---------- Pipeline ----------
+// Forwarded headers MUST run before the HTTPS redirect: behind a TLS-terminating
+// proxy (Render, Cloudflare) the original scheme arrives in X-Forwarded-Proto, and
+// redirecting before reading it causes an infinite redirect loop.
+app.UseForwardedHeaders();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
@@ -119,7 +124,6 @@ else
 }
 
 app.UseStatusCodePagesWithReExecute("/Home/Error", "?statusCode={0}");
-app.UseForwardedHeaders();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();

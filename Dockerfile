@@ -1,31 +1,21 @@
 # Build stage
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-WORKDIR /app
+WORKDIR /src
 
-# Copy project file
 COPY EduConnect.csproj .
-RUN dotnet restore
+RUN dotnet restore EduConnect.csproj
 
-# Copy source code
 COPY . .
-RUN dotnet build EduConnect.csproj -c Release -o /app/build
+# SkipVideoTools: the bundled video toolchain (ffmpeg/node) is Windows-only and
+# ~310 MB — pointless inside a Linux image where video generation is disabled.
+RUN dotnet publish EduConnect.csproj -c Release -o /app/publish /p:SkipVideoTools=true
 
-# Publish stage
+# Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
+COPY --from=build /app/publish .
 
-# Create data directory for SQLite database
-RUN mkdir -p /var/data
-
-# Copy built application
-COPY --from=build /app/build .
-
-# Copy static files (wwwroot)
-COPY wwwroot ./wwwroot
-
-# Expose port
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 
-# Run application
 ENTRYPOINT ["dotnet", "EduConnect.dll"]

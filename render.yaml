@@ -1,17 +1,23 @@
 services:
   - type: web
     name: educonnect
-    env: docker
+    runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    disk:
-      name: data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
+      # Free plan has no persistent disk: the SQLite database lives on ephemeral
+      # storage and demo data re-seeds automatically after every restart/deploy.
+      # Upgrade to a paid instance and re-add a disk at /var/data for real persistence.
       - key: ConnectionStrings__DefaultConnection
-        value: Data Source=/var/data/educonnect.db
+        value: Data Source=App_Data/educonnect.db
+      - key: Seed__SeedDemoData
+        value: "true"
       - key: Security__EnforceHttps
         value: "true"
+      # The OmniRoute gateway runs on the local laptop — not reachable from the
+      # cloud, so the offline mock AI is used there. Point BaseUrl at a hosted
+      # gateway and set Enabled=true to use real AI in the cloud.
+      - key: AI__OmniRoute__Enabled
+        value: "false"

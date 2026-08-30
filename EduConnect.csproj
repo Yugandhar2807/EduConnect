@@ -25,8 +25,9 @@
     <PackageReference Include="System.Speech" Version="9.0.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- Bundled video toolchain (ffmpeg + node + neural TTS script). Only the two
+  <ItemGroup Condition="'$(SkipVideoTools)' != 'true'">
+    <!-- Bundled video toolchain (ffmpeg + node + neural TTS script) — Windows hosts
+         only; Docker/Linux builds pass /p:SkipVideoTools=true. Only the two
          root-level json files are auto-included by the SDK (node_modules is not),
          so exclude exactly those from the explicit glob and Update them instead —
          every package.json inside node_modules MUST ship or Node cannot resolve
