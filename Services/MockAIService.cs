@@ -298,5 +298,55 @@ Continue practicing to solidify your understanding!
 
             return questions;
         }
+
+        public async Task<List<TopicData>> GenerateStructuredTopicsAsync(string courseTitle, string courseDescription)
+        {
+            // Reuse the canned topic lists and turn the [Level] prefixes into
+            // clean names with a meaningful description.
+            var raw = await GenerateTopicsAsync(courseTitle, courseDescription);
+            var topics = new List<TopicData>();
+            foreach (var entry in raw)
+            {
+                var name = entry;
+                var level = "";
+                var match = System.Text.RegularExpressions.Regex.Match(entry, @"^\[(\w+)\]\s*(.+)$");
+                if (match.Success)
+                {
+                    level = match.Groups[1].Value;
+                    name = match.Groups[2].Value;
+                }
+                var levelText = level switch
+                {
+                    "Beginner" => "Builds the foundation — no prior knowledge needed.",
+                    "Intermediate" => "Builds on the fundamentals with hands-on practice.",
+                    "Advanced" => "Deepens expertise with real-world techniques.",
+                    _ => "Hands-on lessons and practice.",
+                };
+                topics.Add(new TopicData
+                {
+                    Name = name,
+                    Description = $"Learn {name.ToLowerInvariant()} with worked examples and exercises. {levelText}",
+                });
+            }
+            return topics;
+        }
+
+        public Task<VideoScriptData?> GenerateVideoScriptAsync(string courseName, string topicName)
+        {
+            _logger.LogInformation("Mock AI: generating video script for {Topic}", topicName);
+            var script = new VideoScriptData
+            {
+                Title = topicName,
+                Slides = new List<VideoSlideData>
+                {
+                    new() { Title = $"Welcome to {topicName}", Bullets = new() { "Part of " + courseName, "Learn by doing", "About 2 minutes" }, Narration = $"Welcome! In this short video we will explore {topicName}, an important part of {courseName}. Let's get started." },
+                    new() { Title = "Why it matters", Bullets = new() { "Used in real projects", "Core building block", "Frequently asked in interviews" }, Narration = $"{topicName} shows up everywhere in real projects, so understanding it well gives you a strong foundation for everything that comes next." },
+                    new() { Title = "The core idea", Bullets = new() { "Start with the basics", "One concept at a time", "Practice as you go" }, Narration = $"The key with {topicName} is to master one concept at a time. Read the study material, try the examples yourself, and don't rush." },
+                    new() { Title = "Practice", Bullets = new() { "Try the worked example", "Take the topic quiz", "Ask questions early" }, Narration = "Now it's your turn. Open the study material, work through the example, and then test yourself with the quiz for this topic." },
+                    new() { Title = "Keep going!", Bullets = new() { "Review the summary", "Mark this topic complete", "Move to the next topic" }, Narration = $"Great job making it this far! Review the summary, mark {topicName} as complete, and I'll see you in the next topic." },
+                },
+            };
+            return Task.FromResult<VideoScriptData?>(script);
+        }
     }
 }

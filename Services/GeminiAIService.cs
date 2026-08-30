@@ -284,6 +284,48 @@ Requirements:
             }
         }
 
+        public async Task<List<TopicData>> GenerateStructuredTopicsAsync(string courseTitle, string courseDescription)
+        {
+            // Map the legacy prefixed topic list into clean names + descriptions.
+            var raw = await GenerateTopicsAsync(courseTitle, courseDescription);
+            return raw.Select(entry =>
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(entry, @"^\[(\w+)\]\s*(.+)$");
+                var name = match.Success ? match.Groups[2].Value : entry;
+                return new TopicData
+                {
+                    Name = name,
+                    Description = $"Learn {name.ToLowerInvariant()} with worked examples and practice exercises.",
+                };
+            }).ToList();
+        }
+
+        public async Task<VideoScriptData?> GenerateVideoScriptAsync(string courseName, string topicName)
+        {
+            try
+            {
+                var prompt = $@"Write the script for a 90-second educational video about '{topicName}' (course: {courseName}).
+Six slides; each slide has ""title"" (max 8 words), ""bullets"" (exactly 3, max 8 words each) and
+""narration"" (2-3 friendly spoken sentences). Return ONLY valid JSON:
+{{ ""title"": ""{topicName}"", ""slides"": [ {{ ""title"": ""..."", ""bullets"": [""...""], ""narration"": ""..."" }} ] }}";
+
+                var response = await CallGeminiAPI(prompt);
+                if (string.IsNullOrWhiteSpace(response)) return null;
+                var cleaned = response.Replace("```json", "").Replace("```", "").Trim();
+                var start = cleaned.IndexOf('{');
+                var end = cleaned.LastIndexOf('}');
+                if (start >= 0 && end > start) cleaned = cleaned[start..(end + 1)];
+                var script = JsonSerializer.Deserialize<VideoScriptData>(cleaned,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                return script != null && script.Slides.Count > 0 ? script : null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating video script for topic {TopicName}", topicName);
+                return null;
+            }
+        }
+
         /// <summary>
         /// Call Gemini API with the given prompt
         /// </summary>

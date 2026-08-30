@@ -50,22 +50,123 @@ Return ONLY a JSON array of topic title strings with level prefixes, for example
             return ParseJsonArray<string>(response, "topics") ?? new List<string>();
         }
 
+        public async Task<List<TopicData>> GenerateStructuredTopicsAsync(string courseTitle, string courseDescription)
+        {
+            var prompt = $@"Design the complete syllabus for a course titled '{courseTitle}'.
+Course description: {courseDescription}
+
+Create exactly 12 topics that take a student from absolute beginner to advanced,
+in the right learning order (fundamentals first, advanced last).
+
+Rules for topic NAMES:
+- Clean, specific, professional names (e.g. ""SQL for Data Extraction and Aggregation"")
+- NO level prefixes like [Beginner] or [Advanced] — the order itself shows progression
+- Directly relevant to '{courseTitle}'
+
+Rules for DESCRIPTIONS:
+- One or two sentences saying what the student will actually learn and be able to do
+- Never repeat the topic name or say ""this topic covers""
+
+Return ONLY a valid JSON array (no prose, no markdown):
+[
+  {{ ""name"": ""Topic name"", ""description"": ""What the student learns and can do afterwards."" }}
+]";
+
+            var response = await CallOmniRouteAsync(prompt);
+            var topics = ParseJsonArray<TopicData>(response, "structured topics") ?? new List<TopicData>();
+            return topics
+                .Where(t => !string.IsNullOrWhiteSpace(t.Name))
+                .Select(t => new TopicData
+                {
+                    Name = t.Name.Trim(),
+                    Description = string.IsNullOrWhiteSpace(t.Description)
+                        ? $"Hands-on lessons and practice for {t.Name.Trim()}."
+                        : t.Description.Trim(),
+                })
+                .ToList();
+        }
+
         public async Task<string> GenerateMaterialContentAsync(string courseName, string topicName)
         {
-            var prompt = $@"Create comprehensive learning material for the following:
+            var prompt = $@"Write a complete, well-structured study material for:
 Course: {courseName}
 Topic: {topicName}
 
-Generate detailed educational content that:
-1. Explains the topic clearly and concisely
-2. Includes practical examples
-3. Covers key concepts and sub-concepts
-4. Is suitable for students learning this topic
-5. Is about 500-800 words
+Format it in MARKDOWN with this structure:
+## Introduction
+(short paragraph on why this topic matters)
+## Key Concepts
+(explain 3-5 core concepts, using **bold** terms and bullet lists)
+## Worked Example
+(one practical, concrete example — use a fenced code block if code fits the topic)
+## Common Mistakes
+(bullet list of pitfalls students should avoid)
+## Summary
+(3-4 bullet takeaways)
 
-Return clear, well-structured plain text suitable for a learning platform (no markdown headers).";
+Length: 500-800 words. Write for a student learning this for the first time.
+Return ONLY the markdown content — no preamble, no closing remarks.";
 
             return await CallOmniRouteAsync(prompt) ?? string.Empty;
+        }
+
+        public async Task<VideoScriptData?> GenerateVideoScriptAsync(string courseName, string topicName)
+        {
+            var prompt = $@"Write the script for a 90-120 second educational video where a friendly teacher
+explains this topic to a beginner:
+Course: {courseName}
+Topic: {topicName}
+
+The video has exactly 6 scenes. For each scene give:
+- ""title"": short heading shown on the board (max 8 words)
+- ""bullets"": exactly 3 short points shown on the board (max 9 words each)
+- ""narration"": what the teacher SAYS over this scene — 3-4 natural, conversational
+  sentences (about 18 seconds of speech). Speak like a real teacher: warm, clear,
+  no jargon without explaining it. Never read the bullets word-for-word.
+
+Scene plan (follow exactly):
+1. Hook + what this topic is and why the student should care
+2. First core concept, explained simply
+3. Second core concept, explained simply
+4. A REAL CONCRETE EXAMPLE — walk through one specific real-world scenario with
+   actual names/numbers/values (e.g. a real company situation, a real calculation,
+   or real code behaviour). The bullets show the example's key facts.
+5. Common mistakes beginners make and how to avoid them
+6. Recap of the 3 most important points + encourage the student to try the quiz
+
+Return ONLY valid JSON (no prose, no markdown):
+{{
+  ""title"": ""{topicName}"",
+  ""slides"": [
+    {{ ""title"": ""..."", ""bullets"": [""..."", ""..."", ""...""], ""narration"": ""..."" }}
+  ]
+}}";
+
+            var response = await CallOmniRouteAsync(prompt);
+            if (string.IsNullOrWhiteSpace(response)) return null;
+            try
+            {
+                var cleaned = response.Replace("```json", "").Replace("```", "").Trim();
+                var start = cleaned.IndexOf('{');
+                var end = cleaned.LastIndexOf('}');
+                if (start >= 0 && end > start)
+                    cleaned = cleaned[start..(end + 1)];
+
+                var script = JsonSerializer.Deserialize<VideoScriptData>(cleaned, JsonOptions);
+                if (script == null || script.Slides.Count == 0) return null;
+                if (string.IsNullOrWhiteSpace(script.Title)) script.Title = topicName;
+                script.Slides = script.Slides
+                    .Where(s => !string.IsNullOrWhiteSpace(s.Narration))
+                    .Take(8)
+                    .ToList();
+                return script.Slides.Count > 0 ? script : null;
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "Could not parse OmniRoute video script: {Response}",
+                    response.Length > 300 ? response[..300] : response);
+                return null;
+            }
         }
 
         public async Task<List<QuizQuestionData>> GenerateQuizQuestionsAsync(string courseName, string topicName, int numberOfQuestions = 5)

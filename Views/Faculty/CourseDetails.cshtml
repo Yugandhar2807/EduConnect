@@ -77,9 +77,13 @@
                             {
                                 <a class="btn btn-sm btn-outline-secondary" href="@topic.PdfFilePath" target="_blank" title="View PDF"><i class="fa-solid fa-file-pdf"></i></a>
                             }
-                            <form asp-action="GenerateMaterialWithAI" method="post" class="d-inline">
+                            <form asp-action="GenerateMaterialWithAI" method="post" class="d-inline ai-long-form" data-confirm="Generate AI study material for '@topic.Name'?">
                                 <input type="hidden" name="topicId" value="@topic.Id" />
-                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Generate learning material with AI"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Generate study material with AI"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                            </form>
+                            <form asp-action="GenerateTopicVideo" method="post" class="d-inline ai-long-form" data-confirm="Generate a narrated, animated AI video lesson for '@topic.Name'? This takes 1–2 minutes — please wait after confirming.">
+                                <input type="hidden" name="topicId" value="@topic.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Generate AI video lesson"><i class="fa-solid fa-clapperboard"></i></button>
                             </form>
                             <form asp-action="DeleteTopic" method="post" class="d-inline" data-confirm="Delete topic '@topic.Name'?">
                                 <input type="hidden" name="topicId" value="@topic.Id" />
@@ -135,7 +139,15 @@
                                     <td class="text-muted">@material.UploadedAt.ToString("dd MMM yyyy")</td>
                                     <td class="text-end">
                                         <div class="btn-group btn-group-sm">
-                                            @if (!string.IsNullOrEmpty(material.FilePath))
+                                            @if (material.FileType == "Video" && !string.IsNullOrEmpty(material.FilePath))
+                                            {
+                                                <button type="button" class="btn btn-outline-primary" title="Play video"
+                                                        data-bs-toggle="modal" data-bs-target="#videoModal"
+                                                        data-title="@material.Title" data-src="@material.FilePath">
+                                                    <i class="fa-solid fa-play"></i>
+                                                </button>
+                                            }
+                                            else if (!string.IsNullOrEmpty(material.FilePath))
                                             {
                                                 <a class="btn btn-outline-secondary" href="@material.FilePath" target="_blank" title="Open"><i class="fa-solid fa-up-right-from-square"></i></a>
                                             }
@@ -226,18 +238,62 @@
                 <h5 class="modal-title" id="materialModalTitle"></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" id="materialModalBody" style="white-space:pre-wrap; font-size:.93rem"></div>
+            <div class="modal-body material-reader" id="materialModalBody"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Video player modal -->
+<div class="modal fade" id="videoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content" style="background:#0f172a">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-white" id="videoModalTitle"></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-0">
+                <video id="videoModalPlayer" controls style="width:100%; border-radius:8px" preload="metadata"></video>
+            </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
     <script>
         const materialModal = document.getElementById('materialModal');
         materialModal.addEventListener('show.bs.modal', function (event) {
             const btn = event.relatedTarget;
             materialModal.querySelector('#materialModalTitle').textContent = btn.dataset.title;
-            materialModal.querySelector('#materialModalBody').textContent = btn.dataset.content;
+            const body = materialModal.querySelector('#materialModalBody');
+            try {
+                body.innerHTML = DOMPurify.sanitize(marked.parse(btn.dataset.content || ''));
+            } catch (e) {
+                body.textContent = btn.dataset.content || '';
+            }
+        });
+
+        const videoModal = document.getElementById('videoModal');
+        const player = document.getElementById('videoModalPlayer');
+        videoModal.addEventListener('show.bs.modal', function (event) {
+            const btn = event.relatedTarget;
+            videoModal.querySelector('#videoModalTitle').textContent = btn.dataset.title;
+            player.src = btn.dataset.src;
+            player.play().catch(() => {});
+        });
+        videoModal.addEventListener('hidden.bs.modal', function () { player.pause(); player.src = ''; });
+
+        // Long-running AI forms: show a spinner once the confirm dialog approves the
+        // submit (the confirm handler runs first and preventDefaults the blocked pass).
+        document.querySelectorAll('.ai-long-form').forEach(function (form) {
+            form.addEventListener('submit', function (e) {
+                if (e.defaultPrevented) return;
+                const btn = form.querySelector('button[type=submit]');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                App.toast('Generating with AI — this can take a minute or two. Please stay on this page.', 'info');
+            });
         });
     </script>
 }

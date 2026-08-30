@@ -48,5 +48,17 @@ namespace EduConnect.Services
             _logger.LogWarning("AI Service is not configured. Cannot generate coding questions.");
             return Task.FromResult(new List<QuizQuestionData>());
         }
+
+        public Task<List<TopicData>> GenerateStructuredTopicsAsync(string courseTitle, string courseDescription)
+        {
+            _logger.LogWarning("AI Service is not configured. Cannot generate topics.");
+            return Task.FromResult(new List<TopicData>());
+        }
+
+        public Task<VideoScriptData?> GenerateVideoScriptAsync(string courseName, string topicName)
+        {
+            _logger.LogWarning("AI Service is not configured. Cannot generate a video script.");
+            return Task.FromResult<VideoScriptData?>(null);
+        }
     }
 }

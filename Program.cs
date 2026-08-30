@@ -9,6 +9,9 @@ using EduConnect.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Machine-local secrets (API keys) live outside version control.
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 // ---------- Data access ----------
 // SQLite database lives under App_Data (created on first run). A relative Data Source
 // is anchored to the content root — under IIS in-process hosting the process working
@@ -64,6 +67,10 @@ builder.Services.AddHttpClient();
 // ---------- Application services ----------
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IExcelExportService, ExcelExportService>();
+if (OperatingSystem.IsWindows())
+{
+    builder.Services.AddScoped<VideoGenerationService>();
+}
 
 // AI provider priority: OmniRoute gateway (when enabled) > Gemini (when a key is
 // configured) > deterministic offline mock, so AI features always keep working.

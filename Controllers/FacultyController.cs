@@ -752,20 +752,20 @@ namespace EduConnect.Controllers
 
             try
             {
-                var topics = await _aiService.GenerateTopicsAsync(course.Title ?? "", course.Description ?? "");
+                var topics = await _aiService.GenerateStructuredTopicsAsync(course.Title ?? "", course.Description ?? "");
                 if (topics.Count == 0)
                 {
                     TempData["Error"] = "Could not generate topics. Please try again.";
                     return RedirectToAction(nameof(CourseDetails), new { id = courseId });
                 }
 
-                foreach (var topicName in topics)
+                foreach (var topic in topics)
                 {
                     _context.Topics.Add(new Topic
                     {
                         CourseId = courseId,
-                        Name = topicName,
-                        Description = $"Auto-generated topic: {topicName}",
+                        Name = topic.Name,
+                        Description = topic.Description,
                         PdfFilePath = string.Empty,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow,
@@ -773,7 +773,7 @@ namespace EduConnect.Controllers
                 }
                 await _context.SaveChangesAsync();
 
-                TempData["Success"] = $"Generated {topics.Count} topics with AI.";
+                TempData["Success"] = $"Generated {topics.Count} topics with AI — ordered from fundamentals to advanced.";
             }
             catch (Exception ex)
             {
@@ -818,6 +818,65 @@ namespace EduConnect.Controllers
             {
                 _logger.LogError(ex, "Error generating material for topic {TopicId}", topicId);
                 TempData["Error"] = $"Error generating material: {ex.Message}";
+            }
+            return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
+        }
+
+        /// <summary>
+        /// Generates an animated, narrated AI video lesson for a topic and attaches
+        /// it to the course as a Video material. Takes one to two minutes.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GenerateTopicVideo(int topicId)
+        {
+            var topic = await _context.Topics.Include(t => t.Course).FirstOrDefaultAsync(t => t.Id == topicId);
+            if (topic?.Course == null) return NotFound();
+            if (topic.Course.FacultyId != CurrentUserId) return Forbid();
+
+            var videoService = HttpContext.RequestServices.GetService<VideoGenerationService>();
+            if (videoService == null || !videoService.ToolsAvailable)
+            {
+                TempData["Error"] = "Video generation tools are not available on this server.";
+                return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
+            }
+
+            try
+            {
+                var script = await _aiService.GenerateVideoScriptAsync(topic.Course.Title ?? "", topic.Name);
+                if (script == null)
+                {
+                    TempData["Error"] = "The AI could not write a video script. Please try again.";
+                    return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
+                }
+
+                var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+                var result = await videoService.GenerateAsync(script, webRoot);
+                if (result == null)
+                {
+                    TempData["Error"] = "Video rendering failed. Check the server logs for details.";
+                    return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
+                }
+
+                _context.Materials.Add(new Material
+                {
+                    TopicId = topicId,
+                    CourseId = topic.CourseId,
+                    Title = $"{topic.Name} — Video Lesson",
+                    Description = $"AI-generated animated video lesson for {topic.Name}.",
+                    FileType = "Video",
+                    FilePath = result.Value.RelativePath,
+                    FileSize = result.Value.FileSize,
+                    UploadedAt = DateTime.UtcNow,
+                });
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = $"Video lesson for '{topic.Name}' is ready — find it in the Materials tab.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating video for topic {TopicId}", topicId);
+                TempData["Error"] = $"Error generating video: {ex.Message}";
             }
             return RedirectToAction(nameof(CourseDetails), new { id = topic.CourseId });
         }

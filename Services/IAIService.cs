@@ -13,6 +13,17 @@ namespace EduConnect.Services
         Task<List<string>> GenerateTopicsAsync(string courseTitle, string courseDescription);
 
         /// <summary>
+        /// Generate structured course topics (clean names + real descriptions,
+        /// ordered from fundamentals to advanced)
+        /// </summary>
+        Task<List<TopicData>> GenerateStructuredTopicsAsync(string courseTitle, string courseDescription);
+
+        /// <summary>
+        /// Generate a short narrated-video script (slides with narration) for a topic
+        /// </summary>
+        Task<VideoScriptData?> GenerateVideoScriptAsync(string courseName, string topicName);
+
+        /// <summary>
         /// Generate material content (description/script) for a topic
         /// </summary>
         Task<string> GenerateMaterialContentAsync(string courseName, string topicName);
@@ -36,6 +47,27 @@ namespace EduConnect.Services
         /// Generate coding challenge questions
         /// </summary>
         Task<List<QuizQuestionData>> GenerateCodingQuestionsAsync(string courseName, string topicName, int count = 1);
+    }
+
+    /// <summary>Structured topic returned by AI generation.</summary>
+    public class TopicData
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+
+    /// <summary>Script for a short narrated slideshow video.</summary>
+    public class VideoScriptData
+    {
+        public string Title { get; set; } = string.Empty;
+        public List<VideoSlideData> Slides { get; set; } = new();
+    }
+
+    public class VideoSlideData
+    {
+        public string Title { get; set; } = string.Empty;
+        public List<string> Bullets { get; set; } = new();
+        public string Narration { get; set; } = string.Empty;
     }
 
     /// <summary>

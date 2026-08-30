@@ -20,6 +20,19 @@
     </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="9.0.0" />
     <PackageReference Include="EPPlus" Version="7.3.8" />
+    <!-- Video generation: GDI+ frame drawing and offline TTS fallback (Windows host) -->
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
+    <PackageReference Include="System.Speech" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Bundled video toolchain (ffmpeg + node + neural TTS script). Only the two
+         root-level json files are auto-included by the SDK (node_modules is not),
+         so exclude exactly those from the explicit glob and Update them instead —
+         every package.json inside node_modules MUST ship or Node cannot resolve
+         the msedge-tts package. -->
+    <Content Include="tools\**" Exclude="tools\tts\package.json;tools\tts\package-lock.json" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
+    <Content Update="tools\tts\package.json;tools\tts\package-lock.json" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

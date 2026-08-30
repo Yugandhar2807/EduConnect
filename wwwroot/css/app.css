@@ -522,6 +522,47 @@ th[data-sort].sorted-desc::after { content: '\2193'; opacity: 1; }
 }
 .score-ring .ring-label .value { font-size: 1.7rem; font-weight: 700; }
 
+/* ==================== Material reader (rendered markdown) ==================== */
+
+.material-reader { font-size: .95rem; line-height: 1.7; padding: 1.5rem 2rem; }
+.material-reader h1, .material-reader h2 {
+    font-size: 1.15rem;
+    margin: 1.4rem 0 .6rem;
+    padding-bottom: .35rem;
+    border-bottom: 2px solid var(--primary-soft);
+    color: var(--primary);
+}
+.material-reader h3 { font-size: 1rem; margin: 1.1rem 0 .4rem; }
+.material-reader h1:first-child, .material-reader h2:first-child { margin-top: 0; }
+.material-reader ul, .material-reader ol { padding-left: 1.4rem; margin-bottom: .9rem; }
+.material-reader li { margin-bottom: .3rem; }
+.material-reader p { margin-bottom: .9rem; }
+.material-reader strong { color: var(--text); }
+.material-reader code {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: .1rem .35rem;
+    font-size: .84rem;
+    color: var(--primary-dark);
+}
+.material-reader pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    font-size: .84rem;
+}
+.material-reader pre code { background: none; border: 0; color: inherit; padding: 0; }
+.material-reader blockquote {
+    border-left: 4px solid var(--primary);
+    background: var(--primary-soft);
+    padding: .6rem 1rem;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    color: var(--text);
+}
+
 /* ==================== Announcements ==================== */
 
 .announcement-item { display: flex; gap: 1rem; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border); }
