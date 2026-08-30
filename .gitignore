@@ -79,3 +79,6 @@ iis-setup.log
 ## Publish output and local runtime data
 publish/
 App_Data/
+
+## Tunnel runtime log
+tunnel.log
